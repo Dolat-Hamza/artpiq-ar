@@ -566,41 +566,54 @@
     }
 
     // ── Artwork definitions ──────────────────────────────────────────────────
-    // articId = numeric ID on artic.edu (verified). image_id UUID fetched at runtime.
-    // The IIIF CDN (www.artic.edu/iiif/2) has proper CORS + no hotlink restrictions.
+    // wikiTitle = exact Wikipedia article name used by the REST summary API.
+    // Images come from upload.wikimedia.org which has Access-Control-Allow-Origin: *
+    // — no UUID guessing, no API key, verified CORS.
     const ARTWORKS = [
       {
-        id: 'grande-jatte', articId: 27992, type: 'painting',
+        id: 'starry-night', type: 'painting',
+        wikiTitle: 'The_Starry_Night',
+        title: 'The Starry Night',
+        artist: 'Vincent van Gogh', year: '1889', medium: 'Oil on canvas',
+        widthCm: 92, heightCm: 73,
+      },
+      {
+        id: 'great-wave', type: 'painting',
+        wikiTitle: 'The_Great_Wave_off_Kanagawa',
+        title: 'The Great Wave off Kanagawa',
+        artist: 'Katsushika Hokusai', year: '1831', medium: 'Woodblock print',
+        widthCm: 38, heightCm: 26,
+      },
+      {
+        id: 'pearl-earring', type: 'painting',
+        wikiTitle: 'Girl_with_a_Pearl_Earring',
+        title: 'Girl with a Pearl Earring',
+        artist: 'Johannes Vermeer', year: '1665', medium: 'Oil on canvas',
+        widthCm: 39, heightCm: 44,
+      },
+      {
+        id: 'birth-of-venus', type: 'painting',
+        wikiTitle: 'The_Birth_of_Venus',
+        title: 'The Birth of Venus',
+        artist: 'Sandro Botticelli', year: '1485', medium: 'Tempera on canvas',
+        widthCm: 278, heightCm: 172,
+      },
+      {
+        id: 'liberty', type: 'painting',
+        wikiTitle: 'Liberty_Leading_the_People',
+        title: 'Liberty Leading the People',
+        artist: 'Eugène Delacroix', year: '1830', medium: 'Oil on canvas',
+        widthCm: 325, heightCm: 260,
+      },
+      {
+        id: 'grande-jatte', type: 'painting',
+        wikiTitle: 'A_Sunday_Afternoon_on_the_Island_of_La_Grande_Jatte',
         title: 'A Sunday on La Grande Jatte',
         artist: 'Georges Seurat', year: '1886', medium: 'Oil on canvas',
         widthCm: 308, heightCm: 207,
       },
       {
-        id: 'american-gothic', articId: 6565, type: 'painting',
-        title: 'American Gothic',
-        artist: 'Grant Wood', year: '1930', medium: 'Oil on beaverboard',
-        widthCm: 78, heightCm: 65,
-      },
-      {
-        id: 'nighthawks', articId: 111628, type: 'painting',
-        title: 'Nighthawks',
-        artist: 'Edward Hopper', year: '1942', medium: 'Oil on canvas',
-        widthCm: 152, heightCm: 84,
-      },
-      {
-        id: 'great-wave', articId: 24645, type: 'painting',
-        title: 'Under the Wave off Kanagawa',
-        artist: 'Katsushika Hokusai', year: '1831', medium: 'Woodblock print',
-        widthCm: 38, heightCm: 26,
-      },
-      {
-        id: 'water-lilies', articId: 16568, type: 'painting',
-        title: 'Water Lilies',
-        artist: 'Claude Monet', year: '1906', medium: 'Oil on canvas',
-        widthCm: 90, heightCm: 93,
-      },
-      {
-        id: 'bronze-helix', articId: null, type: 'sculpture',
+        id: 'bronze-helix', type: 'sculpture',
         title: 'Rising Helix',
         artist: 'ArtPiq Studio', year: '2024', medium: 'Bronze (3D)',
         widthCm: 20, heightCm: 42,
@@ -608,7 +621,7 @@
         image: null, thumb: null,
       },
       {
-        id: 'obsidian-form', articId: null, type: 'sculpture',
+        id: 'obsidian-form', type: 'sculpture',
         title: 'Obsidian Form No. 3',
         artist: 'ArtPiq Studio', year: '2024', medium: 'Obsidian glass (3D)',
         widthCm: 15, heightCm: 28,
@@ -617,28 +630,32 @@
       },
     ];
 
-    // ── Fetch ARTIC image IDs ────────────────────────────────────────────────
-    // Batched single API call; returns image_id UUID for each ARTIC artwork.
-    async function fetchARTICImages() {
-      const painting = ARTWORKS.filter(a => a.articId);
-      const ids = painting.map(a => a.articId).join(',');
-      const fields = 'id,image_id';
-
-      const res = await fetch(
-        `https://api.artic.edu/api/v1/artworks?ids=${ids}&fields=${fields}`,
-        { signal: AbortSignal.timeout(8000) }
+    // ── Fetch images via Wikipedia REST API ──────────────────────────────────
+    // GET /api/rest_v1/page/summary/{title}
+    // Returns thumbnail (small) + originalimage (full-res) hosted on
+    // upload.wikimedia.org — Access-Control-Allow-Origin: * guaranteed.
+    // All requests run in parallel; individual failures don't block others.
+    async function fetchWikiImages() {
+      const paintings = ARTWORKS.filter(a => a.wikiTitle);
+      await Promise.allSettled(
+        paintings.map(async (aw) => {
+          try {
+            const res = await fetch(
+              `https://en.wikipedia.org/api/rest_v1/page/summary/${aw.wikiTitle}`,
+              {
+                headers: { 'Api-User-Agent': 'artpiq-demo/1.0 (https://artpiq-ar.vercel.app)' },
+                signal: AbortSignal.timeout(10000),
+              }
+            );
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            aw.image = data.originalimage?.source ?? data.thumbnail?.source ?? null;
+            aw.thumb = data.thumbnail?.source ?? data.originalimage?.source ?? null;
+          } catch (err) {
+            console.warn(`[wiki] ${aw.id}:`, err.message);
+          }
+        })
       );
-      if (!res.ok) throw new Error(`ARTIC API ${res.status}`);
-      const { data } = await res.json();
-
-      data.forEach(({ id, image_id }) => {
-        const aw = ARTWORKS.find(a => a.articId === id);
-        if (aw && image_id) {
-          const base = `https://www.artic.edu/iiif/2/${image_id}/full`;
-          aw.image = `${base}/1280,/0/default.jpg`;
-          aw.thumb = `${base}/400,/0/default.jpg`;
-        }
-      });
     }
 
     // ── Catalogue rendering ──────────────────────────────────────────────────
@@ -711,11 +728,9 @@
       });
     }
 
-    // Init: show skeletons, fetch, render
+    // Init: show skeletons → fetch Wikipedia image URLs → render catalogue
     showSkeletons();
-    fetchARTICImages()
-      .catch(err => console.warn('[ARTIC]', err))
-      .finally(() => renderCatalogue());
+    fetchWikiImages().finally(() => renderCatalogue());
 
     // Filter tabs
     document.querySelectorAll('.tab').forEach(t => {
