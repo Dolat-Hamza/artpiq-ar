@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>ArtPiq · Place Art in Your Space</title>
+
+  <!-- Google model-viewer (SRI hash verified) -->
+  <script type="module"
+    src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"
+    integrity="sha384-NxrHiuPcsJaRbXc9EoFTt5OZ6WPVqKeDgcnykGs3spXmq0J7hbbGGlyUkrGuoJoA"
+    crossorigin="anonymous">
+  </script>
+
+  <style>
+    :root {
+      --bg:            #0d0d0d;
+      --surface:       #191919;
+      --surface2:      #222;
+      --border:        #2a2a2a;
+      --text:          #f0ece6;
+      --muted:         #888;
+      --accent:        #c8a96e;
+      --accent-dark:   #a8893e;
+      --radius:        12px;
+      --shadow:        0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      background: rgba(13,13,13,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 50;
+    }
+
+    .logo {
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+    }
+    .logo span { color: var(--accent); }
+
+    .tagline {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    /* ── Catalogue ────────────────────────────────────────────── */
+    .catalogue {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+      user-select: none;
+    }
+    .card:hover  { transform: translateY(-3px); border-color: var(--accent); }
+    .card:active { transform: scale(0.98); }
+
+    .card-image {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+      background: #111;
+    }
+
+    .card-thumb-placeholder {
+      width: 100%;
+      aspect-ratio: 4/3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 54px;
+      gap: 6px;
+      background: linear-gradient(135deg, #1a1610 0%, #221e16 50%, #1a1a18 100%);
+    }
+    .card-thumb-placeholder small {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .card-body  { padding: 12px 14px 14px; }
+    .card-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .card-sub   { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(200,169,110,0.08);
+      color: var(--accent);
+      border: 1px solid rgba(200,169,110,0.18);
+      letter-spacing: 0.2px;
+    }
+
+    /* ── Shared modal overlay ─────────────────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.82);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    /* ── Detail bottom sheet ──────────────────────────────────── */
+    .detail-sheet {
+      background: var(--surface);
+      border-radius: var(--radius) var(--radius) 0 0;
+      width: 100%;
+      max-width: 520px;
+      padding: 16px 20px 36px;
+      transform: translateY(24px);
+      transition: transform 0.22s;
+    }
+    .overlay.open .detail-sheet { transform: translateY(0); }
+
+    .handle {
+      width: 36px; height: 4px;
+      background: #3a3a3a;
+      border-radius: 2px;
+      margin: 0 auto 18px;
+    }
+
+    #modalImg {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #111;
+      margin-bottom: 14px;
+    }
+
+    #modalTitle  { font-size: 19px; font-weight: 700; margin-bottom: 3px; }
+    #modalArtist { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+    .dims {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+    .dim-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 2px;
+    }
+    .dim-value { font-size: 15px; font-weight: 600; }
+
+    #modalDesc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+
+    .btn {
+      flex: 1;
+      padding: 14px 10px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.45; cursor: wait; }
+
+    .btn-primary   { background: var(--accent); color: #0d0d0d; }
+    .btn-secondary { background: var(--surface2); color: var(--text); }
+
+    /* ── Pre-AR instructions ──────────────────────────────────── */
+    .prear-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s;
+    }
+    .prear-overlay.open { opacity: 1; pointer-events: all; }
+
+    .prear-box {
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 28px 24px 24px;
+      max-width: 340px;
+      width: 100%;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .prear-icon { font-size: 52px; margin-bottom: 14px; }
+    .prear-box h3 { font-size: 19px; font-weight: 700; margin-bottom: 10px; }
+    .prear-box p  { font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+
+    .steps { list-style: none; text-align: left; margin-bottom: 16px; }
+    .steps li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #bbb;
+      line-height: 1.45;
+    }
+    .steps li strong { color: var(--text); }
+
+    .step-n {
+      background: var(--accent);
+      color: #0d0d0d;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .prear-note {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 9px 12px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .btn-full {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #0d0d0d;
+      margin-bottom: 8px;
+      transition: opacity 0.15s;
+    }
+    .btn-full:active { opacity: 0.85; }
+
+    .btn-text {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    /* ── AR full-screen viewer ────────────────────────────────── */
+    .ar-screen {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+    }
+    .ar-screen.hidden { display: none; }
+
+    .ar-topbar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%);
+    }
+    .ar-artwork-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    }
+    .ar-close-btn {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(6px);
+      border: none;
+      color: #fff;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ar-hint {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.62);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 22px;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      pointer-events: none;
+      white-space: nowrap;
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      transition: opacity 0.4s;
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background: #111;
+    }
+
+    /* ── Room preview ────────────────────────────────────────── */
+    .room-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s;
+    }
+    .room-overlay.open { opacity: 1; pointer-events: all; }
+
+    #roomCanvas {
+      max-width: min(92vw, 640px);
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    #roomLoading {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .room-close {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #fff;
+      padding: 10px 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* ── QR overlay ──────────────────────────────────────────── */
+    .qr-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s;
+    }
+    .qr-overlay.open { opacity: 1; pointer-events: all; }
+
+    .qr-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      max-width: 300px;
+      box-shadow: var(--shadow);
+    }
+    .qr-box h3  { font-size: 17px; margin-bottom: 6px; }
+    .qr-box p   { font-size: 12px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+    #qrCanvas   { border-radius: 8px; }
+    .qr-close {
+      display: block;
+      margin: 14px auto 0;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 22px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────── */
+    .spin {
+      display: inline-block;
+      width: 15px; height: 15px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: s 0.65s linear infinite;
+    }
+    @keyframes s { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .catalogue { padding: 12px; gap: 10px; }
+      .catalogue { grid-template-columns: repeat(2, 1fr); }
+      .card-title { font-size: 12px; }
+      .card-sub   { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">Art<span>Piq</span></div>
+    <div class="tagline">Place art in your space</div>
+  </header>
+
+  <!-- Catalogue grid -->
+  <div class="catalogue" id="catalogue"></div>
+
+  <!-- ── Detail bottom sheet ───────────────────────────────── -->
+  <div class="overlay" id="detailOverlay">
+    <div class="detail-sheet">
+      <div class="handle"></div>
+      <img id="modalImg" src="" alt="" />
+      <div id="modalTitle"></div>
+      <div id="modalArtist"></div>
+      <div id="modalDesc"></div>
+      <div class="dims">
+        <div>
+          <div class="dim-label">Width</div>
+          <div class="dim-value" id="modalW">—</div>
+        </div>
+        <div>
+          <div class="dim-label">Height</div>
+          <div class="dim-value" id="modalH">—</div>
+        </div>
+        <div>
+          <div class="dim-label">Type</div>
+          <div class="dim-value" id="modalType">—</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btnRoom">🖼️ Sample Room</button>
+        <button class="btn btn-primary"   id="btnAR">📱 View in AR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pre-AR instructions ──────────────────────────────── -->
+  <div class="prear-overlay" id="preArOverlay">
+    <div class="prear-box">
+      <div class="prear-icon" id="preArIcon">📱</div>
+      <h3>View in Your Space</h3>
+      <p id="preArIntro">Place this artwork in any room using your phone's camera.</p>
+      <ul class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <span id="preArStep1">Point camera at a <strong>wall</strong> and move slowly</span>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <span>Wait for a <strong>placement ring</strong> to appear on the surface</span>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <span><strong>Tap</strong> to place — then pinch to resize</span>
+        </li>
+      </ul>
+      <div class="prear-note" id="preArNote">
+        Requires Android Chrome or iOS Safari in a well-lit room.
+        AR is powered by Google's free model-viewer — no app needed.
+      </div>
+      <button class="btn-full" id="btnStartAR">Start AR Experience →</button>
+      <button class="btn-text" id="btnCancelAR">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ── AR full-screen viewer ────────────────────────────── -->
+  <div class="ar-screen hidden" id="arScreen">
+    <div class="ar-topbar">
+      <div class="ar-artwork-name" id="arName">Loading…</div>
+      <button class="ar-close-btn" id="arClose">✕</button>
+    </div>
+    <div class="ar-hint" id="arHint">Generating 3D model…</div>
+    <model-viewer
+      id="mv"
+      ar
+      ar-modes="webxr quick-look"
+      ar-placement="wall"
+      camera-controls
+      shadow-intensity="1"
+      exposure="1.1"
+      tone-mapping="commerce"
+      style="width:100%;height:100%;">
+    </model-viewer>
+  </div>
+
+  <!-- ── Room preview ─────────────────────────────────────── -->
+  <div class="room-overlay" id="roomOverlay">
+    <div id="roomLoading" style="display:none">Rendering preview…</div>
+    <canvas id="roomCanvas" width="800" height="534"></canvas>
+    <button class="room-close" id="roomClose">Close</button>
+  </div>
+
+  <!-- ── QR Code (desktop) ─────────────────────────────────── -->
+  <div class="qr-overlay" id="qrOverlay">
+    <div class="qr-box">
+      <h3>Scan to view in AR</h3>
+      <p>Open this page on your phone to place the artwork in your space</p>
+      <canvas id="qrCanvas"></canvas>
+      <button class="qr-close" id="qrClose">Close</button>
+    </div>
+  </div>
+
+  <!-- ── Application logic ─────────────────────────────────── -->
+  <script type="module">
+    import * as THREE from 'https://esm.sh/three@0.160.0';
+    import { GLTFExporter } from 'https://esm.sh/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
+    import QRCode from 'https://esm.sh/qrcode@1.5.3';
+
+    // ── Catalogue data ───────────────────────────────────────────────────────
+
+    const ARTWORKS = [
+      {
+        id: 'starry-night',
+        title: 'The Starry Night',
+        artist: 'Vincent van Gogh · 1889',
+        medium: 'Oil on canvas',
+        widthCm: 92,
+        heightCm: 73,
+        type: 'painting',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
+        thumb: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/400px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
+      },
+      {
+        id: 'great-wave',
+        title: 'The Great Wave',
+        artist: 'Katsushika Hokusai · 1831',
+        medium: 'Woodblock print',
+        widthCm: 38,
+        heightCm: 26,
+        type: 'painting',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/1280px-Tsunami_by_hokusai_19th_century.jpg',
+        thumb: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/400px-Tsunami_by_hokusai_19th_century.jpg',
+      },
+      {
+        id: 'pearl-earring',
+        title: 'Girl with a Pearl Earring',
+        artist: 'Johannes Vermeer · 1665',
+        medium: 'Oil on canvas',
+        widthCm: 39,
+        heightCm: 44,
+        type: 'painting',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/800px-1665_Girl_with_a_Pearl_Earring.jpg',
+        thumb: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/400px-1665_Girl_with_a_Pearl_Earring.jpg',
+      },
+      {
+        id: 'infinite-loop',
+        title: 'Infinite Loop',
+        artist: 'ArtPiq Studio · 2024',
+        medium: 'Bronze (3D Sculpture)',
+        widthCm: 18,
+        heightCm: 38,
+        type: 'sculpture',
+        description: 'A continuous torus-knot form in aged bronze — symbolising infinity and interconnection. Displayed on a white marble pedestal.',
+        image: null,
+        thumb: null,
+      },
+    ];
+
+    // ── Render catalogue ─────────────────────────────────────────────────────
+
+    const catalogueEl = document.getElementById('catalogue');
+
+    ARTWORKS.forEach((aw) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const thumbHtml = aw.thumb
+        ? `<img class="card-image" src="${aw.thumb}" alt="${aw.title}" loading="lazy">`
+        : `<div class="card-thumb-placeholder">🗿<small>3D Sculpture</small></div>`;
+
+      const sizeLabel = aw.type === 'sculpture'
+        ? `${aw.heightCm} cm tall`
+        : `${aw.widthCm} × ${aw.heightCm} cm`;
+
+      card.innerHTML = `
+        ${thumbHtml}
+        <div class="card-body">
+          <div class="card-title">${aw.title}</div>
+          <div class="card-sub">${aw.artist}</div>
+          <div class="badges">
+            <span class="badge">${aw.type === 'sculpture' ? '3D Sculpture' : 'Painting'}</span>
+            <span class="badge">${sizeLabel}</span>
+          </div>
+        </div>`;
+
+      card.addEventListener('click', () => openDetail(aw));
+      catalogueEl.appendChild(card);
+    });
+
+    // ── Detail sheet ─────────────────────────────────────────────────────────
+
+    let current = null;
+    const detailOverlay = document.getElementById('detailOverlay');
+
+    function openDetail(aw) {
+      current = aw;
+
+      const img = document.getElementById('modalImg');
+      if (aw.image) {
+        img.src = aw.image;
+        img.style.display = 'block';
+      } else {
+        img.style.display = 'none';
+      }
+
+      document.getElementById('modalTitle').textContent = aw.title;
+      document.getElementById('modalArtist').textContent = aw.artist;
+
+      const descEl = document.getElementById('modalDesc');
+      if (aw.description) {
+        descEl.textContent = aw.description;
+        descEl.style.display = 'block';
+      } else {
+        descEl.style.display = 'none';
+      }
+
+      document.getElementById('modalW').textContent    = `${aw.widthCm} cm`;
+      document.getElementById('modalH').textContent    = `${aw.heightCm} cm`;
+      document.getElementById('modalType').textContent = aw.type === 'sculpture' ? '3D' : 'Flat';
+
+      // Hide room preview for sculpture (canvas compositing is painting-only for now)
+      document.getElementById('btnRoom').style.display =
+        aw.type === 'sculpture' ? 'none' : '';
+
+      detailOverlay.classList.add('open');
+    }
+
+    detailOverlay.addEventListener('click', (e) => {
+      if (e.target === detailOverlay) detailOverlay.classList.remove('open');
+    });
+
+    // ── GLB generation & cache ────────────────────────────────────────────────
+
+    const glbCache = new Map();
+
+    async function getPaintingGLB(aw) {
+      if (glbCache.has(aw.id)) return glbCache.get(aw.id);
+
+      const wM = aw.widthCm  / 100;
+      const hM = aw.heightCm / 100;
+
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      const texture = await new Promise((res, rej) =>
+        loader.load(aw.image, res, undefined, () => rej(new Error('Texture load failed')))
+      );
+      texture.colorSpace = THREE.SRGBColorSpace;
+
+      const scene = new THREE.Scene();
+
+      // Canvas (artwork surface)
+      const canvasMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(wM, hM),
+        new THREE.MeshStandardMaterial({ map: texture, roughness: 0.75, metalness: 0.0 })
+      );
+      scene.add(canvasMesh);
+
+      // Dark wood frame (four bars)
+      const ft = 0.018; // frame thickness
+      const fd = 0.014; // frame depth
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e1008, roughness: 0.6, metalness: 0.05 });
+
+      [
+        { w: wM + ft * 2, h: ft, x: 0, y: -(hM / 2 + ft / 2) },
+        { w: wM + ft * 2, h: ft, x: 0, y:  (hM / 2 + ft / 2) },
+        { w: ft, h: hM,          x: -(wM / 2 + ft / 2), y: 0 },
+        { w: ft, h: hM,          x:  (wM / 2 + ft / 2), y: 0 },
+      ].forEach(({ w, h, x, y }) => {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, fd), frameMat);
+        bar.position.set(x, y, -fd / 2 + 0.001);
+        scene.add(bar);
+      });
+
+      // Lights
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      const key = new THREE.DirectionalLight(0xffffff, 1.1);
+      key.position.set(0.5, 1, 1);
+      scene.add(key);
+
+      const url = await exportGLB(scene);
+      glbCache.set(aw.id, url);
+      return url;
+    }
+
+    async function getSculptureGLB(aw) {
+      if (glbCache.has(aw.id)) return glbCache.get(aw.id);
+
+      const scene = new THREE.Scene();
+
+      // ── White marble pedestal ─────────────────────────────────────────────
+      const marble = new THREE.MeshStandardMaterial({
+        color: 0xf2eee8, roughness: 0.42, metalness: 0.0
+      });
+
+      // Base slab
+      const baseSlab = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.022, 0.18), marble);
+      baseSlab.position.y = 0.011;
+      scene.add(baseSlab);
+
+      // Column
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.20, 24), marble);
+      col.position.y = 0.122;
+      scene.add(col);
+
+      // Capital slab
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, 0.14), marble);
+      cap.position.y = 0.231;
+      scene.add(cap);
+
+      // ── Bronze torus-knot sculpture ───────────────────────────────────────
+      const bronze = new THREE.MeshStandardMaterial({
+        color: 0x8b6234,
+        roughness: 0.30,
+        metalness: 0.80,
+      });
+
+      // Main knot (p=2, q=3 gives a beautiful trefoil-like form)
+      const knotGeo = new THREE.TorusKnotGeometry(0.072, 0.024, 160, 20, 2, 3);
+      const knot = new THREE.Mesh(knotGeo, bronze);
+      knot.position.y = 0.33;
+      knot.rotation.x = Math.PI / 10; // slight tilt for better visual
+      scene.add(knot);
+
+      // ── Lights ────────────────────────────────────────────────────────────
+      scene.add(new THREE.AmbientLight(0xfff8f0, 0.45));
+
+      const key = new THREE.DirectionalLight(0xfff5e4, 1.8);
+      key.position.set(1.5, 3, 2);
+      scene.add(key);
+
+      const fill = new THREE.DirectionalLight(0xc8d8ff, 0.55);
+      fill.position.set(-2, 0.5, -1);
+      scene.add(fill);
+
+      const rim = new THREE.DirectionalLight(0xfff0d0, 0.4);
+      rim.position.set(0, -1, -2);
+      scene.add(rim);
+
+      const url = await exportGLB(scene);
+      glbCache.set(aw.id, url);
+      return url;
+    }
+
+    function exportGLB(scene) {
+      return new Promise((resolve, reject) => {
+        new GLTFExporter().parse(
+          scene,
+          (gltf) => resolve(URL.createObjectURL(new Blob([gltf], { type: 'model/gltf-binary' }))),
+          reject,
+          { binary: true }
+        );
+      });
+    }
+
+    // ── AR flow ──────────────────────────────────────────────────────────────
+
+    const preArOverlay = document.getElementById('preArOverlay');
+    const arScreen     = document.getElementById('arScreen');
+    const mv           = document.getElementById('mv');
+    const arHint       = document.getElementById('arHint');
+    const arName       = document.getElementById('arName');
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    document.getElementById('btnAR').addEventListener('click', () => {
+      if (!current) return;
+
+      if (!isMobile) {
+        // Desktop → show QR so user can scan on phone
+        showQR();
+        detailOverlay.classList.remove('open');
+        return;
+      }
+
+      // Mobile → show pre-AR instructions
+      const isSculpture = current.type === 'sculpture';
+      document.getElementById('preArIcon').textContent  = isSculpture ? '🗿' : '🖼️';
+      document.getElementById('preArStep1').innerHTML   = isSculpture
+        ? 'Point camera at the <strong>floor</strong> and move slowly'
+        : 'Point camera at a <strong>wall</strong> and move slowly';
+      document.getElementById('preArNote').textContent  = isSculpture
+        ? 'The sculpture will be placed on the floor in front of you. Works on Android Chrome.'
+        : 'Paintings are placed on walls. Works on Android Chrome (WebXR) and iOS Safari (AR Quick Look).';
+
+      detailOverlay.classList.remove('open');
+      preArOverlay.classList.add('open');
+    });
+
+    document.getElementById('btnStartAR').addEventListener('click', async () => {
+      preArOverlay.classList.remove('open');
+      await launchAR(current);
+    });
+
+    document.getElementById('btnCancelAR').addEventListener('click', () => {
+      preArOverlay.classList.remove('open');
+    });
+
+    document.getElementById('arClose').addEventListener('click', closeAR);
+
+    async function launchAR(aw) {
+      arScreen.classList.remove('hidden');
+      arName.textContent = aw.title;
+      arHint.textContent = 'Generating 3D model…';
+      arHint.style.opacity = '1';
+
+      // Set wall vs. floor placement — KEY for correct surface detection
+      mv.setAttribute('ar-placement', aw.type === 'sculpture' ? 'floor' : 'wall');
+      mv.removeAttribute('src');
+
+      try {
+        const url = aw.type === 'sculpture'
+          ? await getSculptureGLB(aw)
+          : await getPaintingGLB(aw);
+
+        mv.setAttribute('src', url);
+        arHint.textContent = aw.type === 'sculpture'
+          ? 'Tap the AR button below to place on floor'
+          : 'Tap the AR button below to place on wall';
+
+        // Auto-activate AR once model is loaded
+        mv.addEventListener('load', () => {
+          setTimeout(() => {
+            if (mv.canActivateAR) mv.activateAR();
+          }, 400);
+        }, { once: true });
+
+      } catch (err) {
+        arHint.textContent = '⚠️ ' + (err.message || 'Failed to generate model');
+      }
+    }
+
+    // React to WebXR AR state changes
+    mv.addEventListener('ar-status', (e) => {
+      const s = e.detail?.status;
+      if (s === 'session-started') {
+        arHint.textContent = current?.type === 'sculpture'
+          ? 'Move camera over the floor to detect surface…'
+          : 'Move camera slowly over a wall to detect surface…';
+      } else if (s === 'object-placed') {
+        arHint.textContent = '✓ Placed! Pinch to resize · Drag to move';
+        setTimeout(() => { arHint.style.opacity = '0'; }, 4000);
+      } else if (s === 'failed') {
+        arHint.textContent = '⚠️ AR unavailable — try Android Chrome in a well-lit room';
+        arHint.style.opacity = '1';
+      }
+    });
+
+    function closeAR() {
+      arScreen.classList.add('hidden');
+      arHint.style.opacity = '1';
+      mv.removeAttribute('src');
+    }
+
+    // ── Room preview ─────────────────────────────────────────────────────────
+
+    const roomOverlay = document.getElementById('roomOverlay');
+    const roomCanvas  = document.getElementById('roomCanvas');
+    const roomCtx     = roomCanvas.getContext('2d');
+
+    document.getElementById('btnRoom').addEventListener('click', () => {
+      if (!current || current.type === 'sculpture') return;
+      detailOverlay.classList.remove('open');
+      roomOverlay.classList.add('open');
+      drawRoom(current);
+    });
+
+    document.getElementById('roomClose').addEventListener('click', () => {
+      roomOverlay.classList.remove('open');
+    });
+
+    async function drawRoom(aw) {
+      const W = 800, H = 534;
+      roomCanvas.width  = W;
+      roomCanvas.height = H;
+      const ctx = roomCtx;
+
+      // ── Wall ─────────────────────────────────────────────────────────────
+      const wallH = H * 0.63;
+
+      const wallGrad = ctx.createLinearGradient(0, 0, 0, wallH);
+      wallGrad.addColorStop(0, '#cec5b8');
+      wallGrad.addColorStop(1, '#bdb3a6');
+      ctx.fillStyle = wallGrad;
+      ctx.fillRect(0, 0, W, wallH);
+
+      // ── Floor ─────────────────────────────────────────────────────────────
+      const floorGrad = ctx.createLinearGradient(0, wallH, 0, H);
+      floorGrad.addColorStop(0, '#7a6a52');
+      floorGrad.addColorStop(1, '#52412e');
+      ctx.fillStyle = floorGrad;
+      ctx.fillRect(0, wallH, W, H - wallH);
+
+      // Floor planks (perspective)
+      const vp = { x: W / 2, y: wallH };
+      ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+      ctx.lineWidth = 1;
+      for (let i = -10; i <= 10; i++) {
+        ctx.beginPath();
+        ctx.moveTo(vp.x, vp.y);
+        ctx.lineTo(W / 2 + i * 110, H);
+        ctx.stroke();
+      }
+      for (let r = 1; r <= 6; r++) {
+        const y = wallH + (H - wallH) * (r / 7);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      // ── Mouldings & panels ────────────────────────────────────────────────
+      // Crown
+      ctx.fillStyle = '#ddd4c6';
+      ctx.fillRect(0, 0, W, 10);
+
+      // Baseboard
+      ctx.fillStyle = '#e2dace';
+      ctx.fillRect(0, wallH - 18, W, 18);
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, wallH - 18, W, 18);
+
+      // Wainscoting
+      const wainH = 64;
+      const wainY = wallH - 18 - wainH - 8;
+      ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(36, wainY, W - 72, wainH);
+      ctx.strokeRect(44, wainY + 8, W - 88, wainH - 16);
+
+      // ── Artwork ───────────────────────────────────────────────────────────
+      const PPM = 190; // px per metre
+      let dW = (aw.widthCm  / 100) * PPM;
+      let dH = (aw.heightCm / 100) * PPM;
+
+      // Scale to fit nicely on wall
+      const maxW = W * 0.62;
+      const maxH = (wallH - wainH - 50) * 0.90;
+      const scale = Math.min(1, maxW / dW, maxH / dH);
+      dW *= scale;
+      dH *= scale;
+
+      const dX = (W - dW) / 2;
+      // Centre artwork between crown and wainscoting
+      const wallUsable = wainY - 10;
+      const dY = (wallUsable - dH) / 2;
+
+      // Shadow
+      ctx.save();
+      ctx.shadowColor    = 'rgba(0,0,0,0.38)';
+      ctx.shadowBlur     = 28;
+      ctx.shadowOffsetX  = 5;
+      ctx.shadowOffsetY  = 14;
+
+      // Frame
+      const fw = Math.max(10, 14 * scale);
+      ctx.fillStyle = '#1e1008';
+      ctx.fillRect(dX - fw, dY - fw, dW + fw * 2, dH + fw * 2);
+      ctx.restore();
+
+      // Artwork image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      try {
+        await new Promise((res, rej) => {
+          img.onload = res;
+          img.onerror = () => rej(new Error('Failed to load image'));
+          img.src = aw.image;
+        });
+        ctx.drawImage(img, dX, dY, dW, dH);
+      } catch {
+        // Fallback: colour block
+        ctx.fillStyle = '#555';
+        ctx.fillRect(dX, dY, dW, dH);
+        ctx.fillStyle = '#888';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Image unavailable', dX + dW / 2, dY + dH / 2);
+      }
+
+      // Vignette
+      const vig = ctx.createRadialGradient(W/2, H/2, H * 0.18, W/2, H/2, H * 0.72);
+      vig.addColorStop(0, 'transparent');
+      vig.addColorStop(1, 'rgba(0,0,0,0.32)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // ── QR Code ──────────────────────────────────────────────────────────────
+
+    const qrOverlay = document.getElementById('qrOverlay');
+
+    document.getElementById('qrClose').addEventListener('click', () => {
+      qrOverlay.classList.remove('open');
+    });
+
+    async function showQR() {
+      await QRCode.toCanvas(document.getElementById('qrCanvas'), window.location.href, {
+        width: 230,
+        color: { dark: '#191919', light: '#ffffff' },
+      });
+      qrOverlay.classList.add('open');
+    }
+  </script>
+
+</body>
+</html>
