@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <!-- Suppress Referer header so image CDNs don't block hotlinks -->
+  <meta name="referrer" content="no-referrer" />
   <title>ArtPiq · Place Art in Your Space</title>
 
   <!-- Google model-viewer (SRI hash verified) -->
@@ -581,39 +583,48 @@
 
     // ── Catalogue data ───────────────────────────────────────────────────────
 
+    // Image source: Art Institute of Chicago Open Access (artic.edu/open-access)
+    // Explicit permission for hotlinking; stable IIIF CDN with CORS headers.
+    // IIIF format: https://www.artic.edu/iiif/2/{image_id}/full/{width},/0/default.jpg
+    const ARTIC = (id, w) =>
+      `https://www.artic.edu/iiif/2/${id}/full/${w},/0/default.jpg`;
+
     const ARTWORKS = [
       {
-        id: 'starry-night',
-        title: 'The Starry Night',
-        artist: 'Vincent van Gogh · 1889',
+        // A Sunday on La Grande Jatte — Seurat (ARTIC #27992)
+        id: 'grande-jatte',
+        title: 'A Sunday on La Grande Jatte',
+        artist: 'Georges Seurat · 1886',
         medium: 'Oil on canvas',
-        widthCm: 92,
-        heightCm: 73,
+        widthCm: 308,
+        heightCm: 207,
         type: 'painting',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
-        thumb: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/400px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
+        image: ARTIC('1adf2696-8489-499b-cad2-821d7fde4b33', 1280),
+        thumb: ARTIC('1adf2696-8489-499b-cad2-821d7fde4b33', 400),
       },
       {
-        id: 'great-wave',
-        title: 'The Great Wave',
-        artist: 'Katsushika Hokusai · 1831',
-        medium: 'Woodblock print',
-        widthCm: 38,
-        heightCm: 26,
+        // American Gothic — Grant Wood (ARTIC #6565)
+        id: 'american-gothic',
+        title: 'American Gothic',
+        artist: 'Grant Wood · 1930',
+        medium: 'Oil on beaverboard',
+        widthCm: 78,
+        heightCm: 65,
         type: 'painting',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/1280px-Tsunami_by_hokusai_19th_century.jpg',
-        thumb: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/400px-Tsunami_by_hokusai_19th_century.jpg',
+        image: ARTIC('d8ffd79d-a5a3-4f75-b7e5-c03a56093d24', 1280),
+        thumb: ARTIC('d8ffd79d-a5a3-4f75-b7e5-c03a56093d24', 400),
       },
       {
-        id: 'pearl-earring',
-        title: 'Girl with a Pearl Earring',
-        artist: 'Johannes Vermeer · 1665',
+        // Nighthawks — Edward Hopper (ARTIC #111628)
+        id: 'nighthawks',
+        title: 'Nighthawks',
+        artist: 'Edward Hopper · 1942',
         medium: 'Oil on canvas',
-        widthCm: 39,
-        heightCm: 44,
+        widthCm: 152,
+        heightCm: 84,
         type: 'painting',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/800px-1665_Girl_with_a_Pearl_Earring.jpg',
-        thumb: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/400px-1665_Girl_with_a_Pearl_Earring.jpg',
+        image: ARTIC('831a05de-d3f6-f4fa-a460-23008dd58dda', 1280),
+        thumb: ARTIC('831a05de-d3f6-f4fa-a460-23008dd58dda', 400),
       },
       {
         id: 'infinite-loop',
@@ -638,7 +649,10 @@
       card.className = 'card';
 
       const thumbHtml = aw.thumb
-        ? `<img class="card-image" src="${aw.thumb}" alt="${aw.title}" loading="lazy">`
+        ? `<img class="card-image" src="${aw.thumb}" alt="${aw.title}" loading="lazy"
+             referrerpolicy="no-referrer" crossorigin="anonymous"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+           ><div class="card-thumb-placeholder" style="display:none">🎨<small>${aw.medium}</small></div>`
         : `<div class="card-thumb-placeholder">🗿<small>3D Sculpture</small></div>`;
 
       const sizeLabel = aw.type === 'sculpture'
@@ -670,7 +684,9 @@
 
       const img = document.getElementById('modalImg');
       if (aw.image) {
-        img.src = aw.image;
+        img.referrerPolicy = 'no-referrer';
+        img.crossOrigin   = 'anonymous';
+        img.src           = aw.image;
         img.style.display = 'block';
       } else {
         img.style.display = 'none';
