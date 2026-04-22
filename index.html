@@ -201,6 +201,33 @@
     .ar-loading.hidden { display:none; }
     @keyframes sp { to { transform:rotate(360deg); } }
 
+    /* Gallery multi-select mode */
+    .card-wrap.selected .card { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+    .card-check { position:absolute; top:7px; left:7px; z-index:3; width:22px; height:22px; border-radius:50%;
+      background:rgba(0,0,0,.55); backdrop-filter:blur(4px); border:2px solid rgba(255,255,255,.4);
+      display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff;
+      transition:background .15s, border-color .15s; pointer-events:none; }
+    .card-wrap.selected .card-check { background:var(--accent); border-color:var(--accent); color:#000; }
+
+    /* Long-press ripple hint */
+    .gallery-hint { text-align:center; font-size:11px; color:var(--muted); padding:4px 0 0; }
+
+    /* Sticky gallery action bar (appears when 2+ selected) */
+    .gallery-bar { position:fixed; bottom:0; left:0; right:0; z-index:90;
+      background:rgba(12,12,12,.96); backdrop-filter:blur(16px);
+      border-top:1px solid var(--border); padding:12px 16px 24px;
+      display:none; flex-direction:column; gap:9px; }
+    .gallery-bar.open { display:flex; }
+    .gallery-bar-row { display:flex; align-items:center; gap:10px; }
+    .gallery-thumbs { display:flex; gap:6px; flex:1; overflow:hidden; }
+    .gallery-thumb { width:36px; height:36px; border-radius:6px; object-fit:cover; border:1px solid var(--border); background:#222; flex-shrink:0; }
+    .gallery-count { font-size:13px; font-weight:700; color:var(--accent); white-space:nowrap; }
+    .gallery-clear { background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:0; }
+    .gallery-ar-btn { background:var(--accent); border:none; color:#0c0c0c; padding:13px; border-radius:10px;
+      font-size:14px; font-weight:800; cursor:pointer; width:100%; display:flex; align-items:center;
+      justify-content:center; gap:7px; transition:opacity .15s; }
+    .gallery-ar-btn:active { opacity:.8; }
+
     @media (max-width:460px) {
       .catalogue { grid-template-columns:repeat(2,1fr); padding:10px 10px 90px; gap:8px; }
       .card-body { padding:8px 10px 10px; }
@@ -354,6 +381,16 @@
     </div>
   </div>
 
+  <!-- Gallery multi-select action bar -->
+  <div class="gallery-bar" id="galleryBar">
+    <div class="gallery-bar-row">
+      <div class="gallery-thumbs" id="galleryThumbs"></div>
+      <div class="gallery-count" id="galleryCount">0 selected</div>
+      <button class="gallery-clear" id="galleryClear">✕ Clear</button>
+    </div>
+    <button class="gallery-ar-btn" id="galleryARBtn">🖼 View Gallery in AR</button>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script type="module">
@@ -491,11 +528,29 @@
             </div>
           </div>`;
 
-        // Card tap → AR directly (Thomas: "remove option to view flat artwork first")
-        card.addEventListener('click', () => {
-          current = aw;
-          detailOv.classList.remove('open');
-          launchAR(aw);
+        // Selection checkbox (top-left, always visible in select mode)
+        const checkEl = document.createElement('div');
+        checkEl.className = 'card-check';
+        checkEl.textContent = '✓';
+
+        // Long-press → enter gallery select mode
+        let lpTimer = null;
+        const startLP = () => { lpTimer = setTimeout(() => { toggleSelect(aw, wrap); }, 500); };
+        const cancelLP = () => clearTimeout(lpTimer);
+        card.addEventListener('pointerdown', startLP);
+        card.addEventListener('pointerup',   cancelLP);
+        card.addEventListener('pointerout',  cancelLP);
+
+        // Card tap: if select mode active → toggle; else → launch AR
+        card.addEventListener('click', (e) => {
+          if (selectedIds.size > 0 || isSelectMode) {
+            e.preventDefault();
+            toggleSelect(aw, wrap);
+          } else {
+            current = aw;
+            detailOv.classList.remove('open');
+            launchAR(aw);
+          }
         });
 
         // Info button for detail sheet (dimensions, My Room, share)
@@ -505,6 +560,7 @@
         infoBtn.title = 'Details';
         infoBtn.addEventListener('click', (e) => { e.stopPropagation(); openDetail(aw); });
 
+        wrap.appendChild(checkEl);
         wrap.appendChild(card);
         wrap.appendChild(infoBtn);
         catalogueEl.appendChild(wrap);
@@ -523,6 +579,165 @@
         renderCatalogue(t.dataset.filter);
       });
     });
+
+    // ── Gallery multi-select ──────────────────────────────────────────────────
+    // selectedIds: Set of artwork IDs. isSelectMode: true while ≥1 selected.
+    const selectedIds  = new Set();
+    let isSelectMode   = false;
+    const galleryBar   = document.getElementById('galleryBar');
+    const galleryThumbs= document.getElementById('galleryThumbs');
+    const galleryCount = document.getElementById('galleryCount');
+
+    function toggleSelect(aw, wrapEl) {
+      if (aw.type === 'sculpture') { toast('Sculptures not supported in gallery mode'); return; }
+      if (selectedIds.has(aw.id)) {
+        selectedIds.delete(aw.id);
+        wrapEl.classList.remove('selected');
+      } else {
+        if (selectedIds.size >= 4) { toast('Max 4 artworks in gallery'); return; }
+        selectedIds.add(aw.id);
+        wrapEl.classList.add('selected');
+      }
+      isSelectMode = selectedIds.size > 0;
+      updateGalleryBar();
+    }
+
+    function updateGalleryBar() {
+      if (selectedIds.size === 0) {
+        galleryBar.classList.remove('open');
+        return;
+      }
+      galleryBar.classList.add('open');
+      galleryCount.textContent = `${selectedIds.size} selected`;
+      galleryThumbs.innerHTML = '';
+      [...selectedIds].forEach(id => {
+        const aw = ARTWORKS.find(a => a.id === id);
+        if (!aw) return;
+        if (aw.thumb) {
+          const img = document.createElement('img');
+          img.className = 'gallery-thumb';
+          img.src = aw.thumb;
+          img.alt = aw.title;
+          galleryThumbs.appendChild(img);
+        }
+      });
+    }
+
+    document.getElementById('galleryClear').addEventListener('click', () => {
+      selectedIds.clear();
+      isSelectMode = false;
+      catalogueEl.querySelectorAll('.card-wrap.selected').forEach(w => w.classList.remove('selected'));
+      updateGalleryBar();
+    });
+
+    document.getElementById('galleryARBtn').addEventListener('click', async () => {
+      if (selectedIds.size < 2) { toast('Select at least 2 paintings'); return; }
+      const selected = [...selectedIds].map(id => ARTWORKS.find(a => a.id === id)).filter(Boolean);
+      current = selected[0]; // first artwork = "current" for sharing etc.
+      galleryBar.classList.remove('open');
+      detailOv.classList.remove('open');
+      await launchGalleryAR(selected);
+    });
+
+    // ── Gallery GLB builder ───────────────────────────────────────────────────
+    // Combines N paintings into a single scene arranged horizontally, all scaled
+    // to a target height of 0.5m. Paintings are spaced with a 0.06m gap.
+    // The whole arrangement is centered at the origin so AR places it centred.
+    async function buildGalleryGLB(artworks) {
+      const TARGET_H = 0.5; // metres — consistent height for all paintings
+      const GAP      = 0.06; // gap between frames
+      const FT       = 0.018, FD = 0.013; // frame thickness, depth
+      const fmat     = new THREE.MeshStandardMaterial({ color:0x1a0e06, roughness:0.55, metalness:0.08 });
+
+      const scene = new THREE.Scene();
+
+      // Compute total width first (for centering)
+      const scales = artworks.map(aw => TARGET_H / (aw.heightCm / 100));
+      const widths  = artworks.map((aw, i) => (aw.widthCm / 100) * scales[i]);
+      const totalW  = widths.reduce((s, w) => s + w, 0) + GAP * (artworks.length - 1);
+      let cursor    = -totalW / 2;
+
+      for (let i = 0; i < artworks.length; i++) {
+        const aw = artworks[i];
+        const sc = scales[i];
+        const wM = (aw.widthCm / 100) * sc;
+        const hM = TARGET_H;
+        const cx = cursor + wM / 2;
+        cursor   += wM + GAP;
+
+        // Load texture (fallback to placeholder colour if fetch fails)
+        let mat;
+        try {
+          const tex = await loadTexture(aw.image || aw.thumb);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          mat = new THREE.MeshStandardMaterial({ map:tex, roughness:0.7, metalness:0.0, side:THREE.FrontSide });
+        } catch {
+          // Solid colour placeholder so gallery still renders
+          const colours = [0x8b6347, 0x4a6fa5, 0x5a8a5a, 0x8a5a8a];
+          mat = new THREE.MeshStandardMaterial({ color:colours[i % colours.length], roughness:0.8 });
+        }
+
+        const painting = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat);
+        painting.position.set(cx, 0, 0);
+        scene.add(painting);
+
+        // Frame bars
+        [{ w:wM+FT*2, h:FT,  y:-(hM/2+FT/2) },
+         { w:wM+FT*2, h:FT,  y: (hM/2+FT/2) },
+         { w:FT,      h:hM,  x:-(wM/2+FT/2) },
+         { w:FT,      h:hM,  x: (wM/2+FT/2) }
+        ].forEach(({ w, h, x=0, y }) => {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, FD), fmat);
+          bar.position.set(cx + x, y, -FD/2 + 0.001);
+          scene.add(bar);
+        });
+      }
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+      const key = new THREE.DirectionalLight(0xfff8f0, 1.0);
+      key.position.set(0, 0.5, 1); scene.add(key);
+
+      return buildGLB(scene);
+    }
+
+    async function launchGalleryAR(artworks) {
+      const label = artworks.map(a => a.title.split(' ').slice(0,2).join(' ')).join(' + ');
+      arScreen.classList.add('open');
+      arName.textContent = `Gallery: ${label}`;
+      buildSwitcher(artworks[0]);
+
+      arLoading.classList.remove('hidden');
+      arLoadingTxt.textContent = `Building gallery of ${artworks.length}…`;
+      mv.style.opacity = '0';
+      mv.setAttribute('ar-placement', 'wall');
+      mv.setAttribute('ar-scale', 'fixed');
+      mv.src = '';
+      await new Promise(r => requestAnimationFrame(r));
+
+      try {
+        const buf = await buildGalleryGLB(artworks);
+        const url = freshUrl(buf);
+        mv.src = url;
+
+        await new Promise((res, rej) => {
+          mv.addEventListener('load',  res, { once:true });
+          mv.addEventListener('error', () => rej(new Error('model load failed')), { once:true });
+          setTimeout(() => rej(new Error('Timeout')), 20000);
+        });
+
+        arLoading.classList.add('hidden');
+        mv.style.opacity = '1';
+        arHint.textContent = 'Point at a wall then tap the AR button ↙';
+        await new Promise(r => setTimeout(r, 300));
+        if (mv.canActivateAR) mv.activateAR();
+        else { closeAR(); showQR(); }
+
+      } catch (err) {
+        arLoading.classList.add('hidden');
+        arHint.classList.remove('hidden');
+        arHint.textContent = '⚠️ ' + (err.message ?? 'Gallery load failed');
+      }
+    }
 
     // ── Detail sheet ──────────────────────────────────────────────────────────
     let current = null;
