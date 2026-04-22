@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <meta name="referrer" content="no-referrer" />
+  <!-- no-referrer removed: it breaks Three.js CrossOrigin texture fetches on some browsers -->
+  <meta name="referrer" content="no-referrer-when-downgrade" />
   <title>ArtPiq · Place Art in Your Space</title>
 
   <script type="module"
@@ -352,25 +353,42 @@
     }
 
     // ── Artworks ─────────────────────────────────────────────────────────────
-    // wikiTitle = exact Wikipedia article title for REST API image fetch.
-    // upload.wikimedia.org has Access-Control-Allow-Origin: * (verified).
+    // image/thumb are HARDCODED verified Wikimedia Commons URLs (confirmed 200 + CORS: *).
+    // wikiTitle kept for optional API enhancement. Images load instantly — no API wait.
+    const W = 'https://upload.wikimedia.org/wikipedia/commons';
     const ARTWORKS = [
       { id:'starry-night',  type:'painting', wikiTitle:'The_Starry_Night',
-        title:'The Starry Night', artist:'Vincent van Gogh', year:'1889', medium:'Oil on canvas', widthCm:92, heightCm:73 },
+        title:'The Starry Night', artist:'Vincent van Gogh', year:'1889', medium:'Oil on canvas', widthCm:92, heightCm:73,
+        thumb:`${W}/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/330px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg`,
+        image:`${W}/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/330px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg` },
       { id:'great-wave',    type:'painting', wikiTitle:'The_Great_Wave_off_Kanagawa',
-        title:'The Great Wave', artist:'Katsushika Hokusai', year:'1831', medium:'Woodblock print', widthCm:38, heightCm:26 },
+        title:'The Great Wave', artist:'Katsushika Hokusai', year:'1831', medium:'Woodblock print', widthCm:38, heightCm:26,
+        thumb:`${W}/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/330px-Tsunami_by_hokusai_19th_century.jpg`,
+        image:`${W}/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/330px-Tsunami_by_hokusai_19th_century.jpg` },
       { id:'pearl-earring', type:'painting', wikiTitle:'Girl_with_a_Pearl_Earring',
-        title:'Girl with a Pearl Earring', artist:'Johannes Vermeer', year:'1665', medium:'Oil on canvas', widthCm:39, heightCm:44 },
+        title:'Girl with a Pearl Earring', artist:'Johannes Vermeer', year:'1665', medium:'Oil on canvas', widthCm:39, heightCm:44,
+        thumb:`${W}/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/330px-1665_Girl_with_a_Pearl_Earring.jpg`,
+        image:`${W}/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/330px-1665_Girl_with_a_Pearl_Earring.jpg` },
       { id:'mona-lisa',     type:'painting', wikiTitle:'Mona_Lisa',
-        title:'Mona Lisa', artist:'Leonardo da Vinci', year:'~1517', medium:'Oil on poplar', widthCm:53, heightCm:77 },
+        title:'Mona Lisa', artist:'Leonardo da Vinci', year:'~1517', medium:'Oil on poplar', widthCm:53, heightCm:77,
+        thumb:`${W}/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg`,
+        image:`${W}/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/330px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg` },
       { id:'birth-venus',   type:'painting', wikiTitle:'The_Birth_of_Venus',
-        title:'The Birth of Venus', artist:'Sandro Botticelli', year:'1485', medium:'Tempera on canvas', widthCm:278, heightCm:172 },
+        title:'The Birth of Venus', artist:'Sandro Botticelli', year:'1485', medium:'Tempera on canvas', widthCm:278, heightCm:172,
+        thumb:`${W}/thumb/0/0b/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg/330px-Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg`,
+        image:`${W}/thumb/0/0b/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg/330px-Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg` },
       { id:'liberty',       type:'painting', wikiTitle:'Liberty_Leading_the_People',
-        title:'Liberty Leading the People', artist:'Eugène Delacroix', year:'1830', medium:'Oil on canvas', widthCm:325, heightCm:260 },
+        title:'Liberty Leading the People', artist:'Eugène Delacroix', year:'1830', medium:'Oil on canvas', widthCm:325, heightCm:260,
+        thumb:`${W}/thumb/0/02/La_Libert%C3%A9_guidant_le_peuple_-_Eug%C3%A8ne_Delacroix_-_Mus%C3%A9e_du_Louvre_Peintures_RF_129_-_apr%C3%A8s_restauration_2024.jpg/330px-La_Libert%C3%A9_guidant_le_peuple_-_Eug%C3%A8ne_Delacroix_-_Mus%C3%A9e_du_Louvre_Peintures_RF_129_-_apr%C3%A8s_restauration_2024.jpg`,
+        image:`${W}/thumb/0/02/La_Libert%C3%A9_guidant_le_peuple_-_Eug%C3%A8ne_Delacroix_-_Mus%C3%A9e_du_Louvre_Peintures_RF_129_-_apr%C3%A8s_restauration_2024.jpg/330px-La_Libert%C3%A9_guidant_le_peuple_-_Eug%C3%A8ne_Delacroix_-_Mus%C3%A9e_du_Louvre_Peintures_RF_129_-_apr%C3%A8s_restauration_2024.jpg` },
       { id:'grande-jatte',  type:'painting', wikiTitle:'A_Sunday_Afternoon_on_the_Island_of_La_Grande_Jatte',
-        title:'La Grande Jatte', artist:'Georges Seurat', year:'1886', medium:'Oil on canvas', widthCm:308, heightCm:207 },
+        title:'La Grande Jatte', artist:'Georges Seurat', year:'1886', medium:'Oil on canvas', widthCm:308, heightCm:207,
+        thumb:`${W}/thumb/7/7d/A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg/330px-A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg`,
+        image:`${W}/thumb/7/7d/A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg/330px-A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg` },
       { id:'gleaners',      type:'painting', wikiTitle:'The_Gleaners',
-        title:'The Gleaners', artist:'Jean-François Millet', year:'1857', medium:'Oil on canvas', widthCm:111, heightCm:84 },
+        title:'The Gleaners', artist:'Jean-François Millet', year:'1857', medium:'Oil on canvas', widthCm:111, heightCm:84,
+        thumb:`${W}/thumb/1/1f/Jean-Fran%C3%A7ois_Millet_-_Gleaners_-_Google_Art_Project_2.jpg/330px-Jean-Fran%C3%A7ois_Millet_-_Gleaners_-_Google_Art_Project_2.jpg`,
+        image:`${W}/thumb/1/1f/Jean-Fran%C3%A7ois_Millet_-_Gleaners_-_Google_Art_Project_2.jpg/330px-Jean-Fran%C3%A7ois_Millet_-_Gleaners_-_Google_Art_Project_2.jpg` },
       { id:'bronze-helix',  type:'sculpture',
         title:'Rising Helix', artist:'ArtPiq Studio', year:'2024', medium:'Bronze (3D)',
         widthCm:20, heightCm:42,
@@ -383,22 +401,33 @@
         image:null, thumb:null },
     ];
 
-    // ── Fetch Wikipedia images ────────────────────────────────────────────────
-    // Wikipedia REST API returns upload.wikimedia.org URLs with CORS: *.
-    // Runs all requests in parallel; individual failures don't block.
+    // ── Fetch Wikipedia images (optional enhancer) ───────────────────────────
+    // Images are already hardcoded above. This optionally upgrades them to
+    // higher-res originals if the API responds. Uses compatible AbortController
+    // instead of AbortSignal.timeout() which requires Safari 16.4+.
     async function fetchWikiImages() {
       await Promise.allSettled(
         ARTWORKS.filter(a => a.wikiTitle).map(async (aw) => {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 8000);
           try {
             const res = await fetch(
               `https://en.wikipedia.org/api/rest_v1/page/summary/${aw.wikiTitle}`,
-              { headers:{'Api-User-Agent':'artpiq-demo/2.0'}, signal:AbortSignal.timeout(10000) }
+              { headers:{'Api-User-Agent':'artpiq-demo/2.0'}, signal:ctrl.signal }
             );
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const d = await res.json();
-            aw.image = d.originalimage?.source ?? d.thumbnail?.source ?? null;
-            aw.thumb = d.thumbnail?.source ?? d.originalimage?.source ?? null;
-          } catch(err) { console.warn('[wiki]', aw.id, err.message); }
+            // Only upgrade if API returns a different (larger) image
+            const orig = d.originalimage?.source;
+            const thumb = d.thumbnail?.source;
+            if (orig && orig !== aw.image) aw.image = orig;
+            if (thumb && thumb !== aw.thumb) aw.thumb = thumb;
+          } catch(err) {
+            // Silent — hardcoded images still show
+            console.warn('[wiki-enhance]', aw.id, err.message);
+          } finally {
+            clearTimeout(timer);
+          }
         })
       );
     }
@@ -446,8 +475,10 @@
       });
     }
 
-    showSkeletons();
-    fetchWikiImages().finally(() => renderCatalogue());
+    // Render immediately with hardcoded images — no API wait.
+    // fetchWikiImages runs in background and may upgrade to higher-res originals.
+    renderCatalogue();
+    fetchWikiImages().then(() => renderCatalogue()).catch(() => {});
 
     document.querySelectorAll('.tab').forEach(t => {
       t.addEventListener('click', () => {
@@ -513,17 +544,32 @@
       });
     }
 
-    async function getPaintingBuffer(aw) {
-      if (glbBuffers.has(aw.id)) return glbBuffers.get(aw.id);
-      if (!aw.image) throw new Error('Image not loaded yet — try again in a moment');
-
-      const wM = aw.widthCm / 100, hM = aw.heightCm / 100;
+    async function loadTexture(url) {
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
-
-      const texture = await new Promise((res, rej) =>
-        loader.load(aw.image, res, undefined, () => rej(new Error('Artwork image failed to load')))
+      return new Promise((res, rej) =>
+        loader.load(url, res, undefined, rej)
       );
+    }
+
+    async function getPaintingBuffer(aw) {
+      if (glbBuffers.has(aw.id)) return glbBuffers.get(aw.id);
+      const imgUrl = aw.image || aw.thumb;
+      if (!imgUrl) throw new Error('No image URL for this artwork — reload and try again');
+
+      const wM = aw.widthCm / 100, hM = aw.heightCm / 100;
+
+      // Try primary URL, fall back to thumb if different and primary fails
+      let texture;
+      try {
+        texture = await loadTexture(imgUrl);
+      } catch {
+        if (aw.thumb && aw.thumb !== imgUrl) {
+          texture = await loadTexture(aw.thumb);
+        } else {
+          throw new Error('Could not load artwork image — check network and try again');
+        }
+      }
       texture.colorSpace = THREE.SRGBColorSpace;
 
       const scene = new THREE.Scene();
