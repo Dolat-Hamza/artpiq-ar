@@ -145,6 +145,20 @@
     .gesture { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; color:#ccc; }
     .gesture span:first-child { font-size:20px; }
 
+    /* In-AR artwork switcher strip */
+    .ar-switcher { position:absolute; bottom:0; left:0; right:0; z-index:15; padding:8px 12px 22px; background:linear-gradient(to top,rgba(0,0,0,.85) 60%,transparent); display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; pointer-events:all; }
+    .ar-switcher::-webkit-scrollbar { display:none; }
+    .ar-sw-chip { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; transition:transform .15s; }
+    .ar-sw-chip:active { transform:scale(.93); }
+    .ar-sw-img { width:48px; height:48px; border-radius:8px; object-fit:cover; border:2px solid rgba(255,255,255,.2); background:#222; transition:border-color .15s; }
+    .ar-sw-chip.active .ar-sw-img { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+    .ar-sw-label { font-size:9px; color:rgba(255,255,255,.7); max-width:54px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    /* Card: info button overlay */
+    .card-wrap { position:relative; }
+    .card-info-btn { position:absolute; top:6px; right:6px; z-index:2; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); border:none; color:#fff; width:26px; height:26px; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; }
+    .card-wrap:hover .card-info-btn, .card-wrap:focus-within .card-info-btn { opacity:1; }
+
     /* My Room overlay */
     .myroom-ov { position:fixed; inset:0; z-index:300; background:#000; display:none; flex-direction:column; }
     .myroom-ov.open { display:flex; }
@@ -289,8 +303,12 @@
       <div class="ar-hint" id="arHint">Generating 3D model…</div>
       <div class="ar-actions">
         <button class="ar-btn" id="btnReplace">↩ Re-place</button>
+        <button class="ar-btn show" id="btnMyRoomAR">📸 My Room</button>
       </div>
     </div>
+
+    <!-- Artwork switcher strip at bottom of AR screen -->
+    <div class="ar-switcher" id="arSwitcher"></div>
   </div>
 
   <!-- My Room (own photo) -->
@@ -451,11 +469,13 @@
       if (!list.length) { catalogueEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">No artworks in this category.</div>'; return; }
 
       list.forEach(aw => {
+        const wrap = document.createElement('div');
+        wrap.className = 'card-wrap';
         const card = document.createElement('div');
         card.className = 'card';
         const sizeLabel = aw.type === 'sculpture' ? `${aw.heightCm} cm tall` : `${aw.widthCm} × ${aw.heightCm} cm`;
         const thumbHtml = aw.thumb
-          ? `<img class="card-img loading" src="${aw.thumb}" alt="${aw.title}" loading="lazy" referrerpolicy="no-referrer" decoding="async"
+          ? `<img class="card-img loading" src="${aw.thumb}" alt="${aw.title}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" decoding="async"
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
                onload="this.classList.replace('loading','loaded')">
              <div class="card-ph" style="display:none">🎨<small>${aw.medium}</small></div>`
@@ -470,8 +490,24 @@
               <span class="badge">${sizeLabel}</span>
             </div>
           </div>`;
-        card.addEventListener('click', () => openDetail(aw));
-        catalogueEl.appendChild(card);
+
+        // Card tap → AR directly (Thomas: "remove option to view flat artwork first")
+        card.addEventListener('click', () => {
+          current = aw;
+          detailOv.classList.remove('open');
+          launchAR(aw);
+        });
+
+        // Info button for detail sheet (dimensions, My Room, share)
+        const infoBtn = document.createElement('button');
+        infoBtn.className = 'card-info-btn';
+        infoBtn.textContent = 'ℹ';
+        infoBtn.title = 'Details';
+        infoBtn.addEventListener('click', (e) => { e.stopPropagation(); openDetail(aw); });
+
+        wrap.appendChild(card);
+        wrap.appendChild(infoBtn);
+        catalogueEl.appendChild(wrap);
       });
     }
 
@@ -738,11 +774,78 @@
       launchAR(current);
     });
 
+    // "My Room" button inside AR screen — close AR and open My Room for current artwork
+    document.getElementById('btnMyRoomAR').addEventListener('click', () => {
+      if (!current || current.type === 'sculpture') { toast('My Room only available for paintings'); return; }
+      _mrArtwork = current;
+      closeAR();
+      mrState.photo = null; mrState.artImg = null;
+      myRoomUpload.style.display = 'flex';
+      myRoomCanvas.style.display = 'none';
+      btnMyRoomSave.style.display = 'none';
+      myRoomFooter.style.display = 'none';
+      myRoomOv.classList.add('open');
+    });
+
+    // ── In-AR Artwork Switcher ─────────────────────────────────────────────────
+    const arSwitcher = document.getElementById('arSwitcher');
+    let switcherBusy = false;
+
+    function buildSwitcher(activeAw) {
+      arSwitcher.innerHTML = '';
+      ARTWORKS.forEach(aw => {
+        const chip = document.createElement('div');
+        chip.className = 'ar-sw-chip' + (aw.id === activeAw.id ? ' active' : '');
+
+        const img = document.createElement('img');
+        img.className = 'ar-sw-img';
+        img.alt = aw.title;
+        img.referrerPolicy = 'no-referrer-when-downgrade';
+        if (aw.thumb) {
+          img.src = aw.thumb;
+          img.onerror = () => { img.style.display='none'; };
+        } else {
+          img.style.display = 'none';
+          const ph = document.createElement('div');
+          ph.className = 'ar-sw-img';
+          ph.style.cssText = 'display:flex;align-items:center;justify-content:center;font-size:22px;background:#222';
+          ph.textContent = aw.id === 'bronze-helix' ? '🗿' : '💎';
+          chip.appendChild(ph);
+        }
+
+        const label = document.createElement('div');
+        label.className = 'ar-sw-label';
+        label.textContent = aw.title;
+
+        chip.appendChild(img);
+        chip.appendChild(label);
+
+        chip.addEventListener('click', async () => {
+          if (switcherBusy || aw.id === current?.id) return;
+          switcherBusy = true;
+          current = aw;
+          // Update active chip
+          arSwitcher.querySelectorAll('.ar-sw-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          // Reload model in AR screen
+          await launchAR(aw).catch(err => toast('⚠️ ' + err.message));
+          switcherBusy = false;
+        });
+
+        arSwitcher.appendChild(chip);
+      });
+
+      // Scroll active chip into view
+      const activeChip = arSwitcher.querySelector('.ar-sw-chip.active');
+      if (activeChip) activeChip.scrollIntoView({ inline:'center', block:'nearest', behavior:'smooth' });
+    }
+
     document.getElementById('arClose').addEventListener('click', closeAR);
 
     async function launchAR(aw) {
       arScreen.classList.add('open');
       arName.textContent = aw.title;
+      buildSwitcher(aw);
 
       // Reset UI state
       arLoading.classList.remove('hidden');
