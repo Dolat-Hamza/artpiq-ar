@@ -203,14 +203,21 @@
 
     /* Gallery multi-select mode */
     .card-wrap.selected .card { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+    /* Checkbox hidden by default; shown in select mode via body.select-mode class */
     .card-check { position:absolute; top:7px; left:7px; z-index:3; width:22px; height:22px; border-radius:50%;
-      background:rgba(0,0,0,.55); backdrop-filter:blur(4px); border:2px solid rgba(255,255,255,.4);
-      display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff;
+      background:rgba(0,0,0,.55); backdrop-filter:blur(4px); border:2px solid rgba(255,255,255,.5);
+      display:none; align-items:center; justify-content:center; font-size:12px; color:transparent;
       transition:background .15s, border-color .15s; pointer-events:none; }
+    body.select-mode .card-check { display:flex; }
     .card-wrap.selected .card-check { background:var(--accent); border-color:var(--accent); color:#000; }
 
-    /* Long-press ripple hint */
-    .gallery-hint { text-align:center; font-size:11px; color:var(--muted); padding:4px 0 0; }
+    /* Select-mode toggle button */
+    .select-toggle { padding:5px 13px; border-radius:20px; border:1px solid var(--border); background:none;
+      color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .select-toggle.active { background:var(--accent); border-color:var(--accent); color:#000; }
+
+    /* Dim non-painting cards in select mode */
+    body.select-mode .card-wrap[data-type="sculpture"] { opacity:.35; pointer-events:none; }
 
     /* Sticky gallery action bar (appears when 2+ selected) */
     .gallery-bar { position:fixed; bottom:0; left:0; right:0; z-index:90;
@@ -248,6 +255,7 @@
       <button class="tab active" data-filter="all">All</button>
       <button class="tab" data-filter="painting">Paintings</button>
       <button class="tab" data-filter="sculpture">Sculptures</button>
+      <button class="select-toggle" id="btnSelectMode">🖼 Select</button>
     </div>
   </header>
 
@@ -508,6 +516,7 @@
       list.forEach(aw => {
         const wrap = document.createElement('div');
         wrap.className = 'card-wrap';
+        wrap.dataset.type = aw.type;
         const card = document.createElement('div');
         card.className = 'card';
         const sizeLabel = aw.type === 'sculpture' ? `${aw.heightCm} cm tall` : `${aw.widthCm} × ${aw.heightCm} cm`;
@@ -533,18 +542,9 @@
         checkEl.className = 'card-check';
         checkEl.textContent = '✓';
 
-        // Long-press → enter gallery select mode
-        let lpTimer = null;
-        const startLP = () => { lpTimer = setTimeout(() => { toggleSelect(aw, wrap); }, 500); };
-        const cancelLP = () => clearTimeout(lpTimer);
-        card.addEventListener('pointerdown', startLP);
-        card.addEventListener('pointerup',   cancelLP);
-        card.addEventListener('pointerout',  cancelLP);
-
-        // Card tap: if select mode active → toggle; else → launch AR
-        card.addEventListener('click', (e) => {
-          if (selectedIds.size > 0 || isSelectMode) {
-            e.preventDefault();
+        // Card tap: select mode → toggle; normal mode → launch AR
+        card.addEventListener('click', () => {
+          if (isSelectMode) {
             toggleSelect(aw, wrap);
           } else {
             current = aw;
@@ -581,24 +581,44 @@
     });
 
     // ── Gallery multi-select ──────────────────────────────────────────────────
-    // selectedIds: Set of artwork IDs. isSelectMode: true while ≥1 selected.
-    const selectedIds  = new Set();
-    let isSelectMode   = false;
-    const galleryBar   = document.getElementById('galleryBar');
-    const galleryThumbs= document.getElementById('galleryThumbs');
-    const galleryCount = document.getElementById('galleryCount');
+    const selectedIds   = new Set();
+    let isSelectMode    = false;
+    const galleryBar    = document.getElementById('galleryBar');
+    const galleryThumbs = document.getElementById('galleryThumbs');
+    const galleryCount  = document.getElementById('galleryCount');
+    const btnSelectMode = document.getElementById('btnSelectMode');
+
+    function enterSelectMode() {
+      isSelectMode = true;
+      document.body.classList.add('select-mode');
+      btnSelectMode.classList.add('active');
+      btnSelectMode.textContent = '✓ Done';
+    }
+
+    function exitSelectMode() {
+      isSelectMode = false;
+      selectedIds.clear();
+      document.body.classList.remove('select-mode');
+      btnSelectMode.classList.remove('active');
+      btnSelectMode.textContent = '🖼 Select';
+      catalogueEl.querySelectorAll('.card-wrap.selected').forEach(w => w.classList.remove('selected'));
+      galleryBar.classList.remove('open');
+    }
+
+    btnSelectMode.addEventListener('click', () => {
+      if (isSelectMode) exitSelectMode();
+      else enterSelectMode();
+    });
 
     function toggleSelect(aw, wrapEl) {
-      if (aw.type === 'sculpture') { toast('Sculptures not supported in gallery mode'); return; }
       if (selectedIds.has(aw.id)) {
         selectedIds.delete(aw.id);
         wrapEl.classList.remove('selected');
       } else {
-        if (selectedIds.size >= 4) { toast('Max 4 artworks in gallery'); return; }
+        if (selectedIds.size >= 4) { toast('Max 4 paintings'); return; }
         selectedIds.add(aw.id);
         wrapEl.classList.add('selected');
       }
-      isSelectMode = selectedIds.size > 0;
       updateGalleryBar();
     }
 
@@ -608,33 +628,27 @@
         return;
       }
       galleryBar.classList.add('open');
-      galleryCount.textContent = `${selectedIds.size} selected`;
+      const plural = selectedIds.size === 1 ? 'painting' : 'paintings';
+      galleryCount.textContent = `${selectedIds.size} ${plural}`;
       galleryThumbs.innerHTML = '';
       [...selectedIds].forEach(id => {
         const aw = ARTWORKS.find(a => a.id === id);
-        if (!aw) return;
-        if (aw.thumb) {
-          const img = document.createElement('img');
-          img.className = 'gallery-thumb';
-          img.src = aw.thumb;
-          img.alt = aw.title;
-          galleryThumbs.appendChild(img);
-        }
+        if (!aw?.thumb) return;
+        const img = document.createElement('img');
+        img.className = 'gallery-thumb';
+        img.src = aw.thumb;
+        img.alt = aw.title;
+        galleryThumbs.appendChild(img);
       });
     }
 
-    document.getElementById('galleryClear').addEventListener('click', () => {
-      selectedIds.clear();
-      isSelectMode = false;
-      catalogueEl.querySelectorAll('.card-wrap.selected').forEach(w => w.classList.remove('selected'));
-      updateGalleryBar();
-    });
+    document.getElementById('galleryClear').addEventListener('click', exitSelectMode);
 
     document.getElementById('galleryARBtn').addEventListener('click', async () => {
       if (selectedIds.size < 2) { toast('Select at least 2 paintings'); return; }
       const selected = [...selectedIds].map(id => ARTWORKS.find(a => a.id === id)).filter(Boolean);
-      current = selected[0]; // first artwork = "current" for sharing etc.
-      galleryBar.classList.remove('open');
+      current = selected[0];
+      exitSelectMode();
       detailOv.classList.remove('open');
       await launchGalleryAR(selected);
     });
@@ -665,11 +679,11 @@
         const cx = cursor + wM / 2;
         cursor   += wM + GAP;
 
-        // Load texture (fallback to placeholder colour if fetch fails)
+        // Load texture with 8s timeout; fallback to solid colour if it fails
         let mat;
         try {
           const tex = await loadTexture(aw.image || aw.thumb);
-          tex.colorSpace = THREE.SRGBColorSpace;
+          // colorSpace already set inside loadTexture()
           mat = new THREE.MeshStandardMaterial({ map:tex, roughness:0.7, metalness:0.0, side:THREE.FrontSide });
         } catch {
           // Solid colour placeholder so gallery still renders
@@ -707,7 +721,7 @@
       buildSwitcher(artworks[0]);
 
       arLoading.classList.remove('hidden');
-      arLoadingTxt.textContent = `Building gallery of ${artworks.length}…`;
+      arLoadingTxt.textContent = `Loading ${artworks.length} artworks…`;
       mv.style.opacity = '0';
       mv.setAttribute('ar-placement', 'wall');
       mv.setAttribute('ar-scale', 'fixed');
@@ -795,12 +809,25 @@
       });
     }
 
-    async function loadTexture(url) {
-      const loader = new THREE.TextureLoader();
-      loader.setCrossOrigin('anonymous');
-      return new Promise((res, rej) =>
-        loader.load(url, res, undefined, rej)
-      );
+    // Load texture via HTMLImageElement first (handles redirects + browser cache),
+    // then wrap in CanvasTexture. 8-second timeout prevents hanging forever.
+    function loadTexture(url) {
+      return new Promise((res, rej) => {
+        const timer = setTimeout(() => rej(new Error('Texture timeout')), 8000);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.referrerPolicy = 'no-referrer-when-downgrade';
+        img.onload = () => {
+          clearTimeout(timer);
+          try {
+            const tex = new THREE.CanvasTexture(img);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            res(tex);
+          } catch(e) { rej(e); }
+        };
+        img.onerror = () => { clearTimeout(timer); rej(new Error('Image load error')); };
+        img.src = url;
+      });
     }
 
     async function getPaintingBuffer(aw) {
@@ -821,8 +848,7 @@
           throw new Error('Could not load artwork image — check network and try again');
         }
       }
-      texture.colorSpace = THREE.SRGBColorSpace;
-
+      // colorSpace set inside loadTexture()
       const scene = new THREE.Scene();
       scene.add(new THREE.Mesh(
         new THREE.PlaneGeometry(wM, hM),
