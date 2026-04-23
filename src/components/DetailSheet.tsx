@@ -1,105 +1,121 @@
 'use client'
-import { useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Share2, Smartphone, ImageIcon } from 'lucide-react'
+import { X, Share2 } from 'lucide-react'
 import { useStore } from '@/store'
 
 export default function DetailSheet() {
   const { current, detailOpen, closeDetail, openAR, openMyWall, showToast } = useStore()
-  const startY = useRef(0)
 
-  async function shareOrCopy() {
+  async function share() {
     if (!current) return
-    const base = window.location.origin + window.location.pathname
-    const url = `${base}?artwork=${current.id}`
+    const url = `${window.location.origin}${window.location.pathname}?artwork=${current.id}`
     if (navigator.share) {
-      try { await navigator.share({ title: `${current.title} — View in AR`, url }); return } catch {}
+      try { await navigator.share({ title: current.title, url }); return } catch {}
     }
-    try { await navigator.clipboard.writeText(url); showToast('Link copied!') }
-    catch { showToast('Copy: ' + url) }
+    try { await navigator.clipboard.writeText(url); showToast('Link copied') }
+    catch { showToast(url) }
   }
 
   if (!current) return null
+
+  const sizeLabel = current.type === 'sculpture'
+    ? `${current.heightCm} cm tall`
+    : `${current.widthCm} × ${current.heightCm} cm`
 
   return (
     <AnimatePresence>
       {detailOpen && (
         <motion.div
-          className="fixed inset-0 bg-black/78 z-[100] flex items-end justify-center"
+          key="backdrop"
+          className="fixed inset-0 z-[100] bg-ink/40"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={(e) => { if (e.target === e.currentTarget) closeDetail() }}
+          transition={{ duration: 0.2 }}
+          onClick={closeDetail}
         >
-          <motion.div
-            className="bg-[--s1] rounded-t-xl w-full max-w-lg px-[18px] pt-3 pb-9 max-h-[88dvh] overflow-y-auto"
-            initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            onTouchStart={(e) => { startY.current = e.touches[0].clientY }}
-            onTouchEnd={(e) => { if (e.changedTouches[0].clientY - startY.current > 70) closeDetail() }}
+          <motion.aside
+            className="absolute inset-0 md:left-auto md:top-0 md:right-0 md:bottom-0 md:w-[min(920px,90vw)] bg-paper flex flex-col md:flex-row overflow-hidden"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+            onClick={e => e.stopPropagation()}
           >
-            {/* Handle */}
-            <div className="w-9 h-1 bg-[#3a3a3a] rounded-sm mx-auto mb-3.5" />
-
-            {current.image && (
-              <img
-                src={current.image}
-                alt={current.title}
-                referrerPolicy="no-referrer"
-                className="w-full max-h-[200px] object-contain rounded-lg bg-[#111] mb-3"
-              />
-            )}
-
-            <div className="flex items-start gap-2.5 mb-1.5">
-              <div className="flex-1">
-                <div className="text-[17px] font-bold mb-0.5">{current.title}</div>
-                <div className="text-[11px] text-[--muted]">{current.artist} · {current.year} · {current.medium}</div>
-              </div>
-              <button
-                onClick={shareOrCopy}
-                className="flex-shrink-0 bg-transparent border border-[--border] text-[--muted] w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors hover:text-[--text] hover:border-[--muted]"
-                title="Share artwork link"
-              >
-                <Share2 size={14} />
-              </button>
-            </div>
-
-            {current.description && (
-              <p className="text-[12px] text-[--muted] leading-relaxed mb-2.5">{current.description}</p>
-            )}
-
-            <div className="flex gap-4 mb-3.5 p-2.5 px-3 bg-[--s2] rounded-lg">
-              <div>
-                <div className="text-[10px] text-[--muted] uppercase tracking-wide mb-0.5">Width</div>
-                <div className="text-[13px] font-bold">{current.widthCm} cm</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-[--muted] uppercase tracking-wide mb-0.5">Height</div>
-                <div className="text-[13px] font-bold">{current.heightCm} cm</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-[--muted] uppercase tracking-wide mb-0.5">Type</div>
-                <div className="text-[13px] font-bold">{current.type === 'sculpture' ? '3D' : 'Flat'}</div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              {current.type === 'painting' && (
-                <button
-                  onClick={() => openMyWall(current)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 px-2 rounded-[10px] bg-[--s2] text-[--text] text-[14px] font-bold transition-opacity active:scale-95 cursor-pointer"
-                >
-                  <ImageIcon size={16} />
-                  My Wall
-                </button>
+            <div className="relative md:flex-1 bg-[#ece4d3] md:min-h-full">
+              {current.image ? (
+                <img
+                  src={current.image}
+                  alt={current.title}
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="w-full h-full max-h-[45vh] md:max-h-none object-contain md:object-cover"
+                />
+              ) : (
+                <div className="w-full h-full min-h-[45vh] flex items-center justify-center">
+                  <span className="font-display text-[72px] text-ink-muted">
+                    {current.type === 'sculpture' ? 'III' : 'II'}
+                  </span>
+                </div>
               )}
               <button
-                onClick={() => openAR(current)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-3.5 px-2 rounded-[10px] bg-[--accent] text-[#0c0c0c] text-[14px] font-bold transition-opacity active:scale-95 cursor-pointer"
+                onClick={closeDetail}
+                className="absolute top-4 left-4 h-10 w-10 bg-paper border border-line flex items-center justify-center text-ink hover:border-ink"
+                aria-label="Close"
               >
-                <Smartphone size={16} />
-                View in AR
+                <X size={16} />
               </button>
             </div>
-          </motion.div>
+
+            <div className="md:w-[380px] lg:w-[420px] flex-shrink-0 flex flex-col border-t md:border-t-0 md:border-l border-line overflow-y-auto">
+              <div className="flex-1 p-6 md:p-10">
+                <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-4">
+                  {current.type === 'sculpture' ? 'Sculpture' : 'Painting'}
+                </p>
+                <h2 className="font-display text-[32px] md:text-[40px] leading-[1.05] tracking-tight text-ink">
+                  {current.title}
+                </h2>
+                <p className="mt-3 text-[14px] text-ink-muted">
+                  {current.artist} — {current.year}
+                </p>
+
+                <dl className="mt-8 grid grid-cols-2 gap-y-4 text-[13px] border-t border-line pt-6">
+                  <dt className="text-[11px] tracking-[0.12em] uppercase text-ink-muted">Medium</dt>
+                  <dd className="text-ink">{current.medium}</dd>
+                  <dt className="text-[11px] tracking-[0.12em] uppercase text-ink-muted">Dimensions</dt>
+                  <dd className="text-ink">{sizeLabel}</dd>
+                  <dt className="text-[11px] tracking-[0.12em] uppercase text-ink-muted">Year</dt>
+                  <dd className="text-ink">{current.year}</dd>
+                </dl>
+
+                {current.description && (
+                  <p className="mt-8 text-[14px] leading-relaxed text-ink border-t border-line pt-6">
+                    {current.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-6 md:p-10 border-t border-line bg-surface flex flex-col gap-3">
+                {current.type === 'painting' && (
+                  <button
+                    onClick={() => openMyWall([current.id])}
+                    className="h-12 px-5 bg-accent text-accent-ink text-[14px] hover:bg-ink transition-colors"
+                  >
+                    Try on My Wall
+                  </button>
+                )}
+                <button
+                  onClick={() => openAR(current)}
+                  className="h-12 px-5 bg-transparent text-ink border border-ink text-[14px] hover:bg-ink hover:text-paper transition-colors"
+                >
+                  View in AR
+                </button>
+                <button
+                  onClick={share}
+                  className="h-10 text-[12px] text-ink-muted hover:text-ink transition-colors inline-flex items-center justify-center gap-2"
+                >
+                  <Share2 size={13} /> Share this work
+                </button>
+              </div>
+            </div>
+          </motion.aside>
         </motion.div>
       )}
     </AnimatePresence>

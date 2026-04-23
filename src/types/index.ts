@@ -15,10 +15,9 @@ export interface Artwork {
 
 export interface WallLayer {
   id: number
-  aw: Artwork
-  img: HTMLImageElement | null
+  artworkId: string
   x: number
   y: number
-  w: number
-  h: number
+  scale: number
+  rotation: number
 }

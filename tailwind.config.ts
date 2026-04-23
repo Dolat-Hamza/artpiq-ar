@@ -5,16 +5,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg:     '#0c0c0c',
-        s1:     '#181818',
-        s2:     '#232323',
-        border: '#2c2c2c',
-        text:   '#f0ece6',
-        muted:  '#888888',
-        accent: '#c8a96e',
+        paper: '#faf7f2',
+        ink: '#141210',
+        'ink-muted': '#6e6862',
+        line: '#d9d2c7',
+        accent: '#b8553a',
+        surface: '#ffffff',
       },
-      borderRadius: { DEFAULT: '12px' },
-      boxShadow: { art: '0 12px 48px rgba(0,0,0,0.6)' },
+      fontFamily: {
+        display: ['var(--font-display)', 'Georgia', 'serif'],
+        sans: ['var(--font-sans)', 'Inter', 'sans-serif'],
+      },
+      maxWidth: {
+        content: '1440px',
+      },
     },
   },
   plugins: [],

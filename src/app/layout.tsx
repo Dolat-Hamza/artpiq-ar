@@ -1,23 +1,40 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+import { Fraunces, Inter } from 'next/font/google'
 import './globals.css'
 
+const display = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+  axes: ['SOFT', 'opsz'],
+})
+
+const sans = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: 'ArtPiq · Place Art in Your Space',
-  description: 'Visualise iconic artworks in your space using augmented reality.',
-  viewport: 'width=device-width, initial-scale=1.0, user-scalable=no',
+  title: 'ArtPiq — Live with great paintings',
+  description: 'Place masterworks on your wall in augmented reality, or compose your own gallery on a photo.',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#faf7f2',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <head>
         <meta name="referrer" content="no-referrer-when-downgrade" />
-        {/* model-viewer loaded as module script to avoid SSR issues */}
         <script
           type="module"
           src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"
-          integrity="sha384-NxrHiuPcsJaRbXc9EoFTt5OZ6WPVqKeDgcnykGs3spXmq0J7hbbGGlyUkrGuoJoA"
-          crossOrigin="anonymous"
           async
         />
       </head>

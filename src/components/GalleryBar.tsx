@@ -1,18 +1,11 @@
 'use client'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useStore } from '@/store'
 import { ARTWORKS } from '@/lib/artworks'
 
-/** True if device supports WebXR immersive-ar (Android Chrome, Oculus) */
-async function hasWebXR(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.xr) return false
-  try { return await navigator.xr.isSessionSupported('immersive-ar') }
-  catch { return false }
-}
-
 export default function GalleryBar() {
-  const { selectedIds, isSelectMode, exitSelectMode, openXR, openGalleryAR, showToast } = useStore()
+  const { selectedIds, isSelectMode, exitSelectMode, openMyWall, showToast } = useStore()
 
   if (!isSelectMode || selectedIds.size === 0) return null
 
@@ -20,58 +13,50 @@ export default function GalleryBar() {
     .map(id => ARTWORKS.find(a => a.id === id))
     .filter(Boolean) as typeof ARTWORKS
 
-  async function launchGalleryAR() {
-    if (selected.length < 2) { showToast('Select at least 2 paintings'); return }
+  function toMyWall() {
+    if (selected.length < 1) { showToast('Select at least one painting'); return }
+    const ids = selected.map(a => a.id)
     exitSelectMode()
-
-    const webxrOk = await hasWebXR()
-    if (webxrOk) {
-      // Android/Chrome: place artworks individually via WebXR
-      openXR(selected)
-    } else {
-      // iOS / unsupported: combined GLB via model-viewer Quick Look
-      openGalleryAR(selected)
-    }
+    openMyWall(ids)
   }
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-[90] bg-[rgba(12,12,12,.96)] backdrop-blur-xl border-t border-[--border] px-4 pt-3 pb-6 flex flex-col gap-2.5"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        className="fixed bottom-0 left-0 right-0 z-[90] bg-paper border-t border-line"
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="flex gap-1.5 flex-1 overflow-hidden">
-            {selected.map(aw => aw.thumb ? (
+        <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 py-4 flex items-center gap-4">
+          <div className="flex -space-x-2">
+            {selected.slice(0, 6).map(aw => aw.thumb ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 key={aw.id}
                 src={aw.thumb}
                 alt={aw.title}
                 referrerPolicy="no-referrer-when-downgrade"
-                className="w-10 h-10 rounded-md object-cover border border-[--border] bg-[#222] flex-shrink-0"
+                className="w-10 h-10 object-cover border border-line bg-surface"
               />
             ) : null)}
           </div>
-          <div className="text-[13px] font-bold text-[--accent] whitespace-nowrap">
-            {selectedIds.size} {selectedIds.size === 1 ? 'painting' : 'paintings'}
-          </div>
+          <p className="text-[12px] tracking-[0.12em] uppercase text-ink-muted">
+            {selectedIds.size} selected
+          </p>
+          <div className="flex-1" />
           <button
             onClick={exitSelectMode}
-            className="bg-transparent border-none text-[--muted] text-[12px] cursor-pointer p-0"
+            className="h-10 px-3 text-[12px] text-ink-muted hover:text-ink"
           >
-            ✕ Clear
+            Clear
+          </button>
+          <button
+            onClick={toMyWall}
+            className="h-10 px-4 bg-accent text-accent-ink text-[13px] inline-flex items-center gap-2 hover:bg-ink transition-colors"
+          >
+            Compose on My Wall <ArrowRight size={14} />
           </button>
         </div>
-        <button
-          onClick={launchGalleryAR}
-          className="bg-[--accent] border-none text-[#0c0c0c] py-3.5 rounded-[12px] text-[14px] font-extrabold cursor-pointer w-full flex items-center justify-center gap-2 active:opacity-85 active:scale-[.98] transition-all"
-        >
-          <Sparkles size={16} /> View Gallery in AR
-        </button>
       </motion.div>
     </AnimatePresence>
   )

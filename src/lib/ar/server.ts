@@ -18,7 +18,6 @@ import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js'
 import sharp from 'sharp'
 import {
   buildPaintingScene,
-  buildGalleryScene,
   buildSculptureScene,
   type TexLoader,
 } from './scene'
@@ -42,28 +41,28 @@ async function decodeToTexture(url: string): Promise<THREE.Texture> {
     width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true,
   })
 
+  // Pre-flip vertically via sharp so the bytes are already bottom-left
+  // origin — this matches three's UV convention and means we keep
+  // flipY = false. USDZExporter's imageToCanvas path otherwise re-flips
+  // the image, which caused the upside-down Quick Look bug.
+  const flipped = pipeline.clone().flip()
+
   // Raw RGBA for GLTFExporter's putImageData path.
-  const { data: rgba, info } = await pipeline
+  const { data: rgba, info } = await flipped
     .clone()
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true })
 
   // PNG bytes for USDZExporter.
-  const png = await pipeline.clone().png().toBuffer()
+  const png = await flipped.clone().png().toBuffer()
 
   const fakeImg = new FakeHTMLImageElement(info.width, info.height, new Uint8Array(png))
-  // Add a `.data` view so GLTFExporter's `if (image.data !== undefined)` path
-  // fires and uses putImageData (which our shim re-encodes via sharp).
   ;(fakeImg as FakeHTMLImageElement & { data: Uint8Array }).data = new Uint8Array(rgba)
 
-  // We use a plain Texture (not DataTexture), assigning our fake image as
-  // source. `image.data` mimics a DataTexture enough for the exporter.
   const tex = new THREE.Texture(fakeImg as unknown as HTMLImageElement)
   tex.colorSpace = THREE.SRGBColorSpace
-  // Our PNG is top-left origin; three's default UV mapping is bottom-left.
-  // flipY = true corrects vertical orientation.
-  tex.flipY = true
+  tex.flipY = false
   tex.format = THREE.RGBAFormat
   tex.minFilter = THREE.LinearFilter
   tex.magFilter = THREE.LinearFilter
@@ -118,12 +117,4 @@ export async function buildSculptureGLB(aw: Artwork): Promise<ArrayBuffer> {
 export async function buildSculptureUSDZ(aw: Artwork): Promise<ArrayBuffer> {
   const scene = await buildSculptureScene(THREE, aw)
   return exportUSDZ(scene, 'horizontal') // floor / table
-}
-export async function buildGalleryGLBServer(artworks: Artwork[]): Promise<ArrayBuffer> {
-  const scene = await buildGalleryScene(THREE, artworks, serverLoadTex)
-  return exportGLB(scene)
-}
-export async function buildGalleryUSDZServer(artworks: Artwork[]): Promise<ArrayBuffer> {
-  const scene = await buildGalleryScene(THREE, artworks, serverLoadTex)
-  return exportUSDZ(scene, 'vertical') // wall-mounted row
 }
