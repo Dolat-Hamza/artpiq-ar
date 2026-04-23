@@ -1,21 +1,30 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, ImageIcon } from 'lucide-react'
 import { useStore } from '@/store'
-import {
-  getPaintingBuffer, getSculptureBuffer,
-  getPaintingUSDZ, getSculptureUSDZ,
-  freshBlobUrl, clearBlobUrl,
-} from '@/lib/three-builder'
 import { ARTWORKS } from '@/lib/artworks'
 import type { Artwork } from '@/types'
 
 type ARStatus = 'idle' | 'loading' | 'ready' | 'scanning' | 'placed' | 'error'
 
+function detectIOS(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = navigator.userAgent
+  // Treat iPadOS 13+ (which reports as Mac + touch) as iOS too.
+  const iPadLike = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  return (/iPad|iPhone|iPod/.test(ua) || iPadLike) && !(window as unknown as { MSStream?: unknown }).MSStream
+}
+
+function arUrl(aw: Artwork, format: 'glb' | 'usdz'): string {
+  const base = aw.type === 'sculpture' ? '/api/ar/sculpture' : '/api/ar/painting'
+  return `${base}/${aw.id}?format=${format}`
+}
+
 export default function ARViewer() {
-  const { arOpen, current, closeAR, openMyWall, openQR, showToast } = useStore()
+  const { arOpen, current, closeAR, openMyWall, openQR } = useStore()
   const mvRef = useRef<HTMLElement>(null)
+  const iosLinkRef = useRef<HTMLAnchorElement>(null)
   const [status, setStatus] = useState<ARStatus>('idle')
   const [hint, setHint] = useState('')
   const [showInstructions, setShowInstructions] = useState(false)
@@ -24,24 +33,47 @@ export default function ARViewer() {
   const surfaceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const instTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  async function loadAndLaunch(aw: typeof current) {
-    if (!aw || !mvRef.current) return
-    const mv = mvRef.current as HTMLElement & {
-      canActivateAR: boolean
-      activateAR: () => void
-      src: string
-      removeAttribute: (name: string) => void
-      setAttribute: (name: string, value: string) => void
-      style: CSSStyleDeclaration
-      addEventListener: (event: string, handler: (e: Event) => void, options?: AddEventListenerOptions) => void
-    }
+  const isIOS = useMemo(() => detectIOS(), [])
 
+  async function loadAndLaunch(aw: Artwork | null) {
+    if (!aw) return
     setStatus('loading')
-    setHint('Generating 3D model…')
+    setHint('Preparing AR model…')
     setShowGesture(false)
     setShowHelp(false)
     setShowInstructions(false)
     clearTimeout(surfaceTimer.current)
+
+    // iOS path — Apple's documented reliable Quick Look trigger: <a rel="ar">.
+    // We just click the hidden anchor; Safari intercepts the USDZ and opens
+    // Quick Look directly, bypassing model-viewer entirely.
+    if (isIOS) {
+      try {
+        setStatus('ready')
+        setHint('Opening AR Quick Look…')
+        // Defer to next tick so the href (updated via state-driven render) is
+        // committed before we click.
+        await new Promise(r => requestAnimationFrame(r))
+        iosLinkRef.current?.click()
+      } catch (err) {
+        setStatus('error')
+        setHint('⚠️ ' + (err instanceof Error ? err.message : 'Failed to launch AR'))
+      }
+      return
+    }
+
+    // Non-iOS path — use <model-viewer> with server GLB URL for both the
+    // 3D preview and for launching WebXR / Scene Viewer.
+    const mv = mvRef.current as HTMLElement & {
+      canActivateAR: boolean
+      activateAR: () => void
+      src: string
+      setAttribute: (name: string, value: string) => void
+      removeAttribute: (name: string) => void
+      addEventListener: (event: string, handler: (e: Event) => void, options?: AddEventListenerOptions) => void
+      style: CSSStyleDeclaration
+    } | null
+    if (!mv) return
 
     mv.setAttribute('ar-placement', aw.type === 'sculpture' ? 'floor' : 'wall')
     mv.setAttribute('ar-scale', aw.type === 'sculpture' ? 'auto' : 'fixed')
@@ -49,23 +81,16 @@ export default function ARViewer() {
     await new Promise(r => requestAnimationFrame(r))
 
     try {
-      // GLB is required (Android/WebXR); USDZ is best-effort (iOS Quick Look).
-      const glbBuf = aw.type === 'sculpture'
-        ? await getSculptureBuffer(aw)
-        : await getPaintingBuffer(aw)
-      const usdzBuf = await (aw.type === 'sculpture' ? getSculptureUSDZ(aw) : getPaintingUSDZ(aw))
-        .catch(e => { console.warn('[AR] USDZ export failed', e); return null })
-
-      mv.src = freshBlobUrl(glbBuf)
-      if (usdzBuf) mv.setAttribute('ios-src', freshBlobUrl(usdzBuf, 'model/vnd.usdz+zip'))
-      else mv.removeAttribute('ios-src')
+      mv.src = arUrl(aw, 'glb')
+      // ios-src helps if a desktop-Safari user somehow reaches this branch.
+      mv.setAttribute('ios-src', arUrl(aw, 'usdz'))
 
       await new Promise<void>((res, rej) => {
         const onLoad = () => res()
         const onErr = () => rej(new Error('Model load failed'))
         mv.addEventListener('load', onLoad, { once: true })
         mv.addEventListener('error', onErr, { once: true })
-        setTimeout(() => rej(new Error('Timeout')), 15000)
+        setTimeout(() => rej(new Error('Timeout')), 20000)
       })
 
       setStatus('ready')
@@ -89,14 +114,14 @@ export default function ARViewer() {
     return () => {
       clearTimeout(surfaceTimer.current)
       clearTimeout(instTimer.current)
-      clearBlobUrl()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arOpen, current?.id])
 
-  // ar-status events
+  // ar-status events (non-iOS)
   useEffect(() => {
     const mv = mvRef.current
-    if (!mv) return
+    if (!mv || isIOS) return
     const handler = (e: Event) => {
       const s = (e as CustomEvent).detail?.status
       if (s === 'session-started') {
@@ -131,12 +156,11 @@ export default function ARViewer() {
     }
     mv.addEventListener('ar-status', handler)
     return () => mv.removeEventListener('ar-status', handler)
-  }, [current])
+  }, [current, isIOS])
 
   function handleClose() {
     clearTimeout(surfaceTimer.current)
     clearTimeout(instTimer.current)
-    clearBlobUrl()
     closeAR()
     setStatus('idle')
     setShowGesture(false)
@@ -146,6 +170,10 @@ export default function ARViewer() {
 
   if (!current) return null
 
+  // Use server GLB URL for 3D preview on all platforms.
+  const previewGlb = arUrl(current, 'glb')
+  const iosUsdz = arUrl(current, 'usdz')
+
   return (
     <AnimatePresence>
       {arOpen && (
@@ -153,6 +181,17 @@ export default function ARViewer() {
           className="fixed inset-0 bg-black z-[300] flex flex-col"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         >
+          {/* Hidden iOS Quick Look anchor — clicked programmatically. */}
+          <a
+            ref={iosLinkRef}
+            rel="ar"
+            href={iosUsdz}
+            style={{ display: 'none' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/transparent.png" alt="" />
+          </a>
+
           {/* Top bar */}
           <div className="absolute top-0 left-0 right-0 z-10 px-4 py-3.5 flex items-center justify-between bg-gradient-to-b from-black/72 to-transparent">
             <div className="text-[13px] font-semibold text-white flex-1 truncate">{current.title}</div>
@@ -164,26 +203,28 @@ export default function ARViewer() {
             </button>
           </div>
 
-          {/* model-viewer */}
+          {/* 3D preview (all platforms) + AR launcher on non-iOS */}
           <model-viewer
             ref={mvRef}
-            ar
-            ar-modes="webxr quick-look"
-            ar-placement="wall"
-            ar-scale="fixed"
+            ar={!isIOS ? true : undefined}
+            ar-modes="webxr scene-viewer"
+            ar-placement={current.type === 'sculpture' ? 'floor' : 'wall'}
+            ar-scale={current.type === 'sculpture' ? 'auto' : 'fixed'}
             camera-controls
             shadow-intensity="0.8"
             exposure="1.1"
             tone-mapping="commerce"
             interpolation-decay="200"
-            style={{ width: '100%', height: '100%', opacity: 0, transition: 'opacity .4s', background: '#0a0a0a' }}
+            src={previewGlb}
+            ios-src={iosUsdz}
+            style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           />
 
           {/* Loading spinner */}
           {status === 'loading' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-3.5">
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-3.5 pointer-events-none">
               <div className="w-12 h-12 rounded-full border-[3px] border-[rgba(200,169,110,.3)] border-t-[--accent]" style={{ animation: 'sp .7s linear infinite' }} />
-              <div className="text-[13px] text-[#ccc] text-center">Generating 3D model…</div>
+              <div className="text-[13px] text-[#ccc] text-center">Preparing AR model…</div>
             </div>
           )}
 
@@ -209,7 +250,6 @@ export default function ARViewer() {
 
           {/* Bottom area */}
           <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-7 flex flex-col items-center gap-2.5 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
-            {/* Scan ring */}
             {status === 'scanning' && (
               <div className="w-[70px] h-[70px] rounded-full border-[3px] border-[rgba(200,169,110,.4)]" style={{ animation: 'ring-pulse 2s ease-in-out infinite' }} />
             )}
@@ -220,7 +260,15 @@ export default function ARViewer() {
               </div>
             )}
 
-            <div className="flex gap-2 pointer-events-all">
+            <div className="flex gap-2 pointer-events-auto">
+              {isIOS && (
+                <button
+                  onClick={() => iosLinkRef.current?.click()}
+                  className="bg-[--accent] border-none text-[#0c0c0c] px-5 py-2.5 rounded-full text-[13px] font-bold cursor-pointer"
+                >
+                  📱 Enter AR
+                </button>
+              )}
               {status === 'placed' && (
                 <button
                   onClick={() => { loadAndLaunch(current) }}
@@ -281,7 +329,6 @@ export default function ARViewer() {
             )}
           </AnimatePresence>
 
-          {/* Artwork switcher strip */}
           <ArtworkSwitcher currentAw={current} />
         </motion.div>
       )}
@@ -302,6 +349,7 @@ function ArtworkSwitcher({ currentAw }: { currentAw: Artwork }) {
           className={`flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer bg-transparent border-none p-0 transition-transform active:scale-[.93] ${aw.id === currentAw.id ? '' : 'opacity-70'}`}
         >
           {aw.thumb ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={aw.thumb}
               alt={aw.title}

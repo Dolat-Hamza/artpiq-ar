@@ -1,74 +1,65 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Loader2, RefreshCcw } from 'lucide-react'
 import { useStore } from '@/store'
-import { buildGalleryGLB, buildGalleryUSDZ, preloadArtworkTextures } from '@/lib/three-builder'
 
 type Status = 'loading' | 'ready' | 'error'
 
+function detectIOS(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = navigator.userAgent
+  const iPadLike = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  return (/iPad|iPhone|iPod/.test(ua) || iPadLike) && !(window as unknown as { MSStream?: unknown }).MSStream
+}
+
 /**
- * iOS / non-WebXR fallback for multi-artwork AR.
- * Builds a single combined GLB (all paintings in a row) and launches
- * model-viewer's AR mode (Quick Look on iOS, Scene Viewer on Android).
+ * Gallery AR — builds a combined server-side scene of all selected paintings
+ * and launches it via platform-native AR (Quick Look on iOS via <a rel="ar">,
+ * WebXR/Scene Viewer elsewhere via model-viewer).
  *
- * Limitation: once in Quick Look, scene is fixed. User can close → re-select
- * to change artwork set. We show a "Change selection" button to make that fast.
+ * No more blob URLs, no client-side Three.js exports.
  */
 export default function GalleryARViewer() {
   const { galleryArOpen, galleryArArtworks, closeGalleryAR, showToast, enterSelectMode } = useStore()
   const mvRef = useRef<HTMLElement | null>(null)
-  const glbUrlRef = useRef<string | null>(null)
-  const usdzUrlRef = useRef<string | null>(null)
+  const iosLinkRef = useRef<HTMLAnchorElement>(null)
   const [status, setStatus] = useState<Status>('loading')
-  const [hint, setHint] = useState('Building combined AR scene…')
+  const [hint, setHint] = useState('Preparing combined AR scene…')
 
-  function revokeUrls() {
-    if (glbUrlRef.current) { URL.revokeObjectURL(glbUrlRef.current); glbUrlRef.current = null }
-    if (usdzUrlRef.current) { URL.revokeObjectURL(usdzUrlRef.current); usdzUrlRef.current = null }
-  }
+  const isIOS = useMemo(() => detectIOS(), [])
 
-  async function buildAndLaunch() {
-    setStatus('loading')
-    setHint('Preloading textures…')
-    try {
-      await preloadArtworkTextures(galleryArArtworks)
+  const paintings = galleryArArtworks.filter(a => a.type === 'painting')
+  const idsParam = paintings.map(a => a.id).join(',')
+  const glbUrl = idsParam ? `/api/ar/gallery?ids=${encodeURIComponent(idsParam)}&format=glb` : ''
+  const usdzUrl = idsParam ? `/api/ar/gallery?ids=${encodeURIComponent(idsParam)}&format=usdz` : ''
 
-      setHint('Building GLB (Android) + USDZ (iOS)…')
-      // GLB powers Android Scene Viewer / WebXR; USDZ powers iOS Quick Look.
-      // USDZ is secondary — if export fails (rare CORS taint), ship GLB alone.
-      const glbBuf = await buildGalleryGLB(galleryArArtworks)
-      const usdzBuf = await buildGalleryUSDZ(galleryArArtworks).catch(e => {
-        console.warn('[GalleryAR] USDZ export failed — iOS AR will fall back to 3D preview', e)
-        return null
-      })
+  async function ensureModelViewerReady() {
+    // Just a lightweight probe: set src (done declaratively below) and wait
+    // for model-viewer to fire `load` or timeout.
+    if (isIOS) { setStatus('ready'); setHint('Tap "Enter AR" to open in Quick Look'); return }
+    const mv = mvRef.current as (HTMLElement & {
+      addEventListener: (e: string, h: (ev: Event) => void, opts?: AddEventListenerOptions) => void
+    }) | null
+    if (!mv) { setStatus('error'); setHint('model-viewer not available'); return }
 
-      revokeUrls()
-      glbUrlRef.current = URL.createObjectURL(new Blob([glbBuf], { type: 'model/gltf-binary' }))
-      if (usdzBuf) {
-        usdzUrlRef.current = URL.createObjectURL(new Blob([usdzBuf], { type: 'model/vnd.usdz+zip' }))
-      }
-
-      const mv = mvRef.current as (HTMLElement & {
-        setAttribute: (name: string, value: string) => void
-        removeAttribute: (name: string) => void
-        activateAR?: () => Promise<void>
-      }) | null
-      if (!mv) { setStatus('error'); return }
-      mv.setAttribute('src', glbUrlRef.current)
-      if (usdzUrlRef.current) mv.setAttribute('ios-src', usdzUrlRef.current)
-      else mv.removeAttribute('ios-src')
-
-      setStatus('ready')
-      setHint('Tap "Enter AR" to place gallery on wall')
-    } catch (err) {
-      console.error('[GalleryAR] build failed', err)
-      setStatus('error')
-      setHint(err instanceof Error ? err.message : 'Scene build failed')
-    }
+    await new Promise<void>((res, rej) => {
+      const onLoad = () => res()
+      const onErr = () => rej(new Error('Model load failed'))
+      mv.addEventListener('load', onLoad, { once: true })
+      mv.addEventListener('error', onErr, { once: true })
+      setTimeout(() => rej(new Error('Timeout building gallery scene')), 30000)
+    }).then(
+      () => { setStatus('ready'); setHint('Tap "Enter AR" to place gallery on wall') },
+      (err: Error) => { setStatus('error'); setHint(err.message) },
+    )
   }
 
   async function handleEnterAR() {
+    if (isIOS) {
+      iosLinkRef.current?.click()
+      return
+    }
     const mv = mvRef.current as (HTMLElement & { activateAR?: () => Promise<void> }) | null
     if (mv?.activateAR) {
       try { await mv.activateAR() }
@@ -76,23 +67,20 @@ export default function GalleryARViewer() {
     }
   }
 
-  function handleClose() {
-    revokeUrls()
-    closeGalleryAR()
-  }
-
+  function handleClose() { closeGalleryAR() }
   function handleChangeSelection() {
     handleClose()
     setTimeout(() => enterSelectMode(), 120)
   }
 
   useEffect(() => {
-    if (galleryArOpen && galleryArArtworks.length) buildAndLaunch()
-    return () => { revokeUrls() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [galleryArOpen])
-
-  const paintings = galleryArArtworks.filter(a => a.type === 'painting')
+    if (galleryArOpen && paintings.length) {
+      setStatus('loading')
+      setHint('Building combined AR scene on server…')
+      ensureModelViewerReady()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [galleryArOpen, idsParam])
 
   return (
     <AnimatePresence>
@@ -103,6 +91,17 @@ export default function GalleryARViewer() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
+          {/* Hidden iOS Quick Look anchor */}
+          <a
+            ref={iosLinkRef}
+            rel="ar"
+            href={usdzUrl}
+            style={{ display: 'none' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/transparent.png" alt="" />
+          </a>
+
           {/* Top bar */}
           <div className="absolute top-0 left-0 right-0 z-10 px-4 py-3 flex items-center gap-3 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
             <div className="flex-1 flex items-center gap-2">
@@ -120,21 +119,23 @@ export default function GalleryARViewer() {
             </button>
           </div>
 
-          {/* model-viewer (AR launcher) */}
+          {/* model-viewer: 3D preview on all platforms, AR launcher on non-iOS. */}
           <model-viewer
             ref={mvRef as React.Ref<HTMLElement>}
-            ar
-            ar-modes="webxr scene-viewer quick-look"
+            ar={!isIOS ? true : undefined}
+            ar-modes="webxr scene-viewer"
             ar-scale="fixed"
             ar-placement="wall"
             camera-controls
             shadow-intensity="1"
             exposure="1"
             tone-mapping="aces"
+            src={glbUrl}
+            ios-src={usdzUrl}
             style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           />
 
-          {/* Preview thumbnails — shown while model-viewer loads */}
+          {/* Preview thumbnails while loading */}
           {status !== 'ready' && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex flex-col items-center gap-4 px-6">
@@ -168,7 +169,7 @@ export default function GalleryARViewer() {
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-4 flex flex-col gap-2 bg-gradient-to-t from-black/85 via-black/40 to-transparent">
             <div className="text-white/80 text-[12px] text-center px-2 leading-snug">
               {status === 'ready'
-                ? 'All paintings combined as one scene · Quick Look on iOS'
+                ? 'Combined scene served by backend · Quick Look / WebXR ready'
                 : hint}
             </div>
             <div className="flex gap-2">
@@ -180,10 +181,10 @@ export default function GalleryARViewer() {
               </button>
               <button
                 onClick={handleEnterAR}
-                disabled={status !== 'ready'}
+                disabled={status !== 'ready' && !isIOS}
                 className="flex-[2] bg-[--accent] disabled:opacity-50 disabled:cursor-not-allowed border-none text-[#0c0c0c] py-3 rounded-xl text-[14px] font-extrabold cursor-pointer active:scale-[.97] transition-transform"
               >
-                {status === 'ready' ? '📱 Enter AR' : 'Preparing…'}
+                {isIOS || status === 'ready' ? '📱 Enter AR' : 'Preparing…'}
               </button>
             </div>
           </div>
