@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Loader2, RefreshCcw } from 'lucide-react'
 import { useStore } from '@/store'
-import { buildGalleryGLB, preloadArtworkTextures } from '@/lib/three-builder'
+import { buildGalleryGLB, buildGalleryUSDZ, preloadArtworkTextures } from '@/lib/three-builder'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -18,29 +18,49 @@ type Status = 'loading' | 'ready' | 'error'
 export default function GalleryARViewer() {
   const { galleryArOpen, galleryArArtworks, closeGalleryAR, showToast, enterSelectMode } = useStore()
   const mvRef = useRef<HTMLElement | null>(null)
-  const blobUrlRef = useRef<string | null>(null)
+  const glbUrlRef = useRef<string | null>(null)
+  const usdzUrlRef = useRef<string | null>(null)
   const [status, setStatus] = useState<Status>('loading')
   const [hint, setHint] = useState('Building combined AR scene…')
+
+  function revokeUrls() {
+    if (glbUrlRef.current) { URL.revokeObjectURL(glbUrlRef.current); glbUrlRef.current = null }
+    if (usdzUrlRef.current) { URL.revokeObjectURL(usdzUrlRef.current); usdzUrlRef.current = null }
+  }
 
   async function buildAndLaunch() {
     setStatus('loading')
     setHint('Preloading textures…')
     try {
       await preloadArtworkTextures(galleryArArtworks)
-      setHint('Building combined scene…')
-      const buf = await buildGalleryGLB(galleryArArtworks)
-      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = URL.createObjectURL(new Blob([buf], { type: 'model/gltf-binary' }))
 
-      const mv = mvRef.current as HTMLElement & {
+      setHint('Building GLB (Android) + USDZ (iOS)…')
+      // GLB powers Android Scene Viewer / WebXR; USDZ powers iOS Quick Look.
+      // USDZ is secondary — if export fails (rare CORS taint), ship GLB alone.
+      const glbBuf = await buildGalleryGLB(galleryArArtworks)
+      const usdzBuf = await buildGalleryUSDZ(galleryArArtworks).catch(e => {
+        console.warn('[GalleryAR] USDZ export failed — iOS AR will fall back to 3D preview', e)
+        return null
+      })
+
+      revokeUrls()
+      glbUrlRef.current = URL.createObjectURL(new Blob([glbBuf], { type: 'model/gltf-binary' }))
+      if (usdzBuf) {
+        usdzUrlRef.current = URL.createObjectURL(new Blob([usdzBuf], { type: 'model/vnd.usdz+zip' }))
+      }
+
+      const mv = mvRef.current as (HTMLElement & {
         setAttribute: (name: string, value: string) => void
+        removeAttribute: (name: string) => void
         activateAR?: () => Promise<void>
-      } | null
+      }) | null
       if (!mv) { setStatus('error'); return }
-      mv.setAttribute('src', blobUrlRef.current)
+      mv.setAttribute('src', glbUrlRef.current)
+      if (usdzUrlRef.current) mv.setAttribute('ios-src', usdzUrlRef.current)
+      else mv.removeAttribute('ios-src')
 
       setStatus('ready')
-      setHint('Tap "Enter AR" to place gallery')
+      setHint('Tap "Enter AR" to place gallery on wall')
     } catch (err) {
       console.error('[GalleryAR] build failed', err)
       setStatus('error')
@@ -57,7 +77,7 @@ export default function GalleryARViewer() {
   }
 
   function handleClose() {
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null }
+    revokeUrls()
     closeGalleryAR()
   }
 
@@ -68,9 +88,7 @@ export default function GalleryARViewer() {
 
   useEffect(() => {
     if (galleryArOpen && galleryArArtworks.length) buildAndLaunch()
-    return () => {
-      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null }
-    }
+    return () => { revokeUrls() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galleryArOpen])
 

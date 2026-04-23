@@ -3,7 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, ImageIcon } from 'lucide-react'
 import { useStore } from '@/store'
-import { getPaintingBuffer, getSculptureBuffer, freshBlobUrl, clearBlobUrl } from '@/lib/three-builder'
+import {
+  getPaintingBuffer, getSculptureBuffer,
+  getPaintingUSDZ, getSculptureUSDZ,
+  freshBlobUrl, clearBlobUrl,
+} from '@/lib/three-builder'
 import { ARTWORKS } from '@/lib/artworks'
 import type { Artwork } from '@/types'
 
@@ -45,11 +49,16 @@ export default function ARViewer() {
     await new Promise(r => requestAnimationFrame(r))
 
     try {
-      const buf = aw.type === 'sculpture'
+      // GLB is required (Android/WebXR); USDZ is best-effort (iOS Quick Look).
+      const glbBuf = aw.type === 'sculpture'
         ? await getSculptureBuffer(aw)
         : await getPaintingBuffer(aw)
-      const url = freshBlobUrl(buf)
-      mv.src = url
+      const usdzBuf = await (aw.type === 'sculpture' ? getSculptureUSDZ(aw) : getPaintingUSDZ(aw))
+        .catch(e => { console.warn('[AR] USDZ export failed', e); return null })
+
+      mv.src = freshBlobUrl(glbBuf)
+      if (usdzBuf) mv.setAttribute('ios-src', freshBlobUrl(usdzBuf, 'model/vnd.usdz+zip'))
+      else mv.removeAttribute('ios-src')
 
       await new Promise<void>((res, rej) => {
         const onLoad = () => res()

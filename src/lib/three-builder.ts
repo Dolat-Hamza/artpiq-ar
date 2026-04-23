@@ -1,27 +1,30 @@
 'use client'
 // All Three.js work happens client-side only
-// Dynamic imports are handled by callers with `typeof window !== 'undefined'` checks
 
 import type { Artwork } from '@/types'
+import type * as THREE_NS from 'three'
 
-// Cache: artwork id → ArrayBuffer (GLB binary)
-const glbCache = new Map<string, ArrayBuffer>()
-let activeBlobUrl: string | null = null
+// Caches
+const glbCache      = new Map<string, ArrayBuffer>()
+const usdzCache     = new Map<string, ArrayBuffer>()
+const glbGalleryCache  = new Map<string, ArrayBuffer>()
+const usdzGalleryCache = new Map<string, ArrayBuffer>()
+const imgCache      = new Map<string, HTMLImageElement>()
 
-export function freshBlobUrl(buffer: ArrayBuffer): string {
-  if (activeBlobUrl) URL.revokeObjectURL(activeBlobUrl)
-  activeBlobUrl = URL.createObjectURL(new Blob([buffer], { type: 'model/gltf-binary' }))
-  return activeBlobUrl
+let activeBlobUrls: string[] = []
+
+export function freshBlobUrl(buffer: ArrayBuffer, mime = 'model/gltf-binary'): string {
+  const url = URL.createObjectURL(new Blob([buffer], { type: mime }))
+  activeBlobUrls.push(url)
+  return url
 }
 
 export function clearBlobUrl(): void {
-  if (activeBlobUrl) { URL.revokeObjectURL(activeBlobUrl); activeBlobUrl = null }
+  activeBlobUrls.forEach(u => URL.revokeObjectURL(u))
+  activeBlobUrls = []
 }
 
-// Texture cache: url → decoded HTMLImageElement
-const imgCache = new Map<string, HTMLImageElement>()
-
-/** Load image robustly with decode() + cache, wrap as THREE.Texture with needsUpdate */
+/** Load image robustly with decode() + cache */
 export async function loadTexture(url: string) {
   const THREE = await import('three')
 
@@ -35,10 +38,8 @@ export async function loadTexture(url: string) {
       el.decoding = 'async'
       el.onload = async () => {
         clearTimeout(timer)
-        try {
-          if (el.decode) await el.decode().catch(() => {})
-          res(el)
-        } catch { res(el) }
+        try { if (el.decode) await el.decode().catch(() => {}); res(el) }
+        catch { res(el) }
       }
       el.onerror = () => { clearTimeout(timer); rej(new Error('Image load error')) }
       el.src = url
@@ -46,7 +47,6 @@ export async function loadTexture(url: string) {
     imgCache.set(url, img)
   }
 
-  // THREE.Texture with needsUpdate is the reliable way for HTMLImageElement
   const tex = new THREE.Texture(img)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.needsUpdate = true
@@ -56,7 +56,6 @@ export async function loadTexture(url: string) {
   return tex
 }
 
-/** Warm texture cache in parallel — call before AR session starts */
 export async function preloadArtworkTextures(artworks: Artwork[]): Promise<void> {
   await Promise.all(
     artworks
@@ -68,66 +67,125 @@ export async function preloadArtworkTextures(artworks: Artwork[]): Promise<void>
   )
 }
 
-function buildGLB(scene: object): Promise<ArrayBuffer> {
-  return new Promise(async (res, rej) => {
-    const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
-    new GLTFExporter().parse(scene as Parameters<InstanceType<typeof GLTFExporter>['parse']>[0], res as (v: ArrayBuffer | object) => void, rej, { binary: true })
+// ─── Exporters ──────────────────────────────────────────────────────────────
+
+async function exportGLB(scene: THREE_NS.Scene): Promise<ArrayBuffer> {
+  const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+  return new Promise((res, rej) => {
+    new GLTFExporter().parse(
+      scene as Parameters<InstanceType<typeof GLTFExporter>['parse']>[0],
+      result => res(result as ArrayBuffer),
+      rej,
+      { binary: true }
+    )
   })
 }
 
-export async function getPaintingBuffer(aw: Artwork): Promise<ArrayBuffer> {
-  if (glbCache.has(aw.id)) return glbCache.get(aw.id)!
+async function exportUSDZ(scene: THREE_NS.Scene): Promise<ArrayBuffer> {
+  const { USDZExporter } = await import('three/examples/jsm/exporters/USDZExporter.js')
+  const out = await new USDZExporter().parse(scene as Parameters<InstanceType<typeof USDZExporter>['parse']>[0])
+  return out.buffer as ArrayBuffer
+}
+
+// ─── Scene builders (pure — reused for both GLB + USDZ) ─────────────────────
+
+async function buildPaintingScene(aw: Artwork): Promise<THREE_NS.Scene> {
   const imgUrl = aw.image || aw.thumb
   if (!imgUrl) throw new Error('No image URL for this artwork')
 
   const THREE = await import('three')
   const wM = aw.widthCm / 100, hM = aw.heightCm / 100
 
-  let texture: InstanceType<typeof THREE.Texture>
-  try {
-    texture = await loadTexture(imgUrl)
-  } catch {
-    if (aw.thumb && aw.thumb !== imgUrl) texture = await loadTexture(aw.thumb)
+  let tex: InstanceType<typeof THREE.Texture>
+  try { tex = await loadTexture(imgUrl) }
+  catch {
+    if (aw.thumb && aw.thumb !== imgUrl) tex = await loadTexture(aw.thumb)
     else throw new Error('Could not load artwork image')
   }
 
   const scene = new THREE.Scene()
-  scene.add(new THREE.Mesh(
-    new THREE.PlaneGeometry(wM, hM),
-    new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7, metalness: 0.0, side: THREE.FrontSide })
-  ))
-
-  const ft = 0.018, fd = 0.013
-  const fmat = new THREE.MeshStandardMaterial({ color: 0x1a0e06, roughness: 0.55, metalness: 0.08 });
-  [
-    { w: wM + ft * 2, h: ft, x: 0, y: -(hM / 2 + ft / 2) },
-    { w: wM + ft * 2, h: ft, x: 0, y: hM / 2 + ft / 2 },
-    { w: ft, h: hM, x: -(wM / 2 + ft / 2), y: 0 },
-    { w: ft, h: hM, x: wM / 2 + ft / 2, y: 0 },
-  ].forEach(({ w, h, x, y }) => {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, fd), fmat)
-    bar.position.set(x, y, -fd / 2 + 0.001)
-    scene.add(bar)
+  const paintingMat = new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.7, metalness: 0.0, side: THREE.FrontSide,
   })
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), paintingMat))
+
+  addFrame(THREE, scene, 0, 0, wM, hM)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.75))
   const key = new THREE.DirectionalLight(0xfff8f0, 1.0)
   key.position.set(0, 0.5, 1); scene.add(key)
 
-  const buf = await buildGLB(scene)
-  glbCache.set(aw.id, buf)
-  return buf
+  return scene
 }
 
-export async function getSculptureBuffer(aw: Artwork): Promise<ArrayBuffer> {
-  if (glbCache.has(aw.id)) return glbCache.get(aw.id)!
+async function buildGalleryScene(artworks: Artwork[]): Promise<THREE_NS.Scene> {
+  const THREE = await import('three')
+  const paintings = artworks.filter(a => a.type === 'painting')
+  const TARGET_H = 0.5, GAP = 0.06
+  const scene = new THREE.Scene()
 
+  const scales = paintings.map(aw => TARGET_H / (aw.heightCm / 100))
+  const widths = paintings.map((aw, i) => (aw.widthCm / 100) * scales[i])
+  const totalW = widths.reduce((s, w) => s + w, 0) + GAP * (paintings.length - 1)
+  let cursor = -totalW / 2
+
+  for (let i = 0; i < paintings.length; i++) {
+    const aw = paintings[i]
+    const sc = scales[i]
+    const wM = (aw.widthCm / 100) * sc, hM = TARGET_H
+    const cx = cursor + wM / 2
+    cursor += wM + GAP
+
+    let mat: InstanceType<typeof THREE.MeshStandardMaterial>
+    try {
+      const tex = await loadTexture(aw.image || aw.thumb || '')
+      mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.0, side: THREE.FrontSide })
+    } catch {
+      const colours = [0x8b6347, 0x4a6fa5, 0x5a8a5a, 0x8a5a8a]
+      mat = new THREE.MeshStandardMaterial({ color: colours[i % colours.length], roughness: 0.8 })
+    }
+
+    const painting = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat)
+    painting.position.set(cx, 0, 0)
+    scene.add(painting)
+
+    addFrame(THREE, scene, cx, 0, wM, hM)
+  }
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8))
+  const key = new THREE.DirectionalLight(0xfff8f0, 1.0)
+  key.position.set(0, 0.5, 1); scene.add(key)
+
+  return scene
+}
+
+function addFrame(
+  THREE: typeof THREE_NS,
+  scene: THREE_NS.Scene,
+  cx: number, cy: number, wM: number, hM: number,
+) {
+  const FT = 0.018, FD = 0.013
+  const fmat = new THREE.MeshStandardMaterial({ color: 0x1a0e06, roughness: 0.55, metalness: 0.08 })
+  const bars = [
+    { w: wM + FT * 2, h: FT, x: 0, y: -(hM / 2 + FT / 2) },
+    { w: wM + FT * 2, h: FT, x: 0, y: hM / 2 + FT / 2 },
+    { w: FT, h: hM, x: -(wM / 2 + FT / 2), y: 0 },
+    { w: FT, h: hM, x: wM / 2 + FT / 2, y: 0 },
+  ]
+  bars.forEach(({ w, h, x, y }) => {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, FD), fmat)
+    bar.position.set(cx + x, cy + y, -FD / 2 + 0.001)
+    scene.add(bar)
+  })
+}
+
+async function buildSculptureScene(aw: Artwork): Promise<THREE_NS.Scene> {
   const THREE = await import('three')
   const scene = new THREE.Scene()
 
   if (aw.id === 'bronze-helix') {
-    const marble = new THREE.MeshStandardMaterial({ color: 0xf0ede8, roughness: 0.4, metalness: 0.0 });
-    [
+    const marble = new THREE.MeshStandardMaterial({ color: 0xf0ede8, roughness: 0.4, metalness: 0.0 })
+    ;[
       { r1: 0.10, r2: 0.12, h: 0.02, y: 0.01 },
       { r1: 0.055, r2: 0.065, h: 0.22, y: 0.13 },
       { r1: 0.08, r2: 0.08, h: 0.015, y: 0.245 },
@@ -160,54 +218,59 @@ export async function getSculptureBuffer(aw: Artwork): Promise<ArrayBuffer> {
   const key = new THREE.DirectionalLight(0xfff4e0, 1.8); key.position.set(1.5, 3, 2); scene.add(key)
   const fill = new THREE.DirectionalLight(0xbfd0ff, 0.5); fill.position.set(-2, 1, -1); scene.add(fill)
 
-  const buf = await buildGLB(scene)
+  return scene
+}
+
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+export async function getPaintingBuffer(aw: Artwork): Promise<ArrayBuffer> {
+  if (glbCache.has(aw.id)) return glbCache.get(aw.id)!
+  const scene = await buildPaintingScene(aw)
+  const buf = await exportGLB(scene)
   glbCache.set(aw.id, buf)
   return buf
 }
 
+export async function getPaintingUSDZ(aw: Artwork): Promise<ArrayBuffer> {
+  if (usdzCache.has(aw.id)) return usdzCache.get(aw.id)!
+  const scene = await buildPaintingScene(aw)
+  const buf = await exportUSDZ(scene)
+  usdzCache.set(aw.id, buf)
+  return buf
+}
+
+export async function getSculptureBuffer(aw: Artwork): Promise<ArrayBuffer> {
+  if (glbCache.has(aw.id)) return glbCache.get(aw.id)!
+  const scene = await buildSculptureScene(aw)
+  const buf = await exportGLB(scene)
+  glbCache.set(aw.id, buf)
+  return buf
+}
+
+export async function getSculptureUSDZ(aw: Artwork): Promise<ArrayBuffer> {
+  if (usdzCache.has(aw.id)) return usdzCache.get(aw.id)!
+  const scene = await buildSculptureScene(aw)
+  const buf = await exportUSDZ(scene)
+  usdzCache.set(aw.id, buf)
+  return buf
+}
+
 export async function buildGalleryGLB(artworks: Artwork[]): Promise<ArrayBuffer> {
-  const THREE = await import('three')
-  const TARGET_H = 0.5, GAP = 0.06, FT = 0.018, FD = 0.013
-  const fmat = new THREE.MeshStandardMaterial({ color: 0x1a0e06, roughness: 0.55, metalness: 0.08 })
-  const scene = new THREE.Scene()
+  const key = artworks.map(a => a.id).sort().join('|')
+  if (glbGalleryCache.has(key)) return glbGalleryCache.get(key)!
+  const scene = await buildGalleryScene(artworks)
+  const buf = await exportGLB(scene)
+  glbGalleryCache.set(key, buf)
+  return buf
+}
 
-  const scales = artworks.map(aw => TARGET_H / (aw.heightCm / 100))
-  const widths = artworks.map((aw, i) => (aw.widthCm / 100) * scales[i])
-  const totalW = widths.reduce((s, w) => s + w, 0) + GAP * (artworks.length - 1)
-  let cursor = -totalW / 2
-
-  for (let i = 0; i < artworks.length; i++) {
-    const aw = artworks[i]
-    const sc = scales[i]
-    const wM = (aw.widthCm / 100) * sc, hM = TARGET_H
-    const cx = cursor + wM / 2; cursor += wM + GAP
-
-    let mat: InstanceType<typeof THREE.MeshStandardMaterial>
-    try {
-      const tex = await loadTexture(aw.image || aw.thumb || '')
-      mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.0, side: THREE.FrontSide })
-    } catch {
-      const colours = [0x8b6347, 0x4a6fa5, 0x5a8a5a, 0x8a5a8a]
-      mat = new THREE.MeshStandardMaterial({ color: colours[i % colours.length], roughness: 0.8 })
-    }
-
-    const painting = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat)
-    painting.position.set(cx, 0, 0); scene.add(painting)
-
-    ;[
-      { w: wM + FT * 2, h: FT, x: 0, y: -(hM / 2 + FT / 2) },
-      { w: wM + FT * 2, h: FT, x: 0, y: hM / 2 + FT / 2 },
-      { w: FT, h: hM, x: -(wM / 2 + FT / 2), y: 0 },
-      { w: FT, h: hM, x: wM / 2 + FT / 2, y: 0 },
-    ].forEach(({ w, h, x, y }) => {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, FD), fmat)
-      bar.position.set(cx + x, y, -FD / 2 + 0.001); scene.add(bar)
-    })
-  }
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8))
-  const key = new THREE.DirectionalLight(0xfff8f0, 1.0); key.position.set(0, 0.5, 1); scene.add(key)
-  return buildGLB(scene)
+export async function buildGalleryUSDZ(artworks: Artwork[]): Promise<ArrayBuffer> {
+  const key = artworks.map(a => a.id).sort().join('|')
+  if (usdzGalleryCache.has(key)) return usdzGalleryCache.get(key)!
+  const scene = await buildGalleryScene(artworks)
+  const buf = await exportUSDZ(scene)
+  usdzGalleryCache.set(key, buf)
+  return buf
 }
 
 /** Build a Three.js Group (painting + frame) for WebXR direct rendering */
@@ -224,8 +287,8 @@ export async function buildPaintingMesh(aw: Artwork) {
   const group = new THREE.Group()
   group.add(new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat))
   const ft = 0.018, fd = 0.013
-  const fmat = new THREE.MeshStandardMaterial({ color: 0x1a0e06, roughness: 0.55, metalness: 0.08 });
-  [
+  const fmat = new THREE.MeshStandardMaterial({ color: 0x1a0e06, roughness: 0.55, metalness: 0.08 })
+  ;[
     { w: wM + ft * 2, h: ft, x: 0, y: -(hM / 2 + ft / 2) },
     { w: wM + ft * 2, h: ft, x: 0, y: hM / 2 + ft / 2 },
     { w: ft, h: hM, x: -(wM / 2 + ft / 2), y: 0 },

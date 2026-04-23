@@ -5,6 +5,7 @@ type ModelViewerElement = React.DetailedHTMLProps<
   HTMLElement
 > & {
   src?: string
+  'ios-src'?: string
   ar?: boolean | string
   'ar-modes'?: string
   'ar-placement'?: string
