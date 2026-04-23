@@ -18,25 +18,54 @@ export function clearBlobUrl(): void {
   if (activeBlobUrl) { URL.revokeObjectURL(activeBlobUrl); activeBlobUrl = null }
 }
 
-/** Load image via HTMLImageElement (handles CORS/redirects), wrap as THREE.CanvasTexture */
+// Texture cache: url → decoded HTMLImageElement
+const imgCache = new Map<string, HTMLImageElement>()
+
+/** Load image robustly with decode() + cache, wrap as THREE.Texture with needsUpdate */
 export async function loadTexture(url: string) {
   const THREE = await import('three')
-  return new Promise<InstanceType<typeof THREE.CanvasTexture>>((res, rej) => {
-    const timer = setTimeout(() => rej(new Error('Texture timeout')), 8000)
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.referrerPolicy = 'no-referrer-when-downgrade'
-    img.onload = () => {
-      clearTimeout(timer)
-      try {
-        const tex = new THREE.CanvasTexture(img)
-        tex.colorSpace = THREE.SRGBColorSpace
-        res(tex)
-      } catch (e) { rej(e) }
-    }
-    img.onerror = () => { clearTimeout(timer); rej(new Error('Image load error')) }
-    img.src = url
-  })
+
+  let img = imgCache.get(url)
+  if (!img) {
+    img = await new Promise<HTMLImageElement>((res, rej) => {
+      const timer = setTimeout(() => rej(new Error('Texture timeout')), 12000)
+      const el = new Image()
+      el.crossOrigin = 'anonymous'
+      el.referrerPolicy = 'no-referrer-when-downgrade'
+      el.decoding = 'async'
+      el.onload = async () => {
+        clearTimeout(timer)
+        try {
+          if (el.decode) await el.decode().catch(() => {})
+          res(el)
+        } catch { res(el) }
+      }
+      el.onerror = () => { clearTimeout(timer); rej(new Error('Image load error')) }
+      el.src = url
+    })
+    imgCache.set(url, img)
+  }
+
+  // THREE.Texture with needsUpdate is the reliable way for HTMLImageElement
+  const tex = new THREE.Texture(img)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.needsUpdate = true
+  tex.minFilter = THREE.LinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.generateMipmaps = false
+  return tex
+}
+
+/** Warm texture cache in parallel — call before AR session starts */
+export async function preloadArtworkTextures(artworks: Artwork[]): Promise<void> {
+  await Promise.all(
+    artworks
+      .filter(a => a.type === 'painting')
+      .map(a => {
+        const url = a.image || a.thumb
+        return url ? loadTexture(url).catch(() => null) : null
+      })
+  )
 }
 
 function buildGLB(scene: object): Promise<ArrayBuffer> {
@@ -54,7 +83,7 @@ export async function getPaintingBuffer(aw: Artwork): Promise<ArrayBuffer> {
   const THREE = await import('three')
   const wM = aw.widthCm / 100, hM = aw.heightCm / 100
 
-  let texture: InstanceType<typeof THREE.CanvasTexture>
+  let texture: InstanceType<typeof THREE.Texture>
   try {
     texture = await loadTexture(imgUrl)
   } catch {
