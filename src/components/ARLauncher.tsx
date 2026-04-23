@@ -87,7 +87,7 @@ export default function ARLauncher() {
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 py-10 md:py-16 grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
               <div className="md:col-span-7">
-                <div className="aspect-[4/5] bg-[#ece4d3] overflow-hidden">
+                <div className="aspect-[4/5] bg-slate-100 overflow-hidden">
                   {platform === 'desktop' ? (
                     <model-viewer
                       src={arUrl(current, 'glb')}

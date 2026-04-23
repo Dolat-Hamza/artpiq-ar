@@ -113,7 +113,7 @@ export default function GalleryAR() {
 
             <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
               {selected.map(aw => (
-                <div key={aw.id} className="bg-[#ece4d3]">
+                <div key={aw.id} className="bg-slate-100">
                   <div className="aspect-[3/4] overflow-hidden">
                     {aw.image ? (
                       /* eslint-disable-next-line @next/next/no-img-element */

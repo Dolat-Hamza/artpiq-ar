@@ -40,7 +40,7 @@ export default function DetailSheet() {
             transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="relative md:flex-1 bg-[#ece4d3] md:min-h-full">
+            <div className="relative md:flex-1 bg-slate-100 md:min-h-full">
               {current.image ? (
                 <img
                   src={current.image}

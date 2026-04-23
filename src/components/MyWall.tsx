@@ -302,7 +302,7 @@ export default function MyWall() {
         ) : (
           <div
             ref={stageRef}
-            className="relative flex-1 overflow-hidden bg-[#15100c]"
+            className="relative flex-1 overflow-hidden bg-obsidian"
             onPointerDown={(e) => {
               if (e.target === e.currentTarget) setActiveId(null)
             }}
@@ -514,7 +514,7 @@ function LayerNode({
       className="select-none"
     >
       <div
-        className={`relative bg-[#1a110a] p-[4%] shadow-[0_14px_40px_rgba(0,0,0,0.45)] ${
+        className={`relative bg-obsidian p-[4%] shadow-[0_14px_40px_rgba(0,0,0,0.45)] ${
           active ? 'ring-1 ring-accent ring-offset-0' : ''
         }`}
       >

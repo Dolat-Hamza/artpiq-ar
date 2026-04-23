@@ -39,7 +39,7 @@ export default function ArtworkCard({ aw }: { aw: Artwork }) {
             />
           </>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#ece4d3]">
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
             <span className="font-display text-[40px] text-ink-muted">
               {aw.type === 'sculpture' ? 'III' : 'II'}
             </span>
