@@ -36,7 +36,7 @@ export function buildFramedPainting(
     map: canvasTex,
     roughness: 0.7,
     metalness: 0.0,
-    side: THREE.FrontSide,
+    side: THREE.DoubleSide,
   })
   const canvas = new THREE.Mesh(new THREE.PlaneGeometry(widthM, heightM), paintingMat)
   canvas.position.set(cx, cy, CANVAS_Z)

@@ -87,8 +87,17 @@ async function exportGLB(scene: THREE.Scene): Promise<ArrayBuffer> {
   })
 }
 
-async function exportUSDZ(scene: THREE.Scene): Promise<ArrayBuffer> {
-  const out = await new USDZExporter().parse(scene)
+type Alignment = 'vertical' | 'horizontal'
+async function exportUSDZ(scene: THREE.Scene, alignment: Alignment = 'vertical'): Promise<ArrayBuffer> {
+  const out = await new USDZExporter().parse(scene, {
+    ar: {
+      anchoring: { type: 'plane' },
+      planeAnchoring: { alignment },
+    },
+    includeAnchoringProperties: true,
+    quickLookCompatible: true,
+    maxTextureSize: 1024,
+  } as unknown as Parameters<InstanceType<typeof USDZExporter>['parse']>[1])
   return out.buffer as ArrayBuffer
 }
 
@@ -100,7 +109,7 @@ export async function buildPaintingGLB(aw: Artwork): Promise<ArrayBuffer> {
 }
 export async function buildPaintingUSDZ(aw: Artwork): Promise<ArrayBuffer> {
   const scene = await buildPaintingScene(THREE, aw, serverLoadTex)
-  return exportUSDZ(scene)
+  return exportUSDZ(scene, 'vertical') // wall-mount
 }
 export async function buildSculptureGLB(aw: Artwork): Promise<ArrayBuffer> {
   const scene = await buildSculptureScene(THREE, aw)
@@ -108,7 +117,7 @@ export async function buildSculptureGLB(aw: Artwork): Promise<ArrayBuffer> {
 }
 export async function buildSculptureUSDZ(aw: Artwork): Promise<ArrayBuffer> {
   const scene = await buildSculptureScene(THREE, aw)
-  return exportUSDZ(scene)
+  return exportUSDZ(scene, 'horizontal') // floor / table
 }
 export async function buildGalleryGLBServer(artworks: Artwork[]): Promise<ArrayBuffer> {
   const scene = await buildGalleryScene(THREE, artworks, serverLoadTex)
@@ -116,5 +125,5 @@ export async function buildGalleryGLBServer(artworks: Artwork[]): Promise<ArrayB
 }
 export async function buildGalleryUSDZServer(artworks: Artwork[]): Promise<ArrayBuffer> {
   const scene = await buildGalleryScene(THREE, artworks, serverLoadTex)
-  return exportUSDZ(scene)
+  return exportUSDZ(scene, 'vertical') // wall-mounted row
 }
