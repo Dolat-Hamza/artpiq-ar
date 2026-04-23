@@ -240,6 +240,67 @@
       .card-body { padding:8px 10px 10px; }
       .card-title { font-size:12px; }
     }
+
+    /* AR instructions overlay (shown on session-started, auto-dismisses) */
+    .ar-instructions { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20;
+      background:rgba(0,0,0,.82); backdrop-filter:blur(14px); border-radius:16px; padding:20px 24px;
+      text-align:center; pointer-events:none; transition:opacity .5s; max-width:300px; }
+    .ar-instructions.hidden { opacity:0; }
+    .ar-inst-title { font-size:15px; font-weight:700; margin-bottom:14px; color:#fff; }
+    .ar-inst-items { display:flex; gap:18px; justify-content:center; }
+    .ar-inst-item { display:flex; flex-direction:column; align-items:center; gap:5px; }
+    .ar-inst-item span:first-child { font-size:28px; }
+    .ar-inst-item span:last-child { font-size:11px; color:#ccc; max-width:72px; text-align:center; line-height:1.3; }
+
+    /* My Wall — two upload buttons */
+    .upload-btns { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+    .upload-btn-gallery { background:var(--s2); color:var(--text); border:1px solid var(--border); }
+
+    /* My Wall — layer strip */
+    .mr-layer-strip { display:flex; align-items:center; gap:8px; overflow-x:auto; padding:8px 14px;
+      background:rgba(0,0,0,.85); border-top:1px solid var(--border); scrollbar-width:none; flex-shrink:0; }
+    .mr-layer-strip::-webkit-scrollbar { display:none; }
+    .mr-layer-chip { position:relative; flex-shrink:0; cursor:pointer; }
+    .mr-layer-img { width:48px; height:48px; border-radius:8px; object-fit:cover;
+      border:2px solid rgba(255,255,255,.2); background:#222; display:block; }
+    .mr-layer-chip.active .mr-layer-img { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+    .mr-layer-remove { position:absolute; top:-5px; right:-5px; width:17px; height:17px; border-radius:50%;
+      background:rgba(220,60,60,.92); border:none; color:#fff; font-size:9px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; z-index:2; }
+    .mr-add-layer-btn { flex-shrink:0; width:48px; height:48px; border-radius:8px;
+      border:2px dashed rgba(255,255,255,.35); background:none; color:#fff; font-size:22px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+    /* My Wall — artwork picker panel (slides up) */
+    .mr-picker { position:absolute; bottom:0; left:0; right:0; background:var(--s1);
+      border-radius:var(--r) var(--r) 0 0; padding:14px; z-index:20;
+      transform:translateY(100%); transition:transform .25s; max-height:55%; overflow-y:auto; }
+    .mr-picker.open { transform:translateY(0); }
+    .mr-picker-title { font-size:13px; font-weight:700; margin-bottom:10px; color:var(--text); }
+    .mr-picker-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:8px; }
+    .mr-picker-item { cursor:pointer; border-radius:8px; overflow:hidden;
+      border:2px solid transparent; transition:border-color .15s; background:var(--s2); }
+    .mr-picker-item:hover { border-color:var(--accent); }
+    .mr-picker-img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#222; }
+    .mr-picker-name { font-size:9px; padding:3px 5px; color:var(--muted); text-align:center;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* WebXR canvas + overlay */
+    #xrCanvas { position:fixed; inset:0; width:100%; height:100%; z-index:350; display:none; touch-action:none; }
+    #xrOverlay { position:fixed; inset:0; z-index:360; display:none; flex-direction:column; pointer-events:none; }
+    .xr-top { padding:14px 16px; display:flex; align-items:center; gap:10px; pointer-events:all;
+      background:linear-gradient(to bottom,rgba(0,0,0,.72),transparent); }
+    .xr-title { flex:1; font-size:14px; font-weight:600; color:#fff; }
+    .xr-bottom { padding:10px 16px 24px; display:flex; flex-direction:column; align-items:center;
+      gap:8px; background:linear-gradient(to top,rgba(0,0,0,.72),transparent); pointer-events:all; }
+    .xr-artworks-strip { display:flex; gap:8px; overflow-x:auto; padding:4px; scrollbar-width:none; max-width:100%; }
+    .xr-artworks-strip::-webkit-scrollbar { display:none; }
+    .xr-art-chip { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; pointer-events:all; }
+    .xr-art-chip img { width:44px; height:44px; border-radius:8px; object-fit:cover;
+      border:2px solid rgba(255,255,255,.25); transition:border-color .15s; background:#222; }
+    .xr-art-chip.selected img { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+    .xr-art-chip span { font-size:9px; color:rgba(255,255,255,.75); max-width:50px; text-align:center;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   </style>
 </head>
 <body>
@@ -248,7 +309,12 @@
     <div class="hdr">
       <div class="logo">Art<span>Piq</span></div>
       <div class="hdr-right">
-        <button class="icon-btn" id="btnHeaderShare">⬆️</button>
+        <button class="icon-btn" id="btnHeaderShare" title="Share">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
       </div>
     </div>
     <div class="tabs">
@@ -271,7 +337,12 @@
           <div id="modalTitle"></div>
           <div id="modalArtist"></div>
         </div>
-        <button id="shareBtn">⬆️</button>
+        <button id="shareBtn" title="Share artwork link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
       </div>
       <div id="modalDesc"></div>
       <div class="dims">
@@ -280,7 +351,7 @@
         <div><div class="dl">Type</div><div class="dv" id="mType">—</div></div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-secondary" id="btnMyRoom">📸 My Room</button>
+        <button class="btn btn-secondary" id="btnMyRoom">📸 My Wall</button>
         <button class="btn btn-primary"   id="btnAR">📱 View in AR</button>
       </div>
     </div>
@@ -333,12 +404,22 @@
       <div class="gesture"><span>🔄</span><span>Two-finger rotate</span></div>
     </div>
 
+    <!-- AR instructions overlay (shown when session starts, auto-dismisses after 5s) -->
+    <div class="ar-instructions hidden" id="arInstructions">
+      <div class="ar-inst-title">How to use AR</div>
+      <div class="ar-inst-items">
+        <div class="ar-inst-item"><span>☝️</span><span>One finger to move</span></div>
+        <div class="ar-inst-item"><span>🤏</span><span>Two fingers to resize</span></div>
+        <div class="ar-inst-item"><span>🔄</span><span>Twist to rotate</span></div>
+      </div>
+    </div>
+
     <div class="ar-bottom">
       <div class="ar-scan-ring" id="arScanRing"></div>
       <div class="ar-hint" id="arHint">Generating 3D model…</div>
       <div class="ar-actions">
         <button class="ar-btn" id="btnReplace">↩ Re-place</button>
-        <button class="ar-btn show" id="btnMyRoomAR">📸 My Room</button>
+        <button class="ar-btn show" id="btnMyRoomAR">📸 My Wall</button>
       </div>
     </div>
 
@@ -346,26 +427,41 @@
     <div class="ar-switcher" id="arSwitcher"></div>
   </div>
 
-  <!-- My Room (own photo) -->
-  <div class="myroom-ov" id="myRoomOv">
+  <!-- My Wall (own photo, multi-layer) -->
+  <div class="myroom-ov" id="myRoomOv" style="position:relative;">
     <div class="myroom-bar">
-      <h3>📸 Try in My Room</h3>
+      <h3>📸 My Wall</h3>
+      <button class="myroom-bar-btn mr-add-layer-btn" id="mrAddLayerBtn" style="display:none;width:auto;padding:7px 14px;border-radius:8px;font-size:13px;">+ Add</button>
       <button class="myroom-bar-btn" id="btnMyRoomSave" style="display:none">💾 Save</button>
       <button class="myroom-bar-btn" id="btnMyRoomClose">✕ Close</button>
     </div>
-    <div class="myroom-canvas-wrap" id="myRoomWrap">
+    <div class="myroom-canvas-wrap" id="myRoomWrap" style="position:relative;">
       <div class="myroom-upload" id="myRoomUpload">
         <div style="font-size:48px">📷</div>
-        <p style="font-size:13px;color:var(--muted);text-align:center;max-width:220px">Take a photo of your room or upload one to see how the artwork looks on your wall</p>
-        <button class="upload-btn" id="btnUploadPhoto">Take / Choose Photo</button>
-        <p class="upload-hint">Works with camera, gallery, or any image file</p>
+        <p style="font-size:13px;color:var(--muted);text-align:center;max-width:220px">Take or upload a photo of your wall to try artworks on it</p>
+        <div class="upload-btns">
+          <button class="upload-btn" id="btnTakePhoto">📷 Take Photo</button>
+          <button class="upload-btn upload-btn-gallery" id="btnChoosePhoto">🖼 From Gallery</button>
+        </div>
+        <p class="upload-hint">Camera or any image from your library</p>
       </div>
       <canvas id="myRoomCanvas" style="display:none"></canvas>
+      <!-- Artwork picker panel (slides up) -->
+      <div class="mr-picker" id="mrPickerPanel">
+        <div class="mr-picker-title">Add artwork to wall</div>
+        <div class="mr-picker-grid" id="mrPickerGrid"></div>
+      </div>
+    </div>
+    <!-- Layer strip: shows placed artworks, tap to select, ✕ to remove -->
+    <div class="mr-layer-strip" id="mrLayerStrip" style="display:none">
+      <div id="mrLayerChips" style="display:flex;gap:8px;align-items:center;flex:1;overflow-x:auto;scrollbar-width:none;"></div>
     </div>
     <div class="myroom-footer" id="myRoomFooter" style="display:none">
-      ☝️ Drag artwork to move &nbsp;·&nbsp; 🤏 Pinch or scroll to resize
+      ☝️ Tap artwork to select · Drag to move · 🤏 Pinch to resize
     </div>
-    <input type="file" id="roomPhotoInput" accept="image/*" capture="environment" style="display:none">
+    <!-- Separate inputs for camera vs gallery (fixes reliability) -->
+    <input type="file" id="roomCameraInput"  accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="roomGalleryInput" accept="image/*" style="display:none">
   </div>
 
   <!-- Sample room overlay (bonus, hidden from main UI) -->
@@ -400,6 +496,20 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- WebXR multi-artwork AR (used when placing 2+ paintings independently) -->
+  <canvas id="xrCanvas"></canvas>
+  <div id="xrOverlay">
+    <div class="xr-top">
+      <div class="xr-title" id="xrTitle">Multi-AR</div>
+      <button class="ar-x" id="xrClose">✕</button>
+    </div>
+    <div style="flex:1;pointer-events:none;"></div>
+    <div class="xr-bottom">
+      <div class="ar-hint" id="xrHintText">Scanning for surfaces…</div>
+      <div class="xr-artworks-strip" id="xrArtworkStrip"></div>
+    </div>
+  </div>
 
   <script type="module">
     import * as THREE from 'https://esm.sh/three@0.160.0';
@@ -542,14 +652,12 @@
         checkEl.className = 'card-check';
         checkEl.textContent = '✓';
 
-        // Card tap: select mode → toggle; normal mode → launch AR
+        // Card tap: select mode → toggle; normal mode → detail sheet first
         card.addEventListener('click', () => {
           if (isSelectMode) {
             toggleSelect(aw, wrap);
           } else {
-            current = aw;
-            detailOv.classList.remove('open');
-            launchAR(aw);
+            openDetail(aw);
           }
         });
 
@@ -643,15 +751,7 @@
     }
 
     document.getElementById('galleryClear').addEventListener('click', exitSelectMode);
-
-    document.getElementById('galleryARBtn').addEventListener('click', async () => {
-      if (selectedIds.size < 2) { toast('Select at least 2 paintings'); return; }
-      const selected = [...selectedIds].map(id => ARTWORKS.find(a => a.id === id)).filter(Boolean);
-      current = selected[0];
-      exitSelectMode();
-      detailOv.classList.remove('open');
-      await launchGalleryAR(selected);
-    });
+    // galleryARBtn listener is wired further down (WebXR section) so it can use launchWebXRAR
 
     // ── Gallery GLB builder ───────────────────────────────────────────────────
     // Combines N paintings into a single scene arranged horizontally, all scaled
@@ -779,15 +879,24 @@
     detailSheet.addEventListener('touchstart', e => { _startY = e.touches[0].clientY; }, { passive:true });
     detailSheet.addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - _startY > 70) detailOv.classList.remove('open'); });
 
-    // Share
+    // Share — generates artwork-specific URL so the recipient lands on the right piece
     async function shareOrCopy(aw) {
-      const url = window.location.href;
+      const base = window.location.origin + window.location.pathname;
+      const url  = aw ? `${base}?artwork=${aw.id}` : base;
       const title = `${aw?.title ?? 'ArtPiq'} — View in AR`;
       if (navigator.share) { try { await navigator.share({ title, url }); return; } catch {} }
       try { await navigator.clipboard.writeText(url); toast('Link copied!'); } catch { toast('Copy: ' + url); }
     }
     document.getElementById('shareBtn').addEventListener('click', () => shareOrCopy(current));
     document.getElementById('btnHeaderShare').addEventListener('click', () => shareOrCopy(null));
+
+    // Deep-link: ?artwork=id → auto-open that artwork's detail sheet
+    (function handleDeepLink() {
+      const id = new URLSearchParams(window.location.search).get('artwork');
+      if (!id) return;
+      const aw = ARTWORKS.find(a => a.id === id);
+      if (aw) requestAnimationFrame(() => openDetail(aw));
+    })();
 
     // ── GLB generation ────────────────────────────────────────────────────────
     // Cache: id → ArrayBuffer (Three.js binary GLB data).
@@ -960,6 +1069,12 @@
         btnReplace.classList.remove('show');
         isARPlaced = false;
 
+        // Show AR instructions overlay, auto-dismiss after 5s
+        const arInst = document.getElementById('arInstructions');
+        arInst.classList.remove('hidden');
+        clearTimeout(arInst._t);
+        arInst._t = setTimeout(() => arInst.classList.add('hidden'), 5000);
+
         // After 35s without placement, show troubleshooting tips
         clearTimeout(surfaceTimer);
         surfaceTimer = setTimeout(() => {
@@ -975,6 +1090,10 @@
         gestureGuide.classList.add('show');
         btnReplace.classList.add('show');
         arHelp.classList.remove('show');
+        // Hide instructions overlay immediately on placement
+        const arInst = document.getElementById('arInstructions');
+        clearTimeout(arInst._t);
+        arInst.classList.add('hidden');
         if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
 
       } else if (s === 'failed') {
@@ -1015,16 +1134,12 @@
       launchAR(current);
     });
 
-    // "My Room" button inside AR screen — close AR and open My Room for current artwork
+    // "My Wall" button inside AR screen — close AR, open My Wall for current artwork
     document.getElementById('btnMyRoomAR').addEventListener('click', () => {
-      if (!current || current.type === 'sculpture') { toast('My Room only available for paintings'); return; }
-      _mrArtwork = current;
+      if (!current || current.type === 'sculpture') { toast('My Wall only available for paintings'); return; }
+      _mrNextArtwork = current;
       closeAR();
-      mrState.photo = null; mrState.artImg = null;
-      myRoomUpload.style.display = 'flex';
-      myRoomCanvas.style.display = 'none';
-      btnMyRoomSave.style.display = 'none';
-      myRoomFooter.style.display = 'none';
+      mrResetToUpload();
       myRoomOv.classList.add('open');
     });
 
@@ -1163,206 +1278,319 @@
       mv.src = '';
     }
 
-    // ── My Room — own photo with draggable artwork ────────────────────────────
-    const myRoomOv      = document.getElementById('myRoomOv');
-    const myRoomWrap    = document.getElementById('myRoomWrap');
-    const myRoomUpload  = document.getElementById('myRoomUpload');
-    const myRoomCanvas  = document.getElementById('myRoomCanvas');
-    const myRoomFooter  = document.getElementById('myRoomFooter');
-    const roomPhotoInput= document.getElementById('roomPhotoInput');
-    const btnMyRoomSave = document.getElementById('btnMyRoomSave');
+    // ── My Wall — own photo with multiple independently draggable artworks ──────
+    const myRoomOv     = document.getElementById('myRoomOv');
+    const myRoomWrap   = document.getElementById('myRoomWrap');
+    const myRoomUpload = document.getElementById('myRoomUpload');
+    const myRoomCanvas = document.getElementById('myRoomCanvas');
+    const myRoomFooter = document.getElementById('myRoomFooter');
+    const btnMyRoomSave= document.getElementById('btnMyRoomSave');
+    const mrLayerStrip = document.getElementById('mrLayerStrip');
+    const mrPickerPanel= document.getElementById('mrPickerPanel');
+    const mrPickerGrid = document.getElementById('mrPickerGrid');
 
-    let mrState = {
-      photo: null,       // HTMLImageElement
-      artImg: null,      // HTMLImageElement (artwork)
-      artX: 0, artY: 0, // top-left on canvas coords
-      artW: 0, artH: 0, // artwork dimensions on canvas
-      dragging: false,
-      dragOffX: 0, dragOffY: 0,
-      pinchDist0: 0, pinchW0: 0, pinchH0: 0,
-    };
-    let _mrArtwork = null;
+    let mrPhoto      = null;       // HTMLImageElement (room background)
+    let mrLayers     = [];         // [{id, aw, img, x, y, w, h}]
+    let mrNextId     = 0;
+    let mrActiveId   = null;       // id of selected/active layer
+    let mrDragging   = false;
+    let mrDragOff    = { x:0, y:0 };
+    let mrPinchDist0 = 0, mrPinchW0 = 0, mrPinchH0 = 0;
+    let _mrNextArtwork = null;     // artwork to auto-add after photo is picked
 
-    document.getElementById('btnMyRoom').addEventListener('click', () => {
-      if (!current || current.type === 'sculpture') return;
-      _mrArtwork = current;
-      myRoomOv.classList.add('open');
+    function mrResetToUpload() {
+      mrPhoto = null; mrLayers = []; mrNextId = 0; mrActiveId = null;
       myRoomUpload.style.display = 'flex';
       myRoomCanvas.style.display = 'none';
       btnMyRoomSave.style.display = 'none';
       myRoomFooter.style.display = 'none';
+      mrLayerStrip.style.display = 'none';
+      document.getElementById('mrAddLayerBtn').style.display = 'none';
+      mrPickerPanel.classList.remove('open');
+    }
+
+    // Open from detail sheet
+    document.getElementById('btnMyRoom').addEventListener('click', () => {
+      if (!current || current.type === 'sculpture') return;
+      _mrNextArtwork = current;
+      mrResetToUpload();
+      myRoomOv.classList.add('open');
       detailOv.classList.remove('open');
     });
 
-    document.getElementById('btnUploadPhoto').addEventListener('click', () => roomPhotoInput.click());
-    document.getElementById('btnMyRoomClose').addEventListener('click', () => myRoomOv.classList.remove('open'));
+    document.getElementById('btnMyRoomClose').addEventListener('click', () => {
+      myRoomOv.classList.remove('open');
+      mrPickerPanel.classList.remove('open');
+    });
 
-    roomPhotoInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
+    // Two separate inputs: camera (capture=environment) and gallery (no capture)
+    // Separating them fixes the "requires 2-3 attempts" issue on Android
+    document.getElementById('btnTakePhoto').addEventListener('click', () => {
+      document.getElementById('roomCameraInput').click();
+    });
+    document.getElementById('btnChoosePhoto').addEventListener('click', () => {
+      document.getElementById('roomGalleryInput').click();
+    });
+
+    async function handlePhotoFile(file) {
       if (!file) return;
-
       const photo = new Image();
       photo.src = URL.createObjectURL(file);
       await new Promise(r => { photo.onload = r; });
-      mrState.photo = photo;
+      mrPhoto = photo;
 
-      // Set canvas to photo aspect ratio, capped at display size
-      const maxW = myRoomWrap.clientWidth - 24;
-      const maxH = myRoomWrap.clientHeight - 24;
-      const scale = Math.min(1, maxW / photo.width, maxH / photo.height);
-      myRoomCanvas.width  = Math.round(photo.width  * scale);
-      myRoomCanvas.height = Math.round(photo.height * scale);
-
-      // Load artwork image
-      if (_mrArtwork?.image) {
-        const artImg = new Image();
-        artImg.crossOrigin = 'anonymous';
-        artImg.referrerPolicy = 'no-referrer';
-        artImg.src = _mrArtwork.image;
-        await new Promise(r => { artImg.onload = r; artImg.onerror = r; });
-        mrState.artImg = artImg;
-      }
-
-      // Initial artwork position: centred, ~35% of canvas width
-      const initW = myRoomCanvas.width * 0.35;
-      const aspect = (_mrArtwork?.heightCm ?? 60) / (_mrArtwork?.widthCm ?? 80);
-      mrState.artW = initW;
-      mrState.artH = initW * aspect;
-      mrState.artX = (myRoomCanvas.width  - mrState.artW) / 2;
-      mrState.artY = (myRoomCanvas.height - mrState.artH) / 2;
+      // KEY FIX: canvas pixel buffer = full photo resolution (no quality loss on save)
+      // CSS controls display size — canvasXY() uses ratio so touch math still works
+      const maxW = myRoomWrap.clientWidth  - 24;
+      const maxH = myRoomWrap.clientHeight - 80; // leave room for layer strip
+      myRoomCanvas.width  = photo.width;
+      myRoomCanvas.height = photo.height;
+      const displayScale  = Math.min(1, maxW / photo.width, maxH / photo.height);
+      myRoomCanvas.style.width  = Math.round(photo.width  * displayScale) + 'px';
+      myRoomCanvas.style.height = Math.round(photo.height * displayScale) + 'px';
 
       myRoomUpload.style.display = 'none';
       myRoomCanvas.style.display = 'block';
       btnMyRoomSave.style.display = '';
       myRoomFooter.style.display = '';
-      redrawMyRoom();
-      e.target.value = ''; // reset so same file can be re-selected
-    });
+      mrLayerStrip.style.display = 'flex';
+      document.getElementById('mrAddLayerBtn').style.display = '';
 
-    function redrawMyRoom() {
-      const c = myRoomCanvas;
-      const ctx = c.getContext('2d');
-      const s = mrState;
-
-      ctx.clearRect(0, 0, c.width, c.height);
-      if (s.photo) ctx.drawImage(s.photo, 0, 0, c.width, c.height);
-
-      // Frame + artwork
-      const fw = Math.max(6, s.artW * 0.04);
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 20; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 10;
-      ctx.fillStyle = '#1a0e06';
-      ctx.fillRect(s.artX - fw, s.artY - fw, s.artW + fw*2, s.artH + fw*2);
-      ctx.restore();
-
-      if (s.artImg?.complete && s.artImg.naturalWidth) {
-        ctx.drawImage(s.artImg, s.artX, s.artY, s.artW, s.artH);
-      } else {
-        ctx.fillStyle = '#888';
-        ctx.fillRect(s.artX, s.artY, s.artW, s.artH);
-      }
-
-      // Selection indicator
-      ctx.strokeStyle = 'rgba(200,169,110,0.6)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.strokeRect(s.artX, s.artY, s.artW, s.artH);
-      ctx.setLineDash([]);
+      // Auto-add the artwork that was active when My Wall was opened
+      if (_mrNextArtwork) { await mrAddLayer(_mrNextArtwork); _mrNextArtwork = null; }
+      else redrawMyWall();
     }
 
-    // Canvas coordinate helper
+    document.getElementById('roomCameraInput').addEventListener('change', async (e) => {
+      await handlePhotoFile(e.target.files[0]); e.target.value = '';
+    });
+    document.getElementById('roomGalleryInput').addEventListener('change', async (e) => {
+      await handlePhotoFile(e.target.files[0]); e.target.value = '';
+    });
+
+    async function mrAddLayer(aw) {
+      if (mrLayers.length >= 6) { toast('Max 6 artworks on one wall'); return; }
+      let img = null;
+      const src = aw.image || aw.thumb;
+      if (src) {
+        const i = new Image();
+        i.crossOrigin = 'anonymous'; i.referrerPolicy = 'no-referrer';
+        i.src = src;
+        await new Promise(r => { i.onload = r; i.onerror = r; });
+        img = i.complete && i.naturalWidth ? i : null;
+      }
+      const initW  = myRoomCanvas.width * 0.35;
+      const aspect = (aw.heightCm ?? 60) / (aw.widthCm ?? 80);
+      const id = mrNextId++;
+      mrLayers.push({ id, aw, img,
+        x: (myRoomCanvas.width  - initW) / 2,
+        y: (myRoomCanvas.height - initW * aspect) / 2,
+        w: initW, h: initW * aspect,
+      });
+      mrActiveId = id;
+      mrUpdateLayerStrip();
+      redrawMyWall();
+      mrPickerPanel.classList.remove('open');
+    }
+
+    function mrRemoveLayer(id) {
+      mrLayers = mrLayers.filter(l => l.id !== id);
+      if (mrActiveId === id) mrActiveId = mrLayers.length ? mrLayers[mrLayers.length - 1].id : null;
+      mrUpdateLayerStrip();
+      redrawMyWall();
+    }
+
+    function mrUpdateLayerStrip() {
+      const chips = document.getElementById('mrLayerChips');
+      chips.innerHTML = '';
+      mrLayers.forEach(layer => {
+        const chip = document.createElement('div');
+        chip.className = 'mr-layer-chip' + (layer.id === mrActiveId ? ' active' : '');
+
+        if (layer.img) {
+          const img = document.createElement('img');
+          img.className = 'mr-layer-img';
+          img.src = layer.aw.image || layer.aw.thumb;
+          img.alt = layer.aw.title;
+          img.referrerPolicy = 'no-referrer-when-downgrade';
+          chip.appendChild(img);
+        } else {
+          const ph = document.createElement('div');
+          ph.className = 'mr-layer-img';
+          ph.style.cssText = 'display:flex;align-items:center;justify-content:center;font-size:22px;background:#222;border-radius:8px;border:2px solid rgba(255,255,255,.2)';
+          ph.textContent = '🎨'; chip.appendChild(ph);
+        }
+
+        const rm = document.createElement('button');
+        rm.className = 'mr-layer-remove'; rm.textContent = '✕';
+        rm.addEventListener('click', (e) => { e.stopPropagation(); mrRemoveLayer(layer.id); });
+        chip.appendChild(rm);
+
+        chip.addEventListener('click', () => {
+          mrActiveId = layer.id; mrUpdateLayerStrip(); redrawMyWall();
+        });
+        chips.appendChild(chip);
+      });
+
+      // "+" add button at end
+      const addBtn = document.createElement('button');
+      addBtn.className = 'mr-add-layer-btn';
+      addBtn.textContent = '+';
+      addBtn.title = 'Add another artwork';
+      addBtn.addEventListener('click', () => {
+        mrBuildPicker(); mrPickerPanel.classList.toggle('open');
+      });
+      chips.appendChild(addBtn);
+    }
+
+    function mrBuildPicker() {
+      mrPickerGrid.innerHTML = '';
+      ARTWORKS.filter(a => a.type === 'painting').forEach(aw => {
+        const item = document.createElement('div');
+        item.className = 'mr-picker-item';
+        if (aw.thumb) {
+          const img = document.createElement('img');
+          img.className = 'mr-picker-img'; img.src = aw.thumb; img.alt = aw.title;
+          img.referrerPolicy = 'no-referrer-when-downgrade'; item.appendChild(img);
+        }
+        const name = document.createElement('div');
+        name.className = 'mr-picker-name'; name.textContent = aw.title; item.appendChild(name);
+        item.addEventListener('click', async () => { await mrAddLayer(aw); });
+        mrPickerGrid.appendChild(item);
+      });
+    }
+
+    document.getElementById('mrAddLayerBtn').addEventListener('click', () => {
+      if (!mrPhoto) return; mrBuildPicker(); mrPickerPanel.classList.toggle('open');
+    });
+    mrPickerPanel.addEventListener('click', (e) => {
+      if (e.target === mrPickerPanel) mrPickerPanel.classList.remove('open');
+    });
+
+    function redrawMyWall() {
+      const c = myRoomCanvas, ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, c.width, c.height);
+      if (mrPhoto) ctx.drawImage(mrPhoto, 0, 0, c.width, c.height);
+
+      mrLayers.forEach(l => {
+        const fw = Math.max(6, l.w * 0.04);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 10;
+        ctx.fillStyle = '#1a0e06';
+        ctx.fillRect(l.x - fw, l.y - fw, l.w + fw*2, l.h + fw*2);
+        ctx.restore();
+
+        if (l.img?.complete && l.img.naturalWidth) ctx.drawImage(l.img, l.x, l.y, l.w, l.h);
+        else { ctx.fillStyle = '#888'; ctx.fillRect(l.x, l.y, l.w, l.h); }
+
+        if (l.id === mrActiveId) {
+          ctx.strokeStyle = 'rgba(200,169,110,0.75)';
+          ctx.lineWidth = Math.max(2, l.w * 0.008);
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(l.x, l.y, l.w, l.h);
+          ctx.setLineDash([]);
+        }
+      });
+    }
+
+    // Canvas coordinate helper — ratio accounts for CSS display vs pixel buffer
     function canvasXY(e, canvas) {
-      const r = canvas.getBoundingClientRect();
+      const r  = canvas.getBoundingClientRect();
       const sx = canvas.width  / r.width;
       const sy = canvas.height / r.height;
       const src = e.touches ? e.touches[0] : e;
       return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
     }
 
-    function hitTest(x, y) {
-      const s = mrState;
-      return x >= s.artX && x <= s.artX + s.artW && y >= s.artY && y <= s.artY + s.artH;
+    function mrHitLayer(x, y) {
+      // Iterate back-to-front so topmost drawn layer wins on overlap
+      for (let i = mrLayers.length - 1; i >= 0; i--) {
+        const l = mrLayers[i];
+        if (x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h) return l;
+      }
+      return null;
     }
 
-    // Pointer events (mouse + single touch)
     myRoomCanvas.addEventListener('pointerdown', (e) => {
+      if (mrPickerPanel.classList.contains('open')) { mrPickerPanel.classList.remove('open'); return; }
       const { x, y } = canvasXY(e, myRoomCanvas);
-      if (hitTest(x, y)) {
-        mrState.dragging = true;
-        mrState.dragOffX = x - mrState.artX;
-        mrState.dragOffY = y - mrState.artY;
+      const hit = mrHitLayer(x, y);
+      if (hit) {
+        mrActiveId = hit.id;
+        mrDragging = true;
+        mrDragOff  = { x: x - hit.x, y: y - hit.y };
         myRoomCanvas.setPointerCapture(e.pointerId);
         e.preventDefault();
+        mrUpdateLayerStrip(); redrawMyWall();
       }
     });
     myRoomCanvas.addEventListener('pointermove', (e) => {
-      if (!mrState.dragging) return;
+      if (!mrDragging) return;
       const { x, y } = canvasXY(e, myRoomCanvas);
-      mrState.artX = Math.max(0, Math.min(myRoomCanvas.width  - mrState.artW, x - mrState.dragOffX));
-      mrState.artY = Math.max(0, Math.min(myRoomCanvas.height - mrState.artH, y - mrState.dragOffY));
-      redrawMyRoom();
+      const l = mrLayers.find(l => l.id === mrActiveId);
+      if (!l) return;
+      l.x = Math.max(0, Math.min(myRoomCanvas.width  - l.w, x - mrDragOff.x));
+      l.y = Math.max(0, Math.min(myRoomCanvas.height - l.h, y - mrDragOff.y));
+      redrawMyWall();
     });
-    myRoomCanvas.addEventListener('pointerup',     () => { mrState.dragging = false; });
-    myRoomCanvas.addEventListener('pointercancel', () => { mrState.dragging = false; });
+    myRoomCanvas.addEventListener('pointerup',     () => { mrDragging = false; });
+    myRoomCanvas.addEventListener('pointercancel', () => { mrDragging = false; });
 
-    // Two-touch pinch to resize
-    let _touches = [];
+    // Two-touch pinch to resize active layer
+    let _mrTouches = [];
     myRoomCanvas.addEventListener('touchstart', (e) => {
-      _touches = Array.from(e.touches);
-      if (_touches.length === 2) {
-        mrState.pinchDist0 = Math.hypot(_touches[0].clientX - _touches[1].clientX, _touches[0].clientY - _touches[1].clientY);
-        mrState.pinchW0 = mrState.artW;
-        mrState.pinchH0 = mrState.artH;
+      _mrTouches = Array.from(e.touches);
+      if (_mrTouches.length === 2) {
+        const l = mrLayers.find(l => l.id === mrActiveId); if (!l) return;
+        mrPinchDist0 = Math.hypot(_mrTouches[0].clientX - _mrTouches[1].clientX, _mrTouches[0].clientY - _mrTouches[1].clientY);
+        mrPinchW0 = l.w; mrPinchH0 = l.h;
       }
     }, { passive:true });
     myRoomCanvas.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2 && mrState.pinchDist0 > 0) {
+      if (e.touches.length === 2 && mrPinchDist0 > 0) {
         e.preventDefault();
-        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        const scale = Math.max(0.2, Math.min(4, dist / mrState.pinchDist0));
-        const cx = mrState.artX + mrState.artW / 2;
-        const cy = mrState.artY + mrState.artH / 2;
-        mrState.artW = mrState.pinchW0 * scale;
-        mrState.artH = mrState.pinchH0 * scale;
-        mrState.artX = cx - mrState.artW / 2;
-        mrState.artY = cy - mrState.artH / 2;
-        redrawMyRoom();
+        const dist  = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        const scale = Math.max(0.2, Math.min(5, dist / mrPinchDist0));
+        const l = mrLayers.find(l => l.id === mrActiveId); if (!l) return;
+        const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+        l.w = mrPinchW0 * scale; l.h = mrPinchH0 * scale;
+        l.x = cx - l.w / 2;     l.y = cy - l.h / 2;
+        redrawMyWall();
       }
     }, { passive:false });
 
     // Mouse wheel to resize (desktop)
     myRoomCanvas.addEventListener('wheel', (e) => {
       e.preventDefault();
+      const l = mrLayers.find(l => l.id === mrActiveId); if (!l) return;
       const factor = e.deltaY < 0 ? 1.08 : 0.93;
-      const cx = mrState.artX + mrState.artW / 2;
-      const cy = mrState.artY + mrState.artH / 2;
-      mrState.artW = Math.max(30, mrState.artW * factor);
-      mrState.artH = Math.max(30, mrState.artH * factor);
-      mrState.artX = cx - mrState.artW / 2;
-      mrState.artY = cy - mrState.artH / 2;
-      redrawMyRoom();
+      const cx = l.x + l.w / 2, cy = l.y + l.h / 2;
+      l.w = Math.max(30, l.w * factor); l.h = Math.max(30, l.h * factor);
+      l.x = cx - l.w / 2; l.y = cy - l.h / 2;
+      redrawMyWall();
     }, { passive:false });
 
-    // Save composite image
+    // Save — exports at full photo resolution (the fix for quality degradation)
     btnMyRoomSave.addEventListener('click', () => {
-      redrawMyRoom(); // redraw without selection border for clean export
-      const ctx = myRoomCanvas.getContext('2d');
-      ctx.setLineDash([]); // ensure no dash
-      // Remove selection box from saved version
       const clean = document.createElement('canvas');
-      clean.width = myRoomCanvas.width; clean.height = myRoomCanvas.height;
-      const cctx = clean.getContext('2d');
-      if (mrState.photo) cctx.drawImage(mrState.photo, 0, 0, clean.width, clean.height);
-      const fw = Math.max(6, mrState.artW * 0.04);
-      cctx.save(); cctx.shadowColor='rgba(0,0,0,0.5)'; cctx.shadowBlur=20; cctx.shadowOffsetX=4; cctx.shadowOffsetY=10;
-      cctx.fillStyle = '#1a0e06';
-      cctx.fillRect(mrState.artX - fw, mrState.artY - fw, mrState.artW + fw*2, mrState.artH + fw*2);
-      cctx.restore();
-      if (mrState.artImg?.complete) cctx.drawImage(mrState.artImg, mrState.artX, mrState.artY, mrState.artW, mrState.artH);
-
+      clean.width  = myRoomCanvas.width;   // full photo resolution
+      clean.height = myRoomCanvas.height;
+      const cctx   = clean.getContext('2d');
+      if (mrPhoto) cctx.drawImage(mrPhoto, 0, 0, clean.width, clean.height);
+      mrLayers.forEach(l => {
+        const fw = Math.max(6, l.w * 0.04);
+        cctx.save();
+        cctx.shadowColor = 'rgba(0,0,0,0.5)'; cctx.shadowBlur = 20;
+        cctx.shadowOffsetX = 4; cctx.shadowOffsetY = 10;
+        cctx.fillStyle = '#1a0e06';
+        cctx.fillRect(l.x - fw, l.y - fw, l.w + fw*2, l.h + fw*2);
+        cctx.restore();
+        if (l.img?.complete && l.img.naturalWidth) cctx.drawImage(l.img, l.x, l.y, l.w, l.h);
+      });
       const link = document.createElement('a');
-      link.download = `artpiq-${_mrArtwork?.id ?? 'artwork'}.jpg`;
-      link.href = clean.toDataURL('image/jpeg', 0.92);
+      link.download = `artpiq-mywall.jpg`;
+      link.href     = clean.toDataURL('image/jpeg', 0.92);
       link.click();
       toast('Image saved!');
     });
@@ -1414,12 +1642,192 @@
       ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
     }
 
+    // ── WebXR Multi-Artwork AR ─────────────────────────────────────────────────
+    // Builds a Three.js Group (painting + dark frame) directly — no GLB export.
+    // Reuses loadTexture() from above.
+    async function buildPaintingMesh(aw) {
+      const wM = aw.widthCm / 100, hM = aw.heightCm / 100;
+      let mat;
+      try {
+        const tex = await loadTexture(aw.image || aw.thumb);
+        mat = new THREE.MeshStandardMaterial({ map:tex, roughness:0.7, metalness:0.0, side:THREE.FrontSide });
+      } catch {
+        mat = new THREE.MeshStandardMaterial({ color:0x8b6347, roughness:0.8 });
+      }
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat));
+      const ft = 0.018, fd = 0.013;
+      const fmat = new THREE.MeshStandardMaterial({ color:0x1a0e06, roughness:0.55, metalness:0.08 });
+      [{ w:wM+ft*2, h:ft, x:0, y:-(hM/2+ft/2) },
+       { w:wM+ft*2, h:ft, x:0, y: (hM/2+ft/2) },
+       { w:ft, h:hM, x:-(wM/2+ft/2), y:0 },
+       { w:ft, h:hM, x: (wM/2+ft/2), y:0 }
+      ].forEach(({ w, h, x, y }) => {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, fd), fmat);
+        bar.position.set(x, y, -fd/2 + 0.001); group.add(bar);
+      });
+      return group;
+    }
+
+    // Build the artwork selection strip inside the WebXR overlay
+    function xrBuildStrip(artworks, activeAw, onSelect) {
+      const strip = document.getElementById('xrArtworkStrip');
+      strip.innerHTML = '';
+      artworks.filter(a => a.type === 'painting').forEach(aw => {
+        const chip = document.createElement('div');
+        chip.className = 'xr-art-chip' + (aw.id === activeAw?.id ? ' selected' : '');
+        if (aw.thumb) {
+          const img = document.createElement('img');
+          img.src = aw.thumb; img.alt = aw.title;
+          img.referrerPolicy = 'no-referrer-when-downgrade'; chip.appendChild(img);
+        }
+        const lbl = document.createElement('span');
+        lbl.textContent = aw.title.split(' ').slice(0,2).join(' ');
+        chip.appendChild(lbl);
+        chip.addEventListener('click', () => {
+          strip.querySelectorAll('.xr-art-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          onSelect(aw);
+        });
+        strip.appendChild(chip);
+      });
+    }
+
+    async function launchWebXRAR(initialArtwork, allArtworks) {
+      const xrCanvas  = document.getElementById('xrCanvas');
+      const xrOverlay = document.getElementById('xrOverlay');
+
+      // Check WebXR support
+      const supported = navigator.xr
+        ? await navigator.xr.isSessionSupported('immersive-ar').catch(() => false)
+        : false;
+
+      if (!supported) {
+        // Fallback: model-viewer gallery (not independently moveable, but works on iOS)
+        if (allArtworks && allArtworks.length > 1) return launchGalleryAR(allArtworks);
+        current = initialArtwork; return launchAR(initialArtwork);
+      }
+
+      document.getElementById('xrTitle').textContent =
+        allArtworks?.length > 1 ? `Gallery (${allArtworks.length})` : initialArtwork.title;
+      xrCanvas.style.display  = 'block';
+      xrOverlay.style.display = 'flex';
+
+      const xrArtworks = allArtworks || [initialArtwork];
+      let heldAw    = initialArtwork;  // artwork currently "held" to place
+      let hitMatrix = null;             // latest hit-test result as Matrix4
+      let xrSession;
+
+      // Build artwork selector strip
+      xrBuildStrip(xrArtworks, initialArtwork, (aw) => {
+        heldAw = aw;
+        document.getElementById('xrHintText').textContent = 'Aim at wall · tap to place';
+      });
+
+      // Three.js setup
+      const renderer = new THREE.WebGLRenderer({ canvas: xrCanvas, alpha:true, antialias:true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+
+      const scene  = new THREE.Scene();
+      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+      const key = new THREE.DirectionalLight(0xfff8f0, 1.1); key.position.set(0,2,1); scene.add(key);
+      const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+
+      // Reticle — ring on surface, shown when holding artwork
+      const reticleGeo = new THREE.RingGeometry(0.06, 0.08, 32);
+      reticleGeo.rotateX(-Math.PI / 2);
+      const reticle = new THREE.Mesh(reticleGeo,
+        new THREE.MeshBasicMaterial({ color:0xc8a96e, side:THREE.DoubleSide }));
+      reticle.matrixAutoUpdate = false; reticle.visible = false;
+      scene.add(reticle);
+
+      // Start XR session
+      try {
+        xrSession = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['hit-test'],
+          optionalFeatures: ['dom-overlay'],
+          domOverlay: { root: xrOverlay },
+        });
+      } catch (err) {
+        console.error('[webxr]', err);
+        renderer.dispose();
+        xrCanvas.style.display = 'none'; xrOverlay.style.display = 'none';
+        toast('AR failed — ' + (err.message ?? 'try on Android Chrome'));
+        if (allArtworks?.length > 1) return launchGalleryAR(allArtworks);
+        current = initialArtwork; return launchAR(initialArtwork);
+      }
+
+      await renderer.xr.setSession(xrSession);
+      const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+      const hitTestSrc  = await xrSession.requestHitTestSource({ space: viewerSpace });
+
+      // Tap inside AR view → place held artwork
+      xrSession.addEventListener('select', async () => {
+        if (!hitMatrix || !heldAw) return;
+        const group = await buildPaintingMesh(heldAw);
+        // Position at hit surface; rotate to face camera (upright, Y-axis only)
+        const hitPos = new THREE.Vector3().setFromMatrixPosition(hitMatrix);
+        const xrCam  = renderer.xr.getCamera();
+        const camPos = new THREE.Vector3().setFromMatrixPosition(xrCam.matrixWorld);
+        group.position.copy(hitPos);
+        const dir   = new THREE.Vector3(camPos.x - hitPos.x, 0, camPos.z - hitPos.z).normalize();
+        group.rotation.y = Math.atan2(dir.x, dir.z);
+        scene.add(group);
+        if (navigator.vibrate) navigator.vibrate(40);
+        document.getElementById('xrHintText').textContent = '✓ Placed! Select artwork below to add more';
+      });
+
+      renderer.setAnimationLoop((time, frame) => {
+        if (frame) {
+          const refSpace = renderer.xr.getReferenceSpace();
+          if (hitTestSrc && refSpace) {
+            const results = frame.getHitTestResults(hitTestSrc);
+            if (results.length > 0) {
+              const pose = results[0].getPose(refSpace);
+              if (pose) {
+                hitMatrix = new THREE.Matrix4().fromArray(pose.transform.matrix);
+                reticle.matrix.copy(hitMatrix); reticle.visible = !!heldAw;
+                if (!reticle.visible || document.getElementById('xrHintText').textContent === 'Scanning for surfaces…')
+                  document.getElementById('xrHintText').textContent = 'Aim at wall · tap to place';
+              }
+            } else {
+              reticle.visible = false;
+              document.getElementById('xrHintText').textContent = 'Scanning for surfaces…';
+            }
+          }
+        }
+        renderer.render(scene, camera);
+      });
+
+      function cleanupXR() {
+        renderer.setAnimationLoop(null);
+        renderer.dispose();
+        xrCanvas.style.display = 'none'; xrOverlay.style.display = 'none';
+      }
+      xrSession.addEventListener('end', cleanupXR);
+      document.getElementById('xrClose').onclick = () => xrSession.end().catch(() => {});
+    }
+
+    // Gallery AR button → use WebXR when available (independently moveable)
+    document.getElementById('galleryARBtn').addEventListener('click', async () => {
+      if (selectedIds.size < 2) { toast('Select at least 2 paintings'); return; }
+      const selected = [...selectedIds].map(id => ARTWORKS.find(a => a.id === id)).filter(Boolean);
+      current = selected[0];
+      exitSelectMode();
+      detailOv.classList.remove('open');
+      await launchWebXRAR(selected[0], selected);
+    });
+
     // ── QR Code ────────────────────────────────────────────────────────────────
     const qrOv = document.getElementById('qrOv');
     document.getElementById('qrClose').addEventListener('click', () => qrOv.classList.remove('open'));
 
     async function showQR() {
-      await QRCode.toCanvas(document.getElementById('qrCanvas'), window.location.href, {
+      const base = window.location.origin + window.location.pathname;
+      const url  = current ? `${base}?artwork=${current.id}` : base;
+      await QRCode.toCanvas(document.getElementById('qrCanvas'), url, {
         width:220, color:{ dark:'#191919', light:'#ffffff' }
       });
       qrOv.classList.add('open');
