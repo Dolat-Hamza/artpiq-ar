@@ -18,6 +18,7 @@ import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js'
 import sharp from 'sharp'
 import {
   buildPaintingScene,
+  buildGalleryScene,
   buildSculptureScene,
   type TexLoader,
 } from './scene'
@@ -41,21 +42,16 @@ async function decodeToTexture(url: string): Promise<THREE.Texture> {
     width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true,
   })
 
-  // Pre-flip vertically via sharp so the bytes are already bottom-left
-  // origin — this matches three's UV convention and means we keep
-  // flipY = false. USDZExporter's imageToCanvas path otherwise re-flips
-  // the image, which caused the upside-down Quick Look bug.
-  const flipped = pipeline.clone().flip()
-
-  // Raw RGBA for GLTFExporter's putImageData path.
-  const { data: rgba, info } = await flipped
+  // Keep PNG in its natural top-left origin. PNG/USDZ/GLTF all use top-left
+  // UV convention. We set tex.flipY = false below so no extra flipping
+  // happens anywhere in the pipeline.
+  const { data: rgba, info } = await pipeline
     .clone()
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true })
 
-  // PNG bytes for USDZExporter.
-  const png = await flipped.clone().png().toBuffer()
+  const png = await pipeline.clone().png().toBuffer()
 
   const fakeImg = new FakeHTMLImageElement(info.width, info.height, new Uint8Array(png))
   ;(fakeImg as FakeHTMLImageElement & { data: Uint8Array }).data = new Uint8Array(rgba)
@@ -109,6 +105,14 @@ export async function buildPaintingGLB(aw: Artwork): Promise<ArrayBuffer> {
 export async function buildPaintingUSDZ(aw: Artwork): Promise<ArrayBuffer> {
   const scene = await buildPaintingScene(THREE, aw, serverLoadTex)
   return exportUSDZ(scene, 'vertical') // wall-mount
+}
+export async function buildGalleryGLB(artworks: Artwork[]): Promise<ArrayBuffer> {
+  const scene = await buildGalleryScene(THREE, artworks, serverLoadTex)
+  return exportGLB(scene)
+}
+export async function buildGalleryUSDZ(artworks: Artwork[]): Promise<ArrayBuffer> {
+  const scene = await buildGalleryScene(THREE, artworks, serverLoadTex)
+  return exportUSDZ(scene, 'vertical')
 }
 export async function buildSculptureGLB(aw: Artwork): Promise<ArrayBuffer> {
   const scene = await buildSculptureScene(THREE, aw)

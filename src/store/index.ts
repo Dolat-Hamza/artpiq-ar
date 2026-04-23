@@ -29,6 +29,11 @@ interface AppStore {
   openMyWall: (ids: string[]) => void
   closeMyWall: () => void
 
+  galleryArOpen: boolean
+  galleryArIds: string[]
+  openGalleryAR: (ids: string[]) => void
+  closeGalleryAR: () => void
+
   selectedIds: Set<string>
   isSelectMode: boolean
   enterSelectMode: () => void
@@ -64,6 +69,11 @@ export const useStore = create<AppStore>((set, get) => ({
   myWallArtworkIds: [],
   openMyWall: (ids) => set({ myWallOpen: true, myWallArtworkIds: ids, detailOpen: false }),
   closeMyWall: () => set({ myWallOpen: false, myWallArtworkIds: [] }),
+
+  galleryArOpen: false,
+  galleryArIds: [],
+  openGalleryAR: (ids) => set({ galleryArOpen: true, galleryArIds: ids, isSelectMode: false, selectedIds: new Set() }),
+  closeGalleryAR: () => set({ galleryArOpen: false, galleryArIds: [] }),
 
   selectedIds: new Set(),
   isSelectMode: false,

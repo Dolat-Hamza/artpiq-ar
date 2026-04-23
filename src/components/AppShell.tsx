@@ -6,6 +6,7 @@ import Header from './Header'
 import Catalogue from './Catalogue'
 import DetailSheet from './DetailSheet'
 import ARLauncher from './ARLauncher'
+import GalleryAR from './GalleryAR'
 import MyWall from './MyWall'
 import QROverlay from './QROverlay'
 import GalleryBar from './GalleryBar'
@@ -32,6 +33,7 @@ export default function AppShell() {
       <Catalogue />
       <DetailSheet />
       <ARLauncher />
+      <GalleryAR />
       <MyWall />
       <QROverlay />
       <GalleryBar />

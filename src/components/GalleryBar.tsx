@@ -5,7 +5,7 @@ import { useStore } from '@/store'
 import { ARTWORKS } from '@/lib/artworks'
 
 export default function GalleryBar() {
-  const { selectedIds, isSelectMode, exitSelectMode, openMyWall, showToast } = useStore()
+  const { selectedIds, isSelectMode, exitSelectMode, openMyWall, openGalleryAR, showToast } = useStore()
 
   if (!isSelectMode || selectedIds.size === 0) return null
 
@@ -18,6 +18,12 @@ export default function GalleryBar() {
     const ids = selected.map(a => a.id)
     exitSelectMode()
     openMyWall(ids)
+  }
+
+  function toGalleryAR() {
+    const paintings = selected.filter(a => a.type === 'painting')
+    if (paintings.length < 1) { showToast('Select at least one painting'); return }
+    openGalleryAR(paintings.map(a => a.id))
   }
 
   return (
@@ -51,10 +57,16 @@ export default function GalleryBar() {
             Clear
           </button>
           <button
+            onClick={toGalleryAR}
+            className="h-10 px-4 bg-transparent text-ink border border-ink text-[13px] hover:bg-ink hover:text-paper transition-colors"
+          >
+            View in AR
+          </button>
+          <button
             onClick={toMyWall}
             className="h-10 px-4 bg-accent text-accent-ink text-[13px] inline-flex items-center gap-2 hover:bg-ink transition-colors"
           >
-            Compose on My Wall <ArrowRight size={14} />
+            My Wall <ArrowRight size={14} />
           </button>
         </div>
       </motion.div>

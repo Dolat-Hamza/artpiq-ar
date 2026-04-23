@@ -159,6 +159,54 @@ export async function buildPaintingScene(
   return scene
 }
 
+/**
+ * Gallery row: multiple paintings side-by-side as one combined USDZ scene.
+ * iOS Quick Look limitation: whole scene moves as one — cannot manipulate
+ * individual paintings. This delivers "see all N paintings on one wall".
+ */
+export async function buildGalleryScene(
+  THREE: typeof THREE_NS,
+  artworks: Artwork[],
+  loadTex: TexLoader,
+): Promise<THREE_NS.Scene> {
+  const paintings = artworks.filter(a => a.type === 'painting')
+  const TARGET_H = 0.5   // normalise heights to 50cm for visual coherence
+  const GAP = 0.08       // 8cm spacing between frames
+  const scene = new THREE.Scene()
+
+  const scales = paintings.map(aw => TARGET_H / (aw.heightCm / 100))
+  const widths = paintings.map((aw, i) => (aw.widthCm / 100) * scales[i])
+  const totalW = widths.reduce((s, w) => s + w, 0) + GAP * Math.max(0, paintings.length - 1)
+  let cursor = -totalW / 2
+
+  for (let i = 0; i < paintings.length; i++) {
+    const aw = paintings[i]
+    const sc = scales[i]
+    const wM = (aw.widthCm / 100) * sc
+    const hM = TARGET_H
+    const cx = cursor + wM / 2
+    cursor += wM + GAP
+
+    let tex: THREE_NS.Texture | null = null
+    try { tex = await loadTex(aw.image || aw.thumb || '') } catch { tex = null }
+
+    if (tex) {
+      scene.add(buildFramedPainting(THREE, wM, hM, tex, cx, 0))
+    } else {
+      const fallbackColours = [0x8b6347, 0x4a6fa5, 0x5a8a5a, 0x8a5a8a]
+      const mat = new THREE.MeshStandardMaterial({
+        color: fallbackColours[i % fallbackColours.length], roughness: 0.8,
+      })
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat)
+      plane.position.set(cx, 0, 0)
+      scene.add(plane)
+    }
+  }
+
+  addStandardLighting(THREE, scene)
+  return scene
+}
+
 export async function buildSculptureScene(
   THREE: typeof THREE_NS,
   aw: Artwork,
