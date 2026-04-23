@@ -47,6 +47,12 @@ interface AppStore {
   openXR: (artworks: Artwork[]) => void
   closeXR: () => void
 
+  // ── Gallery AR (model-viewer combined GLB, iOS fallback) ───────────────────
+  galleryArOpen: boolean
+  galleryArArtworks: Artwork[]
+  openGalleryAR: (artworks: Artwork[]) => void
+  closeGalleryAR: () => void
+
   // ── QR overlay ─────────────────────────────────────────────────────────────
   qrOpen: boolean
   openQR: () => void
@@ -105,6 +111,12 @@ export const useStore = create<AppStore>((set, get) => ({
   xrArtworks: [],
   openXR: (artworks) => set({ xrOpen: true, xrArtworks: artworks, detailOpen: false }),
   closeXR: () => set({ xrOpen: false, xrArtworks: [] }),
+
+  // Gallery AR (iOS / WebXR-unsupported fallback)
+  galleryArOpen: false,
+  galleryArArtworks: [],
+  openGalleryAR: (artworks) => set({ galleryArOpen: true, galleryArArtworks: artworks, detailOpen: false }),
+  closeGalleryAR: () => set({ galleryArOpen: false, galleryArArtworks: [] }),
 
   // QR
   qrOpen: false,

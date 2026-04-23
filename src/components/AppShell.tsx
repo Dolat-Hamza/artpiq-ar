@@ -8,6 +8,7 @@ import DetailSheet from './DetailSheet'
 import ARViewer from './ARViewer'
 import MyWallViewer from './MyWallViewer'
 import WebXRViewer from './WebXRViewer'
+import GalleryARViewer from './GalleryARViewer'
 import QROverlay from './QROverlay'
 import GalleryBar from './GalleryBar'
 import Toast from './Toast'
@@ -38,6 +39,7 @@ export default function AppShell() {
       <ARViewer />
       <MyWallViewer />
       <WebXRViewer />
+      <GalleryARViewer />
       <QROverlay />
       <GalleryBar />
       <Toast />
