@@ -7,10 +7,9 @@ import { useStore } from '@/store'
 import { ARTWORKS } from '@/lib/artworks'
 import type { Artwork, WallLayer } from '@/types'
 
-const STORAGE_KEY = 'myWall:v1'
+const STORAGE_KEY = 'myWall:v2'
 
 interface StoredState {
-  bgDataUrl: string | null
   layers: WallLayer[]
   nextId: number
 }
@@ -27,41 +26,59 @@ function saveStored(s: StoredState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch {}
 }
 
-async function readFileAsImage(file: File): Promise<string> {
-  const name = file.name.toLowerCase()
-  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif')
-  if (isHeic) {
-    const mod = await import('heic2any')
-    const blob = await mod.default({ blob: file, toType: 'image/jpeg', quality: 0.9 })
-    const out = Array.isArray(blob) ? blob[0] : blob
-    return URL.createObjectURL(out)
-  }
-  return URL.createObjectURL(file)
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    p.then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
+  })
 }
 
-async function dataUrlFromFile(file: File): Promise<string> {
+// Convert HEIC → JPEG Blob if needed. Returns the same File otherwise.
+async function normalizeToBlob(file: File): Promise<Blob> {
   const name = file.name.toLowerCase()
-  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif')
-  let blob: Blob = file
-  if (isHeic) {
-    const mod = await import('heic2any')
-    const out = await mod.default({ blob: file, toType: 'image/jpeg', quality: 0.9 })
-    blob = Array.isArray(out) ? out[0] : out
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
+    || name.endsWith('.heic') || name.endsWith('.heif')
+  if (!isHeic) return file
+  const mod = await import('heic2any')
+  const out = await withTimeout(
+    mod.default({ blob: file, toType: 'image/jpeg', quality: 0.95 }) as Promise<Blob | Blob[]>,
+    20000,
+    'HEIC conversion',
+  )
+  return Array.isArray(out) ? out[0] : out
+}
+
+// Decode Blob → ImageBitmap with EXIF orientation honored. Falls back to <img>.
+async function decodeBitmap(blob: Blob): Promise<{ width: number; height: number; bitmap?: ImageBitmap; url: string }> {
+  const url = URL.createObjectURL(blob)
+  if (typeof createImageBitmap === 'function') {
+    try {
+      // imageOrientation: 'from-image' applies EXIF rotation so portraits stay portrait.
+      const bitmap = await withTimeout(
+        createImageBitmap(blob, { imageOrientation: 'from-image' as ImageOrientation }),
+        15000,
+        'Image decode',
+      )
+      return { width: bitmap.width, height: bitmap.height, bitmap, url }
+    } catch {/* fall through */}
   }
-  return await new Promise<string>((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(r.result as string)
-    r.onerror = reject
-    r.readAsDataURL(blob)
-  })
+  const dim = await withTimeout(new Promise<{ w: number; h: number }>((res, rej) => {
+    const img = new Image()
+    img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight })
+    img.onerror = () => rej(new Error('image decode failed'))
+    img.src = url
+  }), 15000, 'Image decode')
+  return { width: dim.w, height: dim.h, url }
 }
 
 export default function MyWall() {
   const { myWallOpen, myWallArtworkIds, closeMyWall, showToast } = useStore()
 
   const stageRef = useRef<HTMLDivElement>(null)
+  const [bgBlob, setBgBlob] = useState<Blob | null>(null)
   const [bgUrl, setBgUrl] = useState<string | null>(null)
-  const [bgAspect, setBgAspect] = useState<number>(3 / 4)
+  const [bgNatural, setBgNatural] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  const bgAspect = bgNatural.w && bgNatural.h ? bgNatural.w / bgNatural.h : 3 / 4
   const [layers, setLayers] = useState<WallLayer[]>([])
   const [nextId, setNextId] = useState(0)
   const [activeId, setActiveId] = useState<number | null>(null)
@@ -73,19 +90,20 @@ export default function MyWall() {
 
   const paintings = useMemo(() => ARTWORKS.filter(a => a.type === 'painting'), [])
 
-  // Restore from localStorage on open
+  // Restore layers (only) from localStorage on open. Bg photo is per-session.
   useEffect(() => {
     if (!myWallOpen) return
     const stored = loadStored()
-    if (stored && stored.bgDataUrl) {
-      setBgUrl(stored.bgDataUrl)
-      const img = new Image()
-      img.onload = () => setBgAspect(img.width / img.height)
-      img.src = stored.bgDataUrl
+    if (stored) {
       setLayers(stored.layers ?? [])
       setNextId(stored.nextId ?? 0)
     }
   }, [myWallOpen])
+
+  // Revoke blob URL when bg changes / unmounts to avoid leaks.
+  useEffect(() => {
+    return () => { if (bgUrl) URL.revokeObjectURL(bgUrl) }
+  }, [bgUrl])
 
   // Seed layers from openMyWall(ids)
   useEffect(() => {
@@ -108,11 +126,11 @@ export default function MyWall() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myWallOpen, bgUrl, myWallArtworkIds])
 
-  // Persist on change
+  // Persist layout (layers only — bg photo stays in memory)
   useEffect(() => {
     if (!myWallOpen) return
-    saveStored({ bgDataUrl: bgUrl, layers, nextId })
-  }, [bgUrl, layers, nextId, myWallOpen])
+    saveStored({ layers, nextId })
+  }, [layers, nextId, myWallOpen])
 
   // Reset transient state on close
   useEffect(() => {
@@ -126,19 +144,30 @@ export default function MyWall() {
     if (!file) return
     setLoading(true)
     try {
-      const dataUrl = await dataUrlFromFile(file)
-      const img = new Image()
-      img.onload = () => {
-        setBgAspect(img.width / img.height)
-        setBgUrl(dataUrl)
-        setLoading(false)
-      }
-      img.onerror = () => { setLoading(false); showToast('Could not read image') }
-      img.src = dataUrl
-    } catch {
+      const blob = await normalizeToBlob(file)
+      const decoded = await decodeBitmap(blob)
+      // Replace any prior bg URL atomically.
+      if (bgUrl) URL.revokeObjectURL(bgUrl)
+      setBgBlob(blob)
+      setBgUrl(decoded.url)
+      setBgNatural({ w: decoded.width, h: decoded.height })
+    } catch (e) {
+      console.error('[MyWall] photo load failed', e)
+      showToast(e instanceof Error && e.message.includes('HEIC')
+        ? 'HEIC convert failed — try JPEG'
+        : 'Could not read photo. Try again.')
+    } finally {
       setLoading(false)
-      showToast('Could not convert image')
     }
+  }
+
+  // Open the file picker. Pre-clear input.value so iOS Safari fires `change`
+  // even when the user re-picks the same source after a previous attempt.
+  function openPicker(which: 'camera' | 'gallery') {
+    const el = which === 'camera' ? cameraRef.current : galleryRef.current
+    if (!el) return
+    el.value = ''
+    el.click()
   }
 
   function addArtwork(aw: Artwork) {
@@ -182,25 +211,40 @@ export default function MyWall() {
   }
 
   function resetAll() {
-    setBgUrl(null); setLayers([]); setNextId(0); setActiveId(null)
+    if (bgUrl) URL.revokeObjectURL(bgUrl)
+    setBgBlob(null); setBgUrl(null); setBgNatural({ w: 0, h: 0 })
+    setLayers([]); setNextId(0); setActiveId(null)
     try { localStorage.removeItem(STORAGE_KEY) } catch {}
   }
 
   async function exportImage() {
     const stage = stageRef.current
-    if (!stage || !bgUrl) return
+    if (!stage || !bgBlob) return
     showToast('Composing image…')
 
-    const bgImg = await loadImg(bgUrl)
-    const targetW = Math.min(2400, bgImg.naturalWidth)
-    const scale = targetW / bgImg.naturalWidth
-    const targetH = Math.round(bgImg.naturalHeight * scale)
+    // Decode bg fresh at native resolution (with EXIF orientation).
+    let bgSource: CanvasImageSource
+    let targetW: number
+    let targetH: number
+    try {
+      const decoded = await decodeBitmap(bgBlob)
+      targetW = decoded.width
+      targetH = decoded.height
+      bgSource = decoded.bitmap ?? await loadImg(decoded.url)
+    } catch (e) {
+      console.error('[MyWall] export bg decode failed', e)
+      showToast('Export failed. Re-pick photo.')
+      return
+    }
 
     const canvas = document.createElement('canvas')
     canvas.width = targetW
     canvas.height = targetH
     const ctx = canvas.getContext('2d')!
-    ctx.drawImage(bgImg, 0, 0, targetW, targetH)
+    // High-quality resampling for any incidental scaling done downstream.
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(bgSource, 0, 0, targetW, targetH)
 
     // Convert on-screen coords to canvas coords.
     const rect = stage.getBoundingClientRect()
@@ -295,25 +339,31 @@ export default function MyWall() {
 
         {!bgUrl ? (
           <EmptyState
-            onCamera={() => cameraRef.current?.click()}
-            onGallery={() => galleryRef.current?.click()}
+            onCamera={() => openPicker('camera')}
+            onGallery={() => openPicker('gallery')}
             loading={loading}
           />
         ) : (
           <div
-            ref={stageRef}
-            className="relative flex-1 overflow-hidden bg-obsidian"
+            className="relative flex-1 overflow-hidden bg-obsidian flex items-center justify-center"
             onPointerDown={(e) => {
               if (e.target === e.currentTarget) setActiveId(null)
             }}
           >
-            <img
-              src={bgUrl}
-              alt=""
-              draggable={false}
-              style={{ aspectRatio: `${bgAspect}` }}
-              className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
-            />
+            <div
+              ref={stageRef}
+              className="relative max-w-full max-h-full"
+              style={{ aspectRatio: `${bgAspect}`, width: bgAspect >= 1 ? '100%' : 'auto', height: bgAspect >= 1 ? 'auto' : '100%' }}
+              onPointerDown={(e) => {
+                if (e.target === e.currentTarget) setActiveId(null)
+              }}
+            >
+              <img
+                src={bgUrl ?? ''}
+                alt=""
+                draggable={false}
+                className="absolute inset-0 w-full h-full object-fill select-none pointer-events-none"
+              />
 
             {layers.map(l => {
               const aw = ARTWORKS.find(a => a.id === l.artworkId)
@@ -332,6 +382,7 @@ export default function MyWall() {
                 />
               )
             })}
+            </div>
           </div>
         )}
 
