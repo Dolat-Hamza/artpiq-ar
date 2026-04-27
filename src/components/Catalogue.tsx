@@ -4,28 +4,21 @@ import ArtworkCard from './ArtworkCard'
 
 function Hero() {
   return (
-    <section className="border-b border-line">
-      <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 py-14 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-10 items-end">
-        <div className="md:col-span-7">
-          <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-6">
-            Augmented reality · Curated catalogue
-          </p>
-          <h1 className="font-display text-[44px] sm:text-[64px] md:text-[88px] leading-[0.95] tracking-tight text-ink">
-            Live with <em className="italic text-accent">great</em> paintings.
-          </h1>
-          <p className="mt-6 max-w-[520px] text-[15px] leading-relaxed text-ink-muted">
-            Place masterworks on your wall at true scale, or compose a private gallery on a photo of your room. No app to install.
-          </p>
-        </div>
-        <div className="md:col-span-5 md:pl-10">
-          <div className="aspect-[3/4] bg-surface border border-line overflow-hidden">
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/600px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg"
-              alt="Mona Lisa"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="w-full h-full object-cover"
-            />
-          </div>
+    <section className="border-b border-line bg-paper">
+      <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 py-20 md:py-28 text-center">
+        <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-6">
+          Augmented reality · Curated catalogue
+        </p>
+        <h1 className="font-display text-[44px] sm:text-[64px] md:text-[88px] leading-[0.98] tracking-tight text-ink mx-auto max-w-[14ch]">
+          Live with <em className="italic text-accent not-italic-fallback" style={{ fontStyle: 'italic' }}>great</em> paintings.
+        </h1>
+        <p className="mt-6 mx-auto max-w-[560px] text-[15px] leading-relaxed text-ink-muted">
+          Place masterworks on your wall at true scale, or compose a private gallery on a photo of your room. No app to install.
+        </p>
+        <div className="mt-10 inline-flex items-center gap-2 text-[11px] tracking-[0.18em] uppercase text-ink-muted">
+          <span className="h-px w-8 bg-line" />
+          Scroll to browse
+          <span className="h-px w-8 bg-line" />
         </div>
       </div>
     </section>
