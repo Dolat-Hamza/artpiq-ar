@@ -10,10 +10,10 @@ export default function QROverlay() {
   useEffect(() => {
     if (!qrOpen || !canvasRef.current) return
     const base = window.location.origin + window.location.pathname
-    const url  = current ? `${base}?artwork=${current.id}` : base
+    const url = current ? `${base}?artwork=${current.id}` : base
     import('qrcode').then(QRCode => {
       QRCode.toCanvas(canvasRef.current!, url, {
-        width: 220, color: { dark: '#191919', light: '#ffffff' },
+        width: 240, color: { dark: '#141210', light: '#faf7f2' },
       })
     })
   }, [qrOpen, current])
@@ -22,21 +22,25 @@ export default function QROverlay() {
     <AnimatePresence>
       {qrOpen && (
         <motion.div
-          className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center"
+          className="fixed inset-0 z-[200] bg-ink/50 flex items-center justify-center p-6"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={(e) => { if (e.target === e.currentTarget) closeQR() }}
         >
           <motion.div
-            className="bg-[--s1] rounded-xl p-6 text-center max-w-[280px] shadow-art"
-            initial={{ scale: .9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: .9, opacity: 0 }}
+            className="bg-paper border border-line p-8 text-center max-w-[320px]"
+            initial={{ scale: .96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: .96, opacity: 0 }}
           >
-            <h3 className="text-[15px] font-semibold mb-1">Scan to view in AR</h3>
-            <p className="text-[11px] text-[--muted] mb-3.5 leading-relaxed">Open on your phone to place this artwork in your space</p>
-            <canvas ref={canvasRef} className="rounded-md" />
+            <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-3">Scan to view</p>
+            <h3 className="font-display text-[22px] leading-tight mb-5">
+              Continue on your phone
+            </h3>
+            <canvas ref={canvasRef} className="mx-auto" />
             <button
               onClick={closeQR}
-              className="block mt-3 mx-auto bg-transparent border border-[--border] text-[--text] px-[18px] py-1.5 rounded-lg cursor-pointer text-[12px]"
-            >Close</button>
+              className="mt-5 h-10 px-5 border border-ink text-ink text-[12px] hover:bg-ink hover:text-paper transition-colors"
+            >
+              Close
+            </button>
           </motion.div>
         </motion.div>
       )}

@@ -1,75 +1,74 @@
 'use client'
-import { Share2 } from 'lucide-react'
+import { LayoutGrid, Frame } from 'lucide-react'
 import { useStore } from '@/store'
 
 export default function Header() {
-  const { current, showToast, activeFilter, setFilter } = useStore()
-
-  async function shareOrCopy(aw: typeof current) {
-    const base = window.location.origin + window.location.pathname
-    const url = aw ? `${base}?artwork=${aw.id}` : base
-    const title = `${aw?.title ?? 'ArtPiq'} — View in AR`
-    if (navigator.share) {
-      try { await navigator.share({ title, url }); return } catch {}
-    }
-    try { await navigator.clipboard.writeText(url); showToast('Link copied!') }
-    catch { showToast('Copy: ' + url) }
-  }
+  const { activeFilter, setFilter, isSelectMode, enterSelectMode, exitSelectMode } = useStore()
 
   const tabs = [
-    { label: 'All', value: 'all' },
+    { label: 'All works', value: 'all' },
     { label: 'Paintings', value: 'painting' },
     { label: 'Sculptures', value: 'sculpture' },
   ]
 
   return (
-    <header className="sticky top-0 z-50 bg-[rgba(12,12,12,.92)] backdrop-blur-md border-b border-[--border]">
-      <div className="flex items-center gap-2.5 px-[18px] pt-3 pb-2">
-        <div className="text-xl font-extrabold tracking-tight">
-          Art<span className="text-[--accent]">Piq</span>
+    <header className="sticky top-0 z-50 bg-paper/90 backdrop-blur-sm border-b border-line">
+      <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 h-[56px] flex items-center">
+        <div className="flex-1">
+          <span className="font-display text-[22px] tracking-tight leading-none">
+            artpiq<span className="text-accent">.</span>
+          </span>
         </div>
-        <div className="ml-auto flex gap-2">
+
+        <nav className="hidden md:flex items-center gap-8 text-[13px]">
+          {tabs.map(t => (
+            <button
+              key={t.value}
+              onClick={() => setFilter(t.value)}
+              className={`transition-colors ${
+                activeFilter === t.value ? 'text-ink' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="flex-1 flex justify-end items-center gap-2">
           <button
-            onClick={() => shareOrCopy(current)}
-            className="bg-transparent border-none text-[--muted] cursor-pointer text-lg p-1.5 rounded-lg hover:text-[--text] transition-colors"
-            title="Share"
+            onClick={isSelectMode ? exitSelectMode : enterSelectMode}
+            className={`hidden sm:inline-flex items-center gap-2 h-9 px-3 text-[12px] border transition-colors ${
+              isSelectMode
+                ? 'bg-ink text-paper border-ink'
+                : 'bg-transparent text-ink border-line hover:border-ink'
+            }`}
           >
-            <Share2 size={18} />
+            <Frame size={14} />
+            {isSelectMode ? 'Done' : 'Curate wall'}
+          </button>
+          <button
+            onClick={isSelectMode ? exitSelectMode : enterSelectMode}
+            className="sm:hidden h-9 w-9 flex items-center justify-center border border-line text-ink"
+            aria-label="Curate wall"
+          >
+            <LayoutGrid size={16} />
           </button>
         </div>
       </div>
-      <div className="flex gap-1 px-[18px] pb-2.5 overflow-x-auto scrollbar-none">
+
+      <div className="md:hidden max-w-content mx-auto px-6 pb-3 flex gap-5 text-[12px] overflow-x-auto no-scrollbar">
         {tabs.map(t => (
           <button
             key={t.value}
             onClick={() => setFilter(t.value)}
-            className={`flex-shrink-0 px-3.5 py-1.5 rounded-full border text-xs font-semibold transition-all ${
-              activeFilter === t.value
-                ? 'bg-[--accent] border-[--accent] text-[#0c0c0c]'
-                : 'bg-transparent border-[--border] text-[--muted] hover:text-[--text]'
+            className={`whitespace-nowrap transition-colors ${
+              activeFilter === t.value ? 'text-ink border-b border-ink pb-1' : 'text-ink-muted'
             }`}
           >
             {t.label}
           </button>
         ))}
-        <SelectToggle />
       </div>
     </header>
-  )
-}
-
-function SelectToggle() {
-  const { isSelectMode, enterSelectMode, exitSelectMode } = useStore()
-  return (
-    <button
-      onClick={isSelectMode ? exitSelectMode : enterSelectMode}
-      className={`flex-shrink-0 px-3.5 py-1.5 rounded-full border text-xs font-semibold transition-all whitespace-nowrap ${
-        isSelectMode
-          ? 'bg-[--accent] border-[--accent] text-[#0c0c0c]'
-          : 'bg-transparent border-[--border] text-[--muted]'
-      }`}
-    >
-      {isSelectMode ? '✓ Done' : '🖼 Select'}
-    </button>
   )
 }
