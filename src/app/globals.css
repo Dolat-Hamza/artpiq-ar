@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  /* Geevs brand palette — white / grey / blue */
-  --mist: #F8FAFC;
-  --obsidian: #0A0E1A;
-  --indigo: #6366F1;
-  --indigo-light: #818CF8;
-  --cyan: #06B6D4;
+  /* Minimal palette — white-first, light-blue accent, light-grey supporting */
+  --mist: #FFFFFF;
+  --obsidian: #F1F5F9;       /* repurposed: light-grey "stage" surface */
+  --indigo: #3B82F6;          /* light blue (interactive accent) */
+  --indigo-light: #93C5FD;    /* softer hover/badge */
+  --cyan: #BAE6FD;            /* tint */
 
   /* Slate greys */
   --slate-50:  #F8FAFC;
@@ -17,15 +17,17 @@
   --slate-400: #94A3B8;
   --slate-500: #64748B;
   --slate-700: #334155;
+  --slate-800: #1E293B;
 
   /* Semantic aliases — component class names stay the same */
-  --paper: var(--mist);
-  --ink: var(--obsidian);
+  --paper: #FFFFFF;
+  --ink: var(--slate-800);    /* readable dark, not pure black */
   --ink-muted: var(--slate-500);
   --line: var(--slate-200);
   --accent: var(--indigo);
+  --accent-soft: #DBEAFE;
   --accent-ink: #ffffff;
-  --surface: #ffffff;
+  --surface: var(--slate-50); /* off-white card surface */
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

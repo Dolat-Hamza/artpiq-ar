@@ -275,12 +275,12 @@ export default function MyWall() {
       ctx.translate(cx, cy)
       ctx.rotate((l.rotation * Math.PI) / 180)
       // Frame shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.45)'
-      ctx.shadowBlur = 24 * sx
-      ctx.shadowOffsetY = 10 * sy
-      // Dark frame
-      const fw = Math.max(6, dw * 0.035)
-      ctx.fillStyle = '#1a110a'
+      ctx.shadowColor = 'rgba(15,23,42,0.18)'
+      ctx.shadowBlur = 18 * sx
+      ctx.shadowOffsetY = 8 * sy
+      // Light frame (matches minimal UI)
+      const fw = Math.max(6, dw * 0.03)
+      ctx.fillStyle = '#FFFFFF'
       ctx.fillRect(-dw / 2 - fw, -dh / 2 - fw, dw + fw * 2, dh + fw * 2)
       ctx.shadowColor = 'transparent'
       ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh)
@@ -565,7 +565,7 @@ function LayerNode({
       className="select-none"
     >
       <div
-        className={`relative bg-obsidian p-[4%] shadow-[0_14px_40px_rgba(0,0,0,0.45)] ${
+        className={`relative bg-paper border border-line p-[3%] shadow-[0_8px_24px_rgba(15,23,42,0.12)] ${
           active ? 'ring-1 ring-accent ring-offset-0' : ''
         }`}
       >

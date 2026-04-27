@@ -5,21 +5,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Semantic (used across components)
-        paper: '#F8FAFC',
-        ink: '#0A0E1A',
+        // Semantic (used across components) — minimal white / light-blue / light-grey
+        paper: '#FFFFFF',
+        ink: '#1E293B',
         'ink-muted': '#64748B',
         line: '#E2E8F0',
-        accent: '#6366F1',
+        accent: '#3B82F6',
+        'accent-soft': '#DBEAFE',
         'accent-ink': '#FFFFFF',
-        surface: '#FFFFFF',
+        surface: '#F8FAFC',
 
         // Brand primitives
-        mist: '#F8FAFC',
-        obsidian: '#0A0E1A',
-        indigo: '#6366F1',
-        'indigo-light': '#818CF8',
-        cyan: '#06B6D4',
+        mist: '#FFFFFF',
+        obsidian: '#F1F5F9',
+        indigo: '#3B82F6',
+        'indigo-light': '#93C5FD',
+        cyan: '#BAE6FD',
 
         // Slate scale
         'slate-50':  '#F8FAFC',
