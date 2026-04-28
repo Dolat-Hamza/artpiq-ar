@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>AR Artwork Placement — Demo</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" integrity="sha384-NxrHiuPcsJaRbXc9EoFTt5OZ6WPVqKeDgcnykGs3spXmq0J7hbbGGlyUkrGuoJoA" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
+      min-height: 100dvh;
+    }
+
+    .page { max-width: 540px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    .badge {
+      display: inline-block;
+      background: #c8102e;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    h1 { font-size: 26px; font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
+    .meta-artist { color: #999; font-size: 14px; margin-bottom: 2px; }
+    .meta-dims  { color: #555; font-size: 12px; margin-bottom: 24px; font-family: monospace; }
+
+    .frame {
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+      margin-bottom: 28px;
+      background: #181818;
+      line-height: 0;
+    }
+    .frame img { width: 100%; max-height: 320px; object-fit: cover; display: block; }
+
+    /* artwork switcher */
+    .switcher {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 28px;
+      scrollbar-width: none;
+    }
+    .switcher::-webkit-scrollbar { display: none; }
+    .thumb {
+      flex: 0 0 68px;
+      height: 52px;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+      opacity: 0.6;
+      transition: opacity 0.2s, border-color 0.2s;
+    }
+    .thumb.active { border-color: #c8102e; opacity: 1; }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .actions { display: flex; flex-direction: column; gap: 12px; }
+
+    .btn {
+      width: 100%;
+      padding: 15px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ar   { background: #c8102e; color: #fff; }
+    .btn-room { background: #1c1c1c; color: #f0f0f0; border: 1px solid #2e2e2e; }
+    .btn svg  { flex-shrink: 0; }
+
+    .room-out {
+      margin-top: 24px;
+      border-radius: 8px;
+      overflow: hidden;
+      display: none;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    }
+    .room-out canvas { width: 100%; display: block; }
+    .room-label {
+      background: #181818;
+      font-size: 11px;
+      color: #666;
+      padding: 8px 12px;
+      text-align: center;
+    }
+
+    .tip {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #444;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* AR fullscreen overlay */
+    #ar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: #000;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background: #111;
+      --progress-bar-color: #c8102e;
+    }
+    #close-ar {
+      position: fixed;
+      top: 16px; right: 16px;
+      z-index: 300;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 50%;
+      width: 42px; height: 42px;
+      font-size: 18px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    /* QR modal (desktop) */
+    #qr-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 400;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-card {
+      background: #fff;
+      color: #000;
+      border-radius: 16px;
+      padding: 36px 32px;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+    }
+    .qr-card h2 { font-size: 18px; margin-bottom: 6px; }
+    .qr-card p  { font-size: 12px; color: #777; margin-bottom: 20px; line-height: 1.5; }
+    .qr-card canvas { border-radius: 8px; }
+    .qr-sub { margin-top: 16px; font-size: 11px; color: #aaa; }
+    #qr-close {
+      margin-top: 20px;
+      background: none; border: none;
+      font-size: 12px; color: #bbb;
+      cursor: pointer; text-decoration: underline;
+    }
+
+    #status-msg { text-align: center; font-size: 11px; color: #555; margin-top: 14px; min-height: 16px; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="badge">AR Proof of Concept — Option A</div>
+
+  <h1 id="aw-title">The Starry Night</h1>
+  <p class="meta-artist" id="aw-artist">Vincent van Gogh, 1889</p>
+  <p class="meta-dims"   id="aw-dims">92 cm × 73 cm &nbsp;·&nbsp; Oil on canvas</p>
+
+  <div class="frame">
+    <img id="aw-img"
+      src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg"
+      crossorigin="anonymous"
+      alt="Artwork preview" />
+  </div>
+
+  <!-- Artwork picker -->
+  <div class="switcher" id="switcher"></div>
+
+  <div class="actions">
+    <button class="btn btn-ar" id="btn-ar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      </svg>
+      View in AR
+    </button>
+
+    <button class="btn btn-room" id="btn-room">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      View in Sample Room
+    </button>
+  </div>
+
+  <p id="status-msg"></p>
+
+  <div class="room-out" id="room-out">
+    <canvas id="room-canvas"></canvas>
+    <div class="room-label">Simulated placement — client-side canvas compositing</div>
+  </div>
+
+  <p class="tip" id="tip-text"></p>
+</div>
+
+<!-- AR fullscreen -->
+<div id="ar-overlay">
+  <model-viewer id="mv"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    camera-controls
+    auto-rotate
+    shadow-intensity="1"
+    exposure="1.1"
+    tone-mapping="commerce">
+  </model-viewer>
+</div>
+<button id="close-ar">✕</button>
+
+<!-- QR modal (desktop) -->
+<div id="qr-modal">
+  <div class="qr-card">
+    <h2>Open on your phone</h2>
+    <p>Scan with your camera to place this artwork on your wall in AR. Works in Safari (iOS) and Chrome (Android).</p>
+    <canvas id="qr-canvas"></canvas>
+    <p class="qr-sub">Already on phone? Tap "View in AR" directly.</p>
+    <button id="qr-close">Dismiss</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.160.0';
+import { GLTFExporter } from 'https://esm.sh/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
+import QRCode from 'https://esm.sh/qrcode@1.5.3';
+
+// ─── Artwork catalogue ───────────────────────────────────────────────────────
+const ARTWORKS = [
+  {
+    title:    'The Starry Night',
+    artist:   'Vincent van Gogh, 1889',
+    medium:   'Oil on canvas',
+    widthCm:  92,
+    heightCm: 73,
+    image:    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
+  },
+  {
+    title:    'Girl with a Pearl Earring',
+    artist:   'Johannes Vermeer, c. 1665',
+    medium:   'Oil on canvas',
+    widthCm:  39,
+    heightCm: 44,
+    image:    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/800px-1665_Girl_with_a_Pearl_Earring.jpg',
+  },
+  {
+    title:    'The Great Wave',
+    artist:   'Katsushika Hokusai, c. 1831',
+    medium:   'Woodblock print',
+    widthCm:  38,
+    heightCm: 26,
+    image:    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/1280px-Tsunami_by_hokusai_19th_century.jpg',
+  },
+  {
+    title:    'Water Lilies',
+    artist:   'Claude Monet, 1906',
+    medium:   'Oil on canvas',
+    widthCm:  89,
+    heightCm: 93,
+    image:    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Claude_Monet_-_Water_Lilies_-_1906%2C_Ryerson.jpg/1280px-Claude_Monet_-_Water_Lilies_-_1906%2C_Ryerson.jpg',
+  },
+];
+
+// ─── Procedural room drawing ─────────────────────────────────────────────────
+// No external image needed — pure Canvas 2D
+function drawProcRoom(canvas) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const ctx = canvas.getContext('2d');
+
+  // Wall
+  const wallGrad = ctx.createLinearGradient(0, 0, 0, H * 0.68);
+  wallGrad.addColorStop(0,   '#e8e0d5');
+  wallGrad.addColorStop(0.5, '#ddd5c8');
+  wallGrad.addColorStop(1,   '#cec5b6');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(0, 0, W, H * 0.68);
+
+  // Subtle wall texture via noise-like stripes
+  ctx.globalAlpha = 0.03;
+  for (let y = 0; y < H * 0.68; y += 4) {
+    ctx.fillStyle = y % 8 === 0 ? '#000' : '#fff';
+    ctx.fillRect(0, y, W, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  // Floor
+  const floorGrad = ctx.createLinearGradient(0, H * 0.68, 0, H);
+  floorGrad.addColorStop(0, '#b09060');
+  floorGrad.addColorStop(1, '#8a6e45');
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(0, H * 0.68, W, H * 0.32);
+
+  // Floor planks (perspective lines)
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1;
+  const vp = { x: W / 2, y: H * 0.68 }; // vanishing point
+  for (let i = 0; i <= 10; i++) {
+    const x = (W / 10) * i;
+    ctx.beginPath();
+    ctx.moveTo(vp.x + (x - vp.x) * 0.01, vp.y);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  // Horizontal plank lines
+  for (let i = 1; i <= 6; i++) {
+    const y = H * 0.68 + (H * 0.32) * (i / 6);
+    const perspective = i / 6;
+    ctx.beginPath();
+    ctx.moveTo(W * (0.5 - 0.5 * perspective), y);
+    ctx.lineTo(W * (0.5 + 0.5 * perspective), y);
+    ctx.stroke();
+  }
+
+  // Baseboard
+  ctx.fillStyle = '#f2ede6';
+  ctx.fillRect(0, H * 0.665, W, H * 0.025);
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.fillRect(0, H * 0.665 + H * 0.025, W, 2);
+
+  // Ceiling line / crown moulding hint
+  ctx.fillStyle = '#f5f0ea';
+  ctx.fillRect(0, 0, W, H * 0.04);
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  ctx.fillRect(0, H * 0.04, W, 3);
+
+  // Left wall panel (wainscoting hint)
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(W * 0.04, H * 0.08, W * 0.18, H * 0.5);
+
+  // Ambient room shadow (vignette)
+  const vignette = ctx.createRadialGradient(W/2, H*0.34, H*0.1, W/2, H*0.34, W*0.7);
+  vignette.addColorStop(0,   'transparent');
+  vignette.addColorStop(1,   'rgba(0,0,0,0.18)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H * 0.68);
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentIdx = 0;
+let cachedGlbUrls = {};
+
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+const $  = id => document.getElementById(id);
+const status = msg => { $('status-msg').textContent = msg; };
+
+// ─── Build thumbnail switcher ─────────────────────────────────────────────────
+const switcher = $('switcher');
+ARTWORKS.forEach((aw, i) => {
+  const div = document.createElement('div');
+  div.className = 'thumb' + (i === 0 ? ' active' : '');
+  div.innerHTML = `<img src="${aw.image}" crossorigin="anonymous" alt="${aw.title}" />`;
+  div.addEventListener('click', () => selectArtwork(i));
+  switcher.appendChild(div);
+});
+
+function selectArtwork(idx) {
+  currentIdx = idx;
+  const aw = ARTWORKS[idx];
+  $('aw-title').textContent  = aw.title;
+  $('aw-artist').textContent = aw.artist;
+  $('aw-dims').textContent   = `${aw.widthCm} cm × ${aw.heightCm} cm · ${aw.medium}`;
+  $('aw-img').src            = aw.image;
+  document.querySelectorAll('.thumb').forEach((t, i) => t.classList.toggle('active', i === idx));
+  // Hide old room preview
+  $('room-out').style.display = 'none';
+  status('');
+}
+
+// ─── GLB generation ──────────────────────────────────────────────────────────
+async function generateGLB(aw) {
+  if (cachedGlbUrls[currentIdx]) return cachedGlbUrls[currentIdx];
+
+  const widthM  = aw.widthCm  / 100;
+  const heightM = aw.heightCm / 100;
+
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+
+  const texture = await new Promise((resolve, reject) =>
+    loader.load(aw.image, resolve, undefined, reject)
+  );
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const scene    = new THREE.Scene();
+  const geometry = new THREE.PlaneGeometry(widthM, heightM);
+  const material = new THREE.MeshStandardMaterial({
+    map:       texture,
+    roughness: 0.75,
+    metalness: 0.0,
+    side:      THREE.FrontSide,
+  });
+  scene.add(new THREE.Mesh(geometry, material));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(1, 2, 2);
+  scene.add(dir);
+
+  const exporter = new GLTFExporter();
+  const glbUrl   = await new Promise((resolve, reject) =>
+    exporter.parse(scene, buf => {
+      resolve(URL.createObjectURL(new Blob([buf], { type: 'model/gltf-binary' })));
+    }, reject, { binary: true })
+  );
+
+  cachedGlbUrls[currentIdx] = glbUrl;
+  return glbUrl;
+}
+
+// ─── Room compositing (canvas) ────────────────────────────────────────────────
+function loadImg(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load: ' + src));
+    img.src = src;
+  });
+}
+
+async function compositeRoom(aw) {
+  const canvas = $('room-canvas');
+  const ctx    = canvas.getContext('2d');
+  const W = 900, H = 600;
+  canvas.width  = W;
+  canvas.height = H;
+
+  // Draw procedural room
+  drawProcRoom(canvas);
+
+  // Load artwork
+  const artImg = await loadImg(aw.image);
+
+  // Scale artwork: fit within 42% of canvas width, preserve real aspect ratio
+  const maxArtW = W * 0.42;
+  const maxArtH = H * 0.48;
+  const artAspect = aw.widthCm / aw.heightCm;
+
+  let artW = maxArtW;
+  let artH = artW / artAspect;
+  if (artH > maxArtH) { artH = maxArtH; artW = artH * artAspect; }
+
+  // Center horizontally on wall, hang in upper half
+  const x = (W - artW) / 2;
+  const y = H * 0.11;
+
+  // Frame border
+  const frameSize = Math.max(6, artW * 0.022);
+  ctx.fillStyle = '#2a1f0e';
+  ctx.fillRect(x - frameSize, y - frameSize, artW + frameSize * 2, artH + frameSize * 2);
+
+  // Frame inner bevel
+  ctx.fillStyle = '#5a3e1e';
+  ctx.fillRect(x - frameSize + 2, y - frameSize + 2, artW + (frameSize - 2) * 2, artH + (frameSize - 2) * 2);
+
+  // Drop shadow behind frame
+  ctx.shadowColor   = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur    = 28;
+  ctx.shadowOffsetX = 6;
+  ctx.shadowOffsetY = 10;
+  ctx.fillRect(x - frameSize, y - frameSize, artW + frameSize * 2, artH + frameSize * 2);
+  ctx.shadowColor = 'transparent';
+
+  // Artwork image
+  ctx.drawImage(artImg, x, y, artW, artH);
+
+  // Frame highlight edge
+  ctx.strokeStyle = 'rgba(255,220,120,0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - frameSize, y - frameSize, artW + frameSize * 2, artH + frameSize * 2);
+}
+
+// ─── AR button ───────────────────────────────────────────────────────────────
+$('btn-ar').addEventListener('click', async () => {
+  const aw  = ARTWORKS[currentIdx];
+  const btn = $('btn-ar');
+
+  if (isMobile) {
+    btn.disabled    = true;
+    btn.textContent = 'Building 3D model…';
+    status('Generating GLB from artwork image + real dimensions…');
+
+    try {
+      const glbUrl = await generateGLB(aw);
+      const mv     = $('mv');
+      mv.src = glbUrl;
+
+      $('ar-overlay').style.display = 'block';
+      $('close-ar').style.display   = 'flex';
+      status('');
+
+      // Auto-activate AR after model loads
+      mv.addEventListener('load', () => {
+        try { mv.activateAR(); } catch (_) { /* user taps the AR button in model-viewer */ }
+      }, { once: true });
+
+    } catch (err) {
+      status('GLB error: ' + err.message);
+    }
+
+    btn.disabled    = false;
+    btn.innerHTML   = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> View in AR`;
+
+  } else {
+    // Desktop → QR handoff
+    const arUrl = new URL(window.location.href);
+    arUrl.searchParams.set('ar',  '1');
+    arUrl.searchParams.set('idx', currentIdx);
+
+    const qrCanvas = $('qr-canvas');
+    await QRCode.toCanvas(qrCanvas, arUrl.toString(), {
+      width: 210, margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+    $('qr-modal').style.display = 'flex';
+  }
+});
+
+// Auto-launch via QR on mobile
+if (isMobile) {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('ar') === '1') {
+    const idx = parseInt(params.get('idx') ?? '0', 10);
+    if (!isNaN(idx)) selectArtwork(idx);
+    setTimeout(() => $('btn-ar').click(), 400);
+  }
+  $('tip-text').textContent = 'Tap "View in AR" — works in Safari (iOS 16+) and Chrome (Android).';
+} else {
+  $('tip-text').textContent = 'On desktop: scan the QR code with your phone to launch AR. For best results use iOS Safari or Android Chrome.';
+}
+
+// ─── Sample Room button ───────────────────────────────────────────────────────
+$('btn-room').addEventListener('click', async () => {
+  const aw  = ARTWORKS[currentIdx];
+  const btn = $('btn-room');
+
+  btn.disabled    = true;
+  btn.textContent = 'Compositing…';
+  status('');
+
+  try {
+    await compositeRoom(aw);
+    const out = $('room-out');
+    out.style.display = 'block';
+    out.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    status('Room preview failed: ' + err.message);
+  }
+
+  btn.disabled  = false;
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> View in Sample Room`;
+});
+
+// ─── Close buttons ────────────────────────────────────────────────────────────
+$('close-ar').addEventListener('click', () => {
+  $('ar-overlay').style.display = 'none';
+  $('close-ar').style.display   = 'none';
+});
+$('qr-close').addEventListener('click', () => {
+  $('qr-modal').style.display = 'none';
+});
+</script>
+</body>
+</html>

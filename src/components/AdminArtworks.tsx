@@ -3,57 +3,95 @@ import { useEffect, useRef, useState } from 'react'
 import { Artwork } from '@/types'
 import {
   artworksToCsv,
-  loadLocal,
   newArtwork,
   parseCsv,
   rowsToArtworks,
-  saveLocal,
 } from '@/lib/artworkStore'
+import {
+  bulkUpsert,
+  deleteArtwork,
+  listMyArtworks,
+  uploadImage,
+  upsertArtwork,
+} from '@/lib/db/artworks'
+import { signOut, useAuth } from '@/lib/db/auth'
+import LoginForm from './LoginForm'
 
 export default function AdminArtworks() {
+  const { user, loading, configured } = useAuth()
   const [list, setList] = useState<Artwork[]>([])
   const [editing, setEditing] = useState<Artwork | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setList(loadLocal())
-  }, [])
+    if (!user) return
+    refresh()
+  }, [user])
 
-  function commit(next: Artwork[]) {
-    setList(next)
-    saveLocal(next)
+  async function refresh() {
+    if (!user) return
+    try {
+      setBusy(true)
+      setList(await listMyArtworks(user.id))
+      setErr(null)
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Load failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  function startNew() {
-    setEditing(newArtwork())
+  async function save() {
+    if (!editing || !user) return
+    try {
+      setBusy(true)
+      const saved = await upsertArtwork(editing, user.id)
+      setList(prev => {
+        const i = prev.findIndex(a => a.id === saved.id)
+        return i >= 0 ? prev.map(a => (a.id === saved.id ? saved : a)) : [saved, ...prev]
+      })
+      setEditing(null)
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  function save() {
-    if (!editing) return
-    const i = list.findIndex(a => a.id === editing.id)
-    const next = i >= 0 ? list.map(a => (a.id === editing.id ? editing : a)) : [editing, ...list]
-    commit(next)
-    setEditing(null)
-  }
-
-  function remove(id: string) {
+  async function remove(id: string) {
     if (!confirm('Delete artwork?')) return
-    commit(list.filter(a => a.id !== id))
+    try {
+      setBusy(true)
+      await deleteArtwork(id)
+      setList(prev => prev.filter(a => a.id !== id))
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Delete failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function importCsv(f: File) {
-    const text = await f.text()
-    const rows = parseCsv(text)
-    const imported = rowsToArtworks(rows)
-    if (!imported.length) {
-      alert('No rows imported. Check column headers (need at least: title, widthCm, heightCm).')
-      return
+    if (!user) return
+    try {
+      setBusy(true)
+      const text = await f.text()
+      const rows = parseCsv(text)
+      const imported = rowsToArtworks(rows)
+      if (!imported.length) {
+        alert('No rows imported. Need at least: title, widthCm, heightCm.')
+        return
+      }
+      const n = await bulkUpsert(imported, user.id)
+      alert(`Imported ${n} artworks.`)
+      refresh()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Import failed')
+    } finally {
+      setBusy(false)
     }
-    // dedupe by id
-    const map = new Map(list.map(a => [a.id, a]))
-    imported.forEach(a => map.set(a.id, a))
-    commit(Array.from(map.values()))
-    alert(`Imported ${imported.length} artworks.`)
   }
 
   function exportCsv() {
@@ -67,15 +105,38 @@ export default function AdminArtworks() {
     URL.revokeObjectURL(url)
   }
 
+  if (!configured) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-8 text-center">
+        <p className="max-w-[420px] text-[13px] text-ink-muted">
+          Supabase not configured. Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
+          <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code>.
+        </p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div className="min-h-dvh flex items-center justify-center text-[13px] text-ink-muted">Loading…</div>
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-6 bg-paper">
+        <LoginForm />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-dvh bg-paper text-ink">
       <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center justify-between gap-4">
+        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Admin</p>
+            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Admin · {user.email}</p>
             <h1 className="font-display text-[24px] tracking-tight">Artworks ({list.length})</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <input
               ref={fileRef}
               type="file"
@@ -90,6 +151,7 @@ export default function AdminArtworks() {
             <button
               onClick={() => fileRef.current?.click()}
               className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
+              disabled={busy}
             >
               Import CSV
             </button>
@@ -100,19 +162,29 @@ export default function AdminArtworks() {
               Export CSV
             </button>
             <button
-              onClick={startNew}
+              onClick={() => setEditing(newArtwork())}
               className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper"
+              disabled={busy}
             >
               + New
             </button>
+            <button
+              onClick={signOut}
+              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
+            >
+              Sign out
+            </button>
           </div>
         </div>
+        {err && (
+          <p className="max-w-content mx-auto px-6 md:px-12 pb-3 text-[12px] text-red-600">{err}</p>
+        )}
       </header>
 
       <main className="max-w-content mx-auto px-6 md:px-12 py-8">
-        {!list.length && (
+        {!list.length && !busy && (
           <p className="text-ink-muted text-[13px]">
-            No artworks yet. Click <em>New</em> or <em>Import CSV</em>. Stored locally in your browser.
+            No artworks yet. Click <em>New</em> or <em>Import CSV</em>.
           </p>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -157,6 +229,7 @@ export default function AdminArtworks() {
       {editing && (
         <EditorDrawer
           aw={editing}
+          ownerId={user.id}
           onChange={setEditing}
           onSave={save}
           onCancel={() => setEditing(null)}
@@ -168,16 +241,31 @@ export default function AdminArtworks() {
 
 function EditorDrawer({
   aw,
+  ownerId,
   onChange,
   onSave,
   onCancel,
 }: {
   aw: Artwork
+  ownerId: string
   onChange: (a: Artwork) => void
   onSave: () => void
   onCancel: () => void
 }) {
   const set = <K extends keyof Artwork>(k: K, v: Artwork[K]) => onChange({ ...aw, [k]: v })
+  const [uploading, setUploading] = useState(false)
+
+  async function uploadThumb(f: File) {
+    try {
+      setUploading(true)
+      const url = await uploadImage(f, ownerId)
+      onChange({ ...aw, image: url, thumb: url })
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onCancel}>
@@ -185,7 +273,7 @@ function EditorDrawer({
         className="w-full max-w-[520px] bg-paper h-full overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <header className="sticky top-0 bg-paper border-b border-line px-6 py-4 flex items-center justify-between">
+        <header className="sticky top-0 bg-paper border-b border-line px-6 py-4 flex items-center justify-between z-10">
           <h2 className="font-display text-[18px]">Edit artwork</h2>
           <div className="flex gap-2">
             <button onClick={onCancel} className="px-3 py-2 text-[11px] tracking-[0.16em] uppercase border border-line">
@@ -269,11 +357,26 @@ function EditorDrawer({
               className="input"
             />
           </Field>
-          <Field label="Image URL">
-            <input value={aw.image ?? ''} onChange={e => set('image', e.target.value || null)} className="input" />
+          <Field label="Image">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) uploadThumb(f)
+              }}
+              className="block w-full text-[12px]"
+            />
+            {uploading && <p className="text-[11px] text-ink-muted mt-1">Uploading…</p>}
+            {aw.image && (
+              <div className="mt-2 flex items-center gap-3">
+                <img src={aw.image} alt="" className="w-16 h-16 object-cover" />
+                <span className="text-[11px] text-ink-muted truncate">{aw.image}</span>
+              </div>
+            )}
           </Field>
-          <Field label="Thumb URL">
-            <input value={aw.thumb ?? ''} onChange={e => set('thumb', e.target.value || null)} className="input" />
+          <Field label="Image URL (or paste)">
+            <input value={aw.image ?? ''} onChange={e => set('image', e.target.value || null)} className="input" />
           </Field>
           <Field label="Purchase URL">
             <input value={aw.purchaseUrl ?? ''} onChange={e => set('purchaseUrl', e.target.value || undefined)} className="input" />
