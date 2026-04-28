@@ -29,7 +29,9 @@ export default function LoginForm() {
         setMsg('Check your inbox to confirm the email.')
       } else {
         const redirect =
-          typeof window !== 'undefined' ? window.location.href : undefined
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/admin/artworks`
+            : undefined
         await signInWithMagicLink(email, redirect)
         setMsg('Magic link sent. Check your inbox.')
       }
