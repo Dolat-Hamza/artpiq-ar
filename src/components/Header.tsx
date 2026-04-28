@@ -1,5 +1,6 @@
 'use client'
-import { LayoutGrid, Frame } from 'lucide-react'
+import Link from 'next/link'
+import { LayoutGrid, Frame, Image as ImageIcon, Settings } from 'lucide-react'
 import { useStore } from '@/store'
 
 export default function Header() {
@@ -32,6 +33,20 @@ export default function Header() {
               {t.label}
             </button>
           ))}
+          <Link
+            href="/sample-room"
+            className="text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-1.5"
+          >
+            <ImageIcon size={13} />
+            Sample room
+          </Link>
+          <Link
+            href="/admin/artworks"
+            className="text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-1.5"
+          >
+            <Settings size={13} />
+            Admin
+          </Link>
         </nav>
 
         <div className="flex-1 flex justify-end items-center gap-2">
@@ -68,6 +83,12 @@ export default function Header() {
             {t.label}
           </button>
         ))}
+        <Link href="/sample-room" className="whitespace-nowrap text-ink-muted">
+          Sample room
+        </Link>
+        <Link href="/admin/artworks" className="whitespace-nowrap text-ink-muted">
+          Admin
+        </Link>
       </div>
     </header>
   )
