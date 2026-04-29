@@ -30,6 +30,7 @@ export interface Artwork {
   colors?: string[]
   sold?: boolean
   transparent?: boolean
+  sqspSku?: string
 }
 
 export interface WallLayer {
