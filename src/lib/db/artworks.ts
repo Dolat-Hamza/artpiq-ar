@@ -32,6 +32,7 @@ export function rowToArtwork(r: Row): Artwork {
     colors: r.colors ?? undefined,
     sold: r.sold,
     transparent: r.transparent,
+    sqspSku: r.sqsp_sku ?? undefined,
   }
 }
 
@@ -63,6 +64,7 @@ export function artworkToRow(a: Artwork, ownerId: string | null): Insert {
     sold: a.sold ?? false,
     transparent: a.transparent ?? false,
     wiki_title: a.wikiTitle ?? null,
+    sqsp_sku: a.sqspSku ?? null,
   }
 }
 

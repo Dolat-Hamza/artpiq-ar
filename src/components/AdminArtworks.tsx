@@ -15,6 +15,8 @@ import {
   upsertArtwork,
 } from '@/lib/db/artworks'
 import { signOut, useAuth } from '@/lib/db/auth'
+import { exportArtworkPdf } from '@/lib/artworkSheet'
+import { downloadSqspCsv } from '@/lib/sqspExport'
 import LoginForm from './LoginForm'
 
 export default function AdminArtworks() {
@@ -162,6 +164,14 @@ export default function AdminArtworks() {
               Export CSV
             </button>
             <button
+              onClick={() => downloadSqspCsv(list)}
+              disabled={!list.length}
+              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line disabled:opacity-40"
+              title="Squarespace Commerce import format"
+            >
+              Export SQSP
+            </button>
+            <button
               onClick={() => setEditing(newArtwork())}
               className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper"
               disabled={busy}
@@ -212,6 +222,12 @@ export default function AdminArtworks() {
                     className="text-[11px] uppercase tracking-[0.16em]"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => exportArtworkPdf(a)}
+                    className="text-[11px] uppercase tracking-[0.16em]"
+                  >
+                    PDF
                   </button>
                   <button
                     onClick={() => remove(a.id)}
@@ -348,6 +364,14 @@ function EditorDrawer({
               <input value={aw.currency ?? 'EUR'} onChange={e => set('currency', e.target.value)} className="input" />
             </Field>
           </div>
+          <Field label="SQSP SKU (Squarespace Commerce)">
+            <input
+              value={aw.sqspSku ?? ''}
+              onChange={e => set('sqspSku', e.target.value || undefined)}
+              placeholder="Defaults to artwork id"
+              className="input"
+            />
+          </Field>
           <Field label="Description">
             <textarea
               value={aw.description ?? ''}
