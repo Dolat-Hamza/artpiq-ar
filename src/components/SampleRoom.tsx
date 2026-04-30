@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useStore } from '@/store'
 import { STOCK_ROOMS } from '@/lib/rooms'
 import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
@@ -11,13 +12,16 @@ interface FrameState {
   matteMm: number
 }
 
-interface ArtworkPos {
-  // normalized [0..1] center of artwork in image space
+interface Placed {
+  id: string // unique instance id
+  artworkId: string
   cx: number
   cy: number
-  // current display width in cm (resizable)
   widthCm: number
+  frame: FrameState
 }
+
+const DEFAULT_FRAME: FrameState = { style: 'thin-black', widthMm: 30, matteMm: 0 }
 
 function loadImg(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -35,50 +39,46 @@ function quadWidthPx(quad: StockRoom['wallQuad'], imgW: number) {
   return (top + bottom) / 2
 }
 
+function uid() {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 export default function SampleRoom() {
   const { artworks, showToast } = useStore()
   const [room, setRoom] = useState<StockRoom>(STOCK_ROOMS[0])
-  const [artwork, setArtwork] = useState<Artwork | null>(null)
-  const [frame, setFrame] = useState<FrameState>({
-    style: 'thin-black',
-    widthMm: 30,
-    matteMm: 0,
-  })
+  const [placed, setPlaced] = useState<Placed[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
   const [stageW, setStageW] = useState(0)
   const stageRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
-  const dragRef = useRef<{ startCx: number; startCy: number; startX: number; startY: number; mode: 'move' | 'resize'; startWidthCm: number } | null>(null)
+  const dragRef = useRef<{
+    id: string
+    startCx: number
+    startCy: number
+    startX: number
+    startY: number
+    mode: 'move' | 'resize'
+    startWidthCm: number
+  } | null>(null)
 
-  // Position state — recentered when room changes
-  const [pos, setPos] = useState<ArtworkPos>(() => {
-    const cx = (STOCK_ROOMS[0].wallQuad[0][0] + STOCK_ROOMS[0].wallQuad[1][0]) / 2
-    const cy = (STOCK_ROOMS[0].wallQuad[0][1] + STOCK_ROOMS[0].wallQuad[2][1]) / 2
-    return { cx, cy, widthCm: 60 }
-  })
+  const artworkById = useMemo(() => {
+    const m = new Map<string, Artwork>()
+    for (const a of artworks) m.set(a.id, a)
+    return m
+  }, [artworks])
 
-  // Pick first artwork
+  const selected = placed.find(p => p.id === selectedId) ?? null
+
+  // Reset on room change
   useEffect(() => {
-    if (!artwork && artworks.length) setArtwork(artworks[0])
-  }, [artworks, artwork])
-
-  // Sync widthCm when artwork changes
-  useEffect(() => {
-    if (artwork) setPos(p => ({ ...p, widthCm: artwork.widthCm }))
-  }, [artwork])
-
-  // Recenter when room changes
-  useEffect(() => {
-    const cx = (room.wallQuad[0][0] + room.wallQuad[1][0]) / 2
-    const cy = (room.wallQuad[0][1] + room.wallQuad[2][1]) / 2
-    setPos(p => ({ ...p, cx, cy }))
     setImgLoaded(false)
     setImgLoading(true)
   }, [room])
 
-  // Track stage width for responsive sizing
+  // Track stage width
   useEffect(() => {
     const update = () => {
       if (stageRef.current) setStageW(stageRef.current.clientWidth)
@@ -89,7 +89,6 @@ export default function SampleRoom() {
     return () => ro.disconnect()
   }, [])
 
-  // pxPerCm at current display scale
   const pxPerCm = useMemo(() => {
     if (!stageW || !imgLoaded || !imgRef.current?.naturalWidth) return null
     const imgRatio = stageW / imgRef.current.naturalWidth
@@ -97,57 +96,82 @@ export default function SampleRoom() {
     return quadPx / room.wallWidthCm
   }, [room, stageW, imgLoaded])
 
-  const aspectRatio = artwork ? artwork.heightCm / artwork.widthCm : 1
-  const heightCm = pos.widthCm * aspectRatio
+  function addArtwork(a: Artwork) {
+    const cx = (room.wallQuad[0][0] + room.wallQuad[1][0]) / 2
+    const cy = (room.wallQuad[0][1] + room.wallQuad[2][1]) / 2
+    // Slight stagger so multiple stacks aren't perfectly overlapping
+    const offset = placed.length * 0.04
+    const id = uid()
+    setPlaced(p => [
+      ...p,
+      {
+        id,
+        artworkId: a.id,
+        cx: Math.min(0.95, cx + offset),
+        cy: Math.min(0.95, cy + offset),
+        widthCm: a.widthCm,
+        frame: { ...DEFAULT_FRAME },
+      },
+    ])
+    setSelectedId(id)
+  }
 
-  const artworkBox = useMemo(() => {
-    if (!artwork || !pxPerCm) return null
-    const w = pos.widthCm * pxPerCm
-    const h = heightCm * pxPerCm
-    const matte = (frame.matteMm / 10) * pxPerCm
-    const fw = (frame.widthMm / 10) * pxPerCm
-    return { w, h, matte, fw }
-  }, [artwork, pxPerCm, frame, pos.widthCm, heightCm])
+  function removePlaced(id: string) {
+    setPlaced(p => p.filter(x => x.id !== id))
+    if (selectedId === id) setSelectedId(null)
+  }
 
-  // Drag handlers
+  function updatePlaced(id: string, patch: Partial<Placed>) {
+    setPlaced(p => p.map(x => (x.id === id ? { ...x, ...patch } : x)))
+  }
+
+  function updateFrame(id: string, patch: Partial<FrameState>) {
+    setPlaced(p =>
+      p.map(x => (x.id === id ? { ...x, frame: { ...x.frame, ...patch } } : x)),
+    )
+  }
+
+  // Drag handlers ------------------------------------------------------------
   const onPointerDown = useCallback(
-    (e: React.PointerEvent, mode: 'move' | 'resize') => {
+    (e: React.PointerEvent, id: string, mode: 'move' | 'resize') => {
       if (!stageRef.current) return
       e.stopPropagation()
+      const target = placed.find(p => p.id === id)
+      if (!target) return
       ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+      setSelectedId(id)
       dragRef.current = {
-        startCx: pos.cx,
-        startCy: pos.cy,
+        id,
+        startCx: target.cx,
+        startCy: target.cy,
         startX: e.clientX,
         startY: e.clientY,
         mode,
-        startWidthCm: pos.widthCm,
+        startWidthCm: target.widthCm,
       }
     },
-    [pos],
+    [placed],
   )
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragRef.current || !stageRef.current || !imgRef.current) return
+      if (!dragRef.current || !stageRef.current) return
+      const ref = dragRef.current
       const stageRect = stageRef.current.getBoundingClientRect()
-      const stageH = stageRect.height || 1
-      const dx = e.clientX - dragRef.current.startX
-      const dy = e.clientY - dragRef.current.startY
-      if (dragRef.current.mode === 'move') {
+      const dx = e.clientX - ref.startX
+      const dy = e.clientY - ref.startY
+      if (ref.mode === 'move') {
         const ndx = dx / stageRect.width
-        const ndy = dy / stageH
-        setPos(p => ({
-          ...p,
-          cx: Math.max(0.02, Math.min(0.98, dragRef.current!.startCx + ndx)),
-          cy: Math.max(0.02, Math.min(0.98, dragRef.current!.startCy + ndy)),
-        }))
+        const ndy = dy / stageRect.height
+        updatePlaced(ref.id, {
+          cx: Math.max(0.02, Math.min(0.98, ref.startCx + ndx)),
+          cy: Math.max(0.02, Math.min(0.98, ref.startCy + ndy)),
+        })
       } else {
-        // Resize: pixel delta → cm delta via pxPerCm
         if (!pxPerCm) return
         const dCm = (dx + dy) / pxPerCm / 2
-        const nextW = Math.max(5, Math.min(500, dragRef.current.startWidthCm + dCm))
-        setPos(p => ({ ...p, widthCm: nextW }))
+        const nextW = Math.max(5, Math.min(500, ref.startWidthCm + dCm))
+        updatePlaced(ref.id, { widthCm: nextW })
       }
     },
     [pxPerCm],
@@ -162,12 +186,12 @@ export default function SampleRoom() {
     }
   }, [])
 
+  // Export -------------------------------------------------------------------
   async function exportPng() {
-    if (!artwork || !artworkBox || exporting) return
+    if (!placed.length || exporting) return
     setExporting(true)
     try {
       const bg = await loadImg(room.image)
-      const aw = await loadImg(artwork.image ?? '')
       const W = bg.naturalWidth
       const H = bg.naturalHeight
       const canvas = document.createElement('canvas')
@@ -178,27 +202,31 @@ export default function SampleRoom() {
 
       const quadPxFull = quadWidthPx(room.wallQuad, W)
       const ppcFull = quadPxFull / room.wallWidthCm
-      const aw_w = pos.widthCm * ppcFull
-      const aw_h = heightCm * ppcFull
-      const matte = (frame.matteMm / 10) * ppcFull
-      const fw = (frame.widthMm / 10) * ppcFull
-      const totalW = aw_w + (matte + fw) * 2
-      const totalH = aw_h + (matte + fw) * 2
-      const cx = pos.cx * W
-      const cy = pos.cy * H
-      const x = cx - totalW / 2
-      const y = cy - totalH / 2
 
-      const preset = FRAME_PRESETS[frame.style]
-      if (frame.style !== 'none') {
-        ctx.fillStyle = preset.borderColor
-        ctx.fillRect(x, y, totalW, totalH)
+      for (const item of placed) {
+        const aw = artworkById.get(item.artworkId)
+        if (!aw || !aw.image) continue
+        const ar = aw.heightCm / aw.widthCm
+        const aw_w = item.widthCm * ppcFull
+        const aw_h = item.widthCm * ar * ppcFull
+        const matte = (item.frame.matteMm / 10) * ppcFull
+        const fw = (item.frame.widthMm / 10) * ppcFull
+        const totalW = aw_w + (matte + fw) * 2
+        const totalH = aw_h + (matte + fw) * 2
+        const x = item.cx * W - totalW / 2
+        const y = item.cy * H - totalH / 2
+        const preset = FRAME_PRESETS[item.frame.style]
+        if (item.frame.style !== 'none') {
+          ctx.fillStyle = preset.borderColor
+          ctx.fillRect(x, y, totalW, totalH)
+        }
+        if (matte > 0) {
+          ctx.fillStyle = preset.matteColor
+          ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
+        }
+        const img = await loadImg(aw.image)
+        ctx.drawImage(img, x + fw + matte, y + fw + matte, aw_w, aw_h)
       }
-      if (matte > 0) {
-        ctx.fillStyle = preset.matteColor
-        ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
-      }
-      ctx.drawImage(aw, x + fw + matte, y + fw + matte, aw_w, aw_h)
 
       const blob = await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92),
@@ -206,7 +234,7 @@ export default function SampleRoom() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `sample-room-${room.id}-${artwork.id}.jpg`
+      a.download = `sample-room-${room.id}-${Date.now()}.jpg`
       a.click()
       URL.revokeObjectURL(url)
       showToast('Image saved')
@@ -221,34 +249,38 @@ export default function SampleRoom() {
   return (
     <div className="min-h-dvh bg-paper text-ink flex flex-col">
       <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+        <div className="max-w-content mx-auto px-6 md:px-12 py-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Sample room</p>
-            <h1 className="font-display text-[20px] tracking-tight">Place at scale — drag to move, drag corner to resize</h1>
+            <h1 className="font-display text-[20px] tracking-tight">
+              Place at scale — drag to move · corner to resize · pick room from sidebar
+            </h1>
           </div>
           <button
             onClick={exportPng}
-            disabled={!artwork || exporting}
+            disabled={!placed.length || exporting}
             className="px-4 py-2 text-[12px] tracking-[0.18em] uppercase bg-ink text-paper disabled:opacity-40"
           >
-            {exporting ? 'Saving…' : 'Save image'}
+            {exporting ? 'Saving…' : `Save image (${placed.length})`}
           </button>
         </div>
       </header>
 
-      <main className="flex-1 max-w-content mx-auto w-full px-6 md:px-12 py-8 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-        {/* Stage */}
-        <section>
+      <main className="flex-1 max-w-content mx-auto w-full px-6 md:px-12 py-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        <section className="flex flex-col gap-3">
           <div
             ref={stageRef}
             className="relative w-full bg-line/40 overflow-hidden touch-none select-none"
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
+            onClick={() => setSelectedId(null)}
           >
             {imgLoading && (
               <div className="absolute inset-0 grid place-items-center bg-paper/60 z-10 pointer-events-none">
-                <span className="text-[11px] tracking-[0.20em] uppercase text-ink-muted">Loading room…</span>
+                <span className="text-[11px] tracking-[0.20em] uppercase text-ink-muted">
+                  Loading room…
+                </span>
               </div>
             )}
             <img
@@ -269,61 +301,118 @@ export default function SampleRoom() {
               }}
               draggable={false}
             />
-            {artwork && artworkBox && (
-              <div
-                onPointerDown={e => onPointerDown(e, 'move')}
-                className="absolute cursor-grab active:cursor-grabbing"
-                style={{
-                  left: `${pos.cx * 100}%`,
-                  top: `${pos.cy * 100}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: artworkBox.w + (artworkBox.matte + artworkBox.fw) * 2,
-                  height: artworkBox.h + (artworkBox.matte + artworkBox.fw) * 2,
-                  background: FRAME_PRESETS[frame.style].borderColor,
-                  boxShadow: FRAME_PRESETS[frame.style].shadow,
-                  touchAction: 'none',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: artworkBox.fw,
-                    background: FRAME_PRESETS[frame.style].matteColor,
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {artwork.image && (
-                    <img
-                      src={artwork.image}
-                      alt={artwork.title}
-                      crossOrigin="anonymous"
+            {pxPerCm &&
+              placed.map(item => {
+                const aw = artworkById.get(item.artworkId)
+                if (!aw) return null
+                const ar = aw.heightCm / aw.widthCm
+                const w = item.widthCm * pxPerCm
+                const h = w * ar
+                const fw = (item.frame.widthMm / 10) * pxPerCm
+                const matte = (item.frame.matteMm / 10) * pxPerCm
+                const isSelected = item.id === selectedId
+                return (
+                  <div
+                    key={item.id}
+                    onPointerDown={e => onPointerDown(e, item.id, 'move')}
+                    onClick={e => {
+                      e.stopPropagation()
+                      setSelectedId(item.id)
+                    }}
+                    className={`absolute cursor-grab active:cursor-grabbing ${
+                      isSelected ? 'outline outline-2 outline-accent' : ''
+                    }`}
+                    style={{
+                      left: `${item.cx * 100}%`,
+                      top: `${item.cy * 100}%`,
+                      transform: 'translate(-50%, -50%)',
+                      width: w + (matte + fw) * 2,
+                      height: h + (matte + fw) * 2,
+                      background: FRAME_PRESETS[item.frame.style].borderColor,
+                      boxShadow: FRAME_PRESETS[item.frame.style].shadow,
+                      touchAction: 'none',
+                    }}
+                  >
+                    <div
                       style={{
                         position: 'absolute',
-                        inset: artworkBox.matte,
-                        width: `calc(100% - ${artworkBox.matte * 2}px)`,
-                        height: `calc(100% - ${artworkBox.matte * 2}px)`,
-                        objectFit: 'fill',
+                        inset: fw,
+                        background: FRAME_PRESETS[item.frame.style].matteColor,
+                        pointerEvents: 'none',
                       }}
-                      draggable={false}
+                    >
+                      {aw.image && (
+                        <img
+                          src={aw.image}
+                          alt={aw.title}
+                          crossOrigin="anonymous"
+                          style={{
+                            position: 'absolute',
+                            inset: matte,
+                            width: `calc(100% - ${matte * 2}px)`,
+                            height: `calc(100% - ${matte * 2}px)`,
+                            objectFit: 'fill',
+                          }}
+                          draggable={false}
+                        />
+                      )}
+                    </div>
+                    {/* Remove */}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        removePlaced(item.id)
+                      }}
+                      className="absolute -top-3 -right-3 w-6 h-6 bg-paper border border-ink rounded-full flex items-center justify-center"
+                      aria-label="Remove"
+                    >
+                      <X size={12} />
+                    </button>
+                    {/* Resize */}
+                    <div
+                      onPointerDown={e => onPointerDown(e, item.id, 'resize')}
+                      className="absolute -right-2 -bottom-2 w-5 h-5 bg-ink border-2 border-paper cursor-nwse-resize"
+                      style={{ touchAction: 'none' }}
+                      aria-label="Resize"
                     />
-                  )}
-                </div>
-                {/* Resize handle bottom-right */}
-                <div
-                  onPointerDown={e => onPointerDown(e, 'resize')}
-                  className="absolute -right-2 -bottom-2 w-5 h-5 bg-ink border-2 border-paper cursor-nwse-resize"
-                  style={{ touchAction: 'none' }}
-                  aria-label="Resize"
-                />
-              </div>
-            )}
+                  </div>
+                )
+              })}
           </div>
-          <p className="mt-2 text-[11px] tracking-[0.16em] uppercase text-ink-muted">
-            Drag artwork to move · drag bottom-right corner to resize · wall ≈ {room.wallWidthCm} cm wide
+
+          {/* Bottom artwork thumbnail strip */}
+          <div className="border-t border-line pt-3">
+            <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-2">
+              Click to add — {artworks.length} artworks · {placed.length} on wall
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {artworks.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => addArtwork(a)}
+                  title={`${a.title}${a.artist ? ' — ' + a.artist : ''}`}
+                  className="shrink-0 w-20 h-20 border border-line bg-paper hover:border-ink overflow-hidden relative"
+                >
+                  {a.thumb || a.image ? (
+                    <img
+                      src={a.thumb || a.image || ''}
+                      alt={a.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[10px] text-ink-muted">{a.title}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+            Wall ≈ {room.wallWidthCm} cm wide · drag to move · corner to resize · × to remove
           </p>
         </section>
 
-        {/* Controls */}
+        {/* Sidebar */}
         <aside className="flex flex-col gap-6 text-[13px]">
           <Block label="Room">
             <div className="grid grid-cols-3 gap-2">
@@ -340,79 +429,77 @@ export default function SampleRoom() {
             </div>
           </Block>
 
-          <Block label="Artwork">
-            <select
-              value={artwork?.id ?? ''}
-              onChange={e => setArtwork(artworks.find(a => a.id === e.target.value) ?? null)}
-              className="w-full border border-line bg-paper px-3 py-2"
-            >
-              {artworks.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.title} — {a.artist} ({a.widthCm}×{a.heightCm} cm)
-                </option>
-              ))}
-            </select>
-          </Block>
-
-          <Block label="Size">
-            <Slider
-              label={`Width: ${pos.widthCm.toFixed(0)} cm  ·  height: ${heightCm.toFixed(0)} cm`}
-              min={10}
-              max={300}
-              value={pos.widthCm}
-              onChange={v => setPos(p => ({ ...p, widthCm: v }))}
-            />
-            {artwork && (
-              <button
-                onClick={() => setPos(p => ({ ...p, widthCm: artwork.widthCm }))}
-                className="mt-2 text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
-              >
-                Reset to true scale ({artwork.widthCm} cm)
-              </button>
-            )}
-          </Block>
-
-          <Block label="Frame">
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {FRAME_STYLES.map(s => (
+          {selected ? (
+            <>
+              <Block label={`Selected · ${artworkById.get(selected.artworkId)?.title || 'artwork'}`}>
+                <Slider
+                  label={`Width: ${selected.widthCm.toFixed(0)} cm`}
+                  min={10}
+                  max={300}
+                  value={selected.widthCm}
+                  onChange={v => updatePlaced(selected.id, { widthCm: v })}
+                />
                 <button
-                  key={s}
-                  onClick={() => setFrame(f => ({ ...f, style: s }))}
-                  className={`px-2 py-2 text-[11px] tracking-[0.12em] uppercase border ${
-                    frame.style === s ? 'border-ink bg-ink text-paper' : 'border-line'
-                  }`}
+                  onClick={() => {
+                    const aw = artworkById.get(selected.artworkId)
+                    if (aw) updatePlaced(selected.id, { widthCm: aw.widthCm })
+                  }}
+                  className="mt-2 text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
                 >
-                  {FRAME_PRESETS[s].label}
+                  Reset to true scale
                 </button>
-              ))}
-            </div>
-            <Slider
-              label={`Frame width: ${frame.widthMm} mm`}
-              min={0}
-              max={80}
-              value={frame.widthMm}
-              onChange={v => setFrame(f => ({ ...f, widthMm: v }))}
-              disabled={frame.style === 'none'}
-            />
-            <Slider
-              label={`Matte: ${frame.matteMm} mm`}
-              min={0}
-              max={120}
-              value={frame.matteMm}
-              onChange={v => setFrame(f => ({ ...f, matteMm: v }))}
-            />
-          </Block>
+              </Block>
 
-          <button
-            onClick={() => {
-              const cx = (room.wallQuad[0][0] + room.wallQuad[1][0]) / 2
-              const cy = (room.wallQuad[0][1] + room.wallQuad[2][1]) / 2
-              setPos(p => ({ ...p, cx, cy }))
-            }}
-            className="text-[11px] tracking-[0.16em] uppercase text-ink-muted underline self-start"
-          >
-            Recenter on wall
-          </button>
+              <Block label="Frame">
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {FRAME_STYLES.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => updateFrame(selected.id, { style: s })}
+                      className={`px-2 py-2 text-[11px] tracking-[0.12em] uppercase border ${
+                        selected.frame.style === s
+                          ? 'border-ink bg-ink text-paper'
+                          : 'border-line'
+                      }`}
+                    >
+                      {FRAME_PRESETS[s].label}
+                    </button>
+                  ))}
+                </div>
+                <Slider
+                  label={`Frame width: ${selected.frame.widthMm} mm`}
+                  min={0}
+                  max={80}
+                  value={selected.frame.widthMm}
+                  onChange={v => updateFrame(selected.id, { widthMm: v })}
+                  disabled={selected.frame.style === 'none'}
+                />
+                <Slider
+                  label={`Matte: ${selected.frame.matteMm} mm`}
+                  min={0}
+                  max={120}
+                  value={selected.frame.matteMm}
+                  onChange={v => updateFrame(selected.id, { matteMm: v })}
+                />
+              </Block>
+            </>
+          ) : (
+            <p className="text-[12px] text-ink-muted">
+              Add an artwork from the strip below — or click a placed artwork to edit it.
+            </p>
+          )}
+
+          {placed.length > 0 && (
+            <button
+              onClick={() => {
+                setPlaced([])
+                setSelectedId(null)
+              }}
+              className="text-[11px] tracking-[0.16em] uppercase text-red-600 underline self-start"
+            >
+              Clear wall
+            </button>
+          )}
         </aside>
       </main>
     </div>
