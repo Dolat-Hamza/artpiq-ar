@@ -31,6 +31,33 @@ export interface Artwork {
   sold?: boolean
   transparent?: boolean
   sqspSku?: string
+  status?: ArtworkStatus
+}
+
+export type ArtworkStatus =
+  | 'for_sale'
+  | 'sold'
+  | 'rented'
+  | 'reserved'
+  | 'not_for_sale'
+
+export const ARTWORK_STATUSES: ArtworkStatus[] = [
+  'for_sale',
+  'sold',
+  'rented',
+  'reserved',
+  'not_for_sale',
+]
+
+export interface Collection {
+  id: string
+  ownerId: string
+  name: string
+  description?: string
+  coverUrl?: string
+  privacy: 'public' | 'private'
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface WallLayer {

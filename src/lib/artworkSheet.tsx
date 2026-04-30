@@ -1,5 +1,5 @@
 'use client'
-import { Artwork } from '@/types'
+import { Artwork, Collection } from '@/types'
 import {
   Document,
   Page,
@@ -105,6 +105,106 @@ export async function exportArtworkPdf(artwork: Artwork): Promise<void> {
   const a = document.createElement('a')
   a.href = url
   a.download = `${artwork.id}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function CollectionPdf({
+  collection,
+  artworks,
+}: {
+  collection: Collection
+  artworks: Artwork[]
+}) {
+  const totalValue = artworks.reduce((s, a) => s + (a.price ?? 0), 0)
+  const currency = artworks.find(a => a.currency)?.currency || ''
+  return (
+    <Document>
+      {/* Cover */}
+      <Page size="A4" style={styles.page}>
+        <Text style={styles.label}>Artpiq · Collection</Text>
+        <View style={{ marginTop: 80 }}>
+          <Text style={{ fontSize: 32, fontFamily: 'Helvetica-Bold' }}>
+            {collection.name}
+          </Text>
+          {collection.description && (
+            <Text style={{ marginTop: 16, lineHeight: 1.5, fontSize: 12 }}>
+              {collection.description}
+            </Text>
+          )}
+        </View>
+        <View style={{ marginTop: 60 }}>
+          <Text style={styles.label}>Works</Text>
+          <Text style={styles.value}>{artworks.length}</Text>
+        </View>
+        {totalValue > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.label}>Total list value</Text>
+            <Text style={styles.value}>
+              {currency} {totalValue.toLocaleString()}
+            </Text>
+          </View>
+        )}
+        <Text style={styles.footer}>artpiq.com · {new Date().toISOString().slice(0, 10)}</Text>
+      </Page>
+      {/* One page per artwork */}
+      {artworks.map(a => (
+        <Page key={a.id} size="A4" style={styles.page}>
+          <View style={styles.hero}>
+            <Text style={styles.label}>{collection.name}</Text>
+          </View>
+          {a.image && <Image src={a.image} style={styles.image} />}
+          <Text style={styles.title}>{a.title}</Text>
+          <Text style={styles.artist}>{a.artist || 'Unknown artist'}</Text>
+          <View style={styles.divider} />
+          <View style={styles.metaGrid}>
+            {[
+              ['Year', a.year || '—'],
+              ['Medium', a.medium || '—'],
+              [
+                'Dimensions',
+                `${a.widthCm} × ${a.heightCm}${a.depthCm ? ` × ${a.depthCm}` : ''} cm`,
+              ],
+              ['Status', a.status || (a.sold ? 'sold' : 'for_sale')],
+              [
+                'Price',
+                a.price != null
+                  ? `${a.currency || ''} ${a.price.toLocaleString()}`.trim()
+                  : '—',
+              ],
+              ['SKU', a.sqspSku || a.id],
+            ].map(([k, v]) => (
+              <View key={k} style={styles.metaCell}>
+                <Text style={styles.label}>{k}</Text>
+                <Text style={styles.value}>{v}</Text>
+              </View>
+            ))}
+          </View>
+          {a.description && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.label}>Description</Text>
+              <Text style={styles.description}>{a.description}</Text>
+            </>
+          )}
+          <Text style={styles.footer}>{collection.name} · artpiq.com</Text>
+        </Page>
+      ))}
+    </Document>
+  )
+}
+
+export async function exportCollectionPdf(
+  collection: Collection,
+  artworks: Artwork[],
+): Promise<void> {
+  const blob = await pdf(
+    <CollectionPdf collection={collection} artworks={artworks} />,
+  ).toBlob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${collection.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`
   a.click()
   URL.revokeObjectURL(url)
 }
