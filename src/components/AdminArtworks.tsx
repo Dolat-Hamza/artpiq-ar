@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
-import { Artwork } from '@/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ARTWORK_STATUSES, Artwork, ArtworkStatus, Collection } from '@/types'
 import {
   artworksToCsv,
   newArtwork,
@@ -14,15 +14,54 @@ import {
   uploadImage,
   upsertArtwork,
 } from '@/lib/db/artworks'
+import {
+  artworksInCollection,
+  collectionsForArtwork,
+  createCollection,
+  deleteCollection,
+  listMyCollections,
+  setArtworkCollections,
+  updateCollection,
+} from '@/lib/db/collections'
 import { signOut, useAuth } from '@/lib/db/auth'
-import { exportArtworkPdf } from '@/lib/artworkSheet'
+import { exportArtworkPdf, exportCollectionPdf } from '@/lib/artworkSheet'
 import { downloadSqspCsv } from '@/lib/sqspExport'
 import LoginForm from './LoginForm'
+
+const STATUS_LABEL: Record<ArtworkStatus, string> = {
+  for_sale: 'For sale',
+  sold: 'Sold',
+  rented: 'Rented',
+  reserved: 'Reserved',
+  not_for_sale: 'Not for sale',
+}
+
+interface Filters {
+  q: string
+  status: ArtworkStatus | 'all'
+  type: string
+  collectionId: string
+  priceMin: string
+  priceMax: string
+}
+const initialFilters: Filters = {
+  q: '',
+  status: 'all',
+  type: 'all',
+  collectionId: 'all',
+  priceMin: '',
+  priceMax: '',
+}
 
 export default function AdminArtworks() {
   const { user, loading, configured } = useAuth()
   const [list, setList] = useState<Artwork[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
   const [editing, setEditing] = useState<Artwork | null>(null)
+  const [editingCollections, setEditingCollections] = useState<string[]>([])
+  const [filters, setFilters] = useState<Filters>(initialFilters)
+  const [collectionMembership, setCollectionMembership] = useState<Record<string, string[]>>({})
+  const [showCollectionsPanel, setShowCollectionsPanel] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -36,7 +75,18 @@ export default function AdminArtworks() {
     if (!user) return
     try {
       setBusy(true)
-      setList(await listMyArtworks(user.id))
+      const [arts, cols] = await Promise.all([
+        listMyArtworks(user.id),
+        listMyCollections(user.id),
+      ])
+      setList(arts)
+      setCollections(cols)
+      // Build collection membership map for filter
+      const m: Record<string, string[]> = {}
+      for (const c of cols) {
+        m[c.id] = await artworksInCollection(c.id)
+      }
+      setCollectionMembership(m)
       setErr(null)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Load failed')
@@ -45,21 +95,73 @@ export default function AdminArtworks() {
     }
   }
 
+  const filtered = useMemo(() => {
+    const q = filters.q.trim().toLowerCase()
+    const memberSet =
+      filters.collectionId !== 'all'
+        ? new Set(collectionMembership[filters.collectionId] ?? [])
+        : null
+    const min = filters.priceMin ? Number(filters.priceMin) : null
+    const max = filters.priceMax ? Number(filters.priceMax) : null
+    return list.filter(a => {
+      if (q) {
+        const hay = [a.title, a.artist, a.medium, a.material, a.collection]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      if (filters.status !== 'all' && (a.status ?? 'for_sale') !== filters.status) return false
+      if (filters.type !== 'all' && a.type !== filters.type) return false
+      if (memberSet && !memberSet.has(a.id)) return false
+      if (min != null && (a.price ?? 0) < min) return false
+      if (max != null && (a.price ?? 0) > max) return false
+      return true
+    })
+  }, [list, filters, collectionMembership])
+
   async function save() {
     if (!editing || !user) return
     try {
       setBusy(true)
       const saved = await upsertArtwork(editing, user.id)
+      await setArtworkCollections(saved.id, editingCollections)
       setList(prev => {
         const i = prev.findIndex(a => a.id === saved.id)
         return i >= 0 ? prev.map(a => (a.id === saved.id ? saved : a)) : [saved, ...prev]
       })
+      // Refresh membership map for impacted collections
+      const next = { ...collectionMembership }
+      for (const cid of Object.keys(next)) {
+        next[cid] = next[cid].filter(id => id !== saved.id)
+      }
+      for (const cid of editingCollections) {
+        if (!next[cid]) next[cid] = []
+        if (!next[cid].includes(saved.id)) next[cid] = [...next[cid], saved.id]
+      }
+      setCollectionMembership(next)
       setEditing(null)
+      setEditingCollections([])
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Save failed')
     } finally {
       setBusy(false)
     }
+  }
+
+  async function openEditor(a: Artwork) {
+    setEditing({ ...a })
+    try {
+      const cids = await collectionsForArtwork(a.id)
+      setEditingCollections(cids)
+    } catch {
+      setEditingCollections([])
+    }
+  }
+
+  function openNewEditor() {
+    setEditing(newArtwork())
+    setEditingCollections([])
   }
 
   async function remove(id: string) {
@@ -172,7 +274,13 @@ export default function AdminArtworks() {
               Export SQSP
             </button>
             <button
-              onClick={() => setEditing(newArtwork())}
+              onClick={() => setShowCollectionsPanel(s => !s)}
+              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
+            >
+              Collections ({collections.length})
+            </button>
+            <button
+              onClick={openNewEditor}
               className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper"
               disabled={busy}
             >
@@ -192,13 +300,34 @@ export default function AdminArtworks() {
       </header>
 
       <main className="max-w-content mx-auto px-6 md:px-12 py-8">
+        {showCollectionsPanel && (
+          <CollectionsPanel
+            collections={collections}
+            membership={collectionMembership}
+            artworks={list}
+            ownerId={user.id}
+            onChange={refresh}
+          />
+        )}
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          collections={collections}
+          shown={filtered.length}
+          total={list.length}
+        />
         {!list.length && !busy && (
           <p className="text-ink-muted text-[13px]">
             No artworks yet. Click <em>New</em> or <em>Import CSV</em>.
           </p>
         )}
+        {list.length > 0 && !filtered.length && (
+          <p className="text-ink-muted text-[13px] py-8 text-center">
+            No artworks match the filters.
+          </p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {list.map(a => (
+          {filtered.map(a => (
             <article key={a.id} className="border border-line p-4 flex gap-4">
               {a.thumb ? (
                 <img src={a.thumb} alt={a.title} className="w-24 h-24 object-cover" />
@@ -216,9 +345,12 @@ export default function AdminArtworks() {
                     {a.collection}
                   </p>
                 )}
-                <div className="flex gap-2 mt-2">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-ink-muted mt-1">
+                  {STATUS_LABEL[a.status ?? 'for_sale']}
+                </p>
+                <div className="flex gap-2 mt-2 flex-wrap">
                   <button
-                    onClick={() => setEditing({ ...a })}
+                    onClick={() => openEditor(a)}
                     className="text-[11px] uppercase tracking-[0.16em]"
                   >
                     Edit
@@ -248,7 +380,17 @@ export default function AdminArtworks() {
           ownerId={user.id}
           onChange={setEditing}
           onSave={save}
-          onCancel={() => setEditing(null)}
+          onCancel={() => {
+            setEditing(null)
+            setEditingCollections([])
+          }}
+          collections={collections}
+          selectedCollectionIds={editingCollections}
+          onToggleCollection={cid =>
+            setEditingCollections(prev =>
+              prev.includes(cid) ? prev.filter(x => x !== cid) : [...prev, cid],
+            )
+          }
         />
       )}
     </div>
@@ -261,12 +403,18 @@ function EditorDrawer({
   onChange,
   onSave,
   onCancel,
+  collections,
+  selectedCollectionIds,
+  onToggleCollection,
 }: {
   aw: Artwork
   ownerId: string
   onChange: (a: Artwork) => void
   onSave: () => void
   onCancel: () => void
+  collections: Collection[]
+  selectedCollectionIds: string[]
+  onToggleCollection: (id: string) => void
 }) {
   const set = <K extends keyof Artwork>(k: K, v: Artwork[K]) => onChange({ ...aw, [k]: v })
   const [uploading, setUploading] = useState(false)
@@ -310,6 +458,40 @@ function EditorDrawer({
               <option value="digital">Digital</option>
             </select>
           </Field>
+          <Field label="Status">
+            <select
+              value={aw.status ?? 'for_sale'}
+              onChange={e => set('status', e.target.value as ArtworkStatus)}
+              className="input"
+            >
+              {ARTWORK_STATUSES.map(s => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {collections.length > 0 && (
+            <Field label="Collections">
+              <div className="flex flex-wrap gap-2">
+                {collections.map(c => {
+                  const on = selectedCollectionIds.includes(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => onToggleCollection(c.id)}
+                      className={`px-2 py-1 text-[11px] tracking-[0.12em] uppercase border ${
+                        on ? 'bg-ink text-paper border-ink' : 'border-line'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+          )}
           <Field label="Title*">
             <input value={aw.title} onChange={e => set('title', e.target.value)} className="input" />
           </Field>
@@ -476,5 +658,227 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="block text-[11px] tracking-[0.16em] uppercase text-ink-muted mb-1">{label}</span>
       {children}
     </label>
+  )
+}
+
+function FilterBar({
+  filters,
+  onChange,
+  collections,
+  shown,
+  total,
+}: {
+  filters: Filters
+  onChange: (f: Filters) => void
+  collections: Collection[]
+  shown: number
+  total: number
+}) {
+  const set = <K extends keyof Filters>(k: K, v: Filters[K]) =>
+    onChange({ ...filters, [k]: v })
+  return (
+    <div className="border border-line p-4 mb-6 grid gap-3 grid-cols-1 md:grid-cols-6 text-[12px]">
+      <input
+        value={filters.q}
+        onChange={e => set('q', e.target.value)}
+        placeholder="Search title / artist / medium…"
+        className="border border-line px-2 py-1.5 md:col-span-2"
+      />
+      <select
+        value={filters.status}
+        onChange={e => set('status', e.target.value as Filters['status'])}
+        className="border border-line px-2 py-1.5 bg-paper"
+      >
+        <option value="all">All statuses</option>
+        {ARTWORK_STATUSES.map(s => (
+          <option key={s} value={s}>
+            {STATUS_LABEL[s]}
+          </option>
+        ))}
+      </select>
+      <select
+        value={filters.type}
+        onChange={e => set('type', e.target.value)}
+        className="border border-line px-2 py-1.5 bg-paper"
+      >
+        <option value="all">All types</option>
+        <option value="painting">Painting</option>
+        <option value="sculpture">Sculpture</option>
+        <option value="video">Video</option>
+        <option value="digital">Digital</option>
+      </select>
+      <select
+        value={filters.collectionId}
+        onChange={e => set('collectionId', e.target.value)}
+        className="border border-line px-2 py-1.5 bg-paper"
+      >
+        <option value="all">All collections</option>
+        {collections.map(c => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-1">
+        <input
+          value={filters.priceMin}
+          onChange={e => set('priceMin', e.target.value)}
+          placeholder="min €"
+          className="border border-line px-2 py-1.5 w-1/2 min-w-0"
+          inputMode="numeric"
+        />
+        <input
+          value={filters.priceMax}
+          onChange={e => set('priceMax', e.target.value)}
+          placeholder="max €"
+          className="border border-line px-2 py-1.5 w-1/2 min-w-0"
+          inputMode="numeric"
+        />
+      </div>
+      <p className="md:col-span-6 text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+        Showing {shown} of {total}
+        {(filters.q ||
+          filters.status !== 'all' ||
+          filters.type !== 'all' ||
+          filters.collectionId !== 'all' ||
+          filters.priceMin ||
+          filters.priceMax) && (
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                q: '',
+                status: 'all',
+                type: 'all',
+                collectionId: 'all',
+                priceMin: '',
+                priceMax: '',
+              })
+            }
+            className="ml-3 underline normal-case tracking-normal"
+          >
+            Clear
+          </button>
+        )}
+      </p>
+    </div>
+  )
+}
+
+function CollectionsPanel({
+  collections,
+  membership,
+  artworks,
+  ownerId,
+  onChange,
+}: {
+  collections: Collection[]
+  membership: Record<string, string[]>
+  artworks: Artwork[]
+  ownerId: string
+  onChange: () => void
+}) {
+  const [newName, setNewName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function add() {
+    const name = newName.trim()
+    if (!name) return
+    try {
+      setBusy(true)
+      await createCollection(ownerId, name)
+      setNewName('')
+      onChange()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function rename(c: Collection) {
+    const next = prompt('Rename collection', c.name)
+    if (!next || next === c.name) return
+    setBusy(true)
+    try {
+      await updateCollection(c.id, { name: next })
+      onChange()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(c: Collection) {
+    if (!confirm(`Delete collection "${c.name}"? Artworks remain, just unlinked.`)) return
+    setBusy(true)
+    try {
+      await deleteCollection(c.id)
+      onChange()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function exportPdf(c: Collection) {
+    const ids = membership[c.id] ?? []
+    const items = artworks.filter(a => ids.includes(a.id))
+    if (!items.length) {
+      alert('Collection is empty.')
+      return
+    }
+    setBusy(true)
+    try {
+      await exportCollectionPdf(c, items)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="border border-line p-4 mb-6">
+      <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted mb-3">
+        Collections
+      </p>
+      <div className="flex gap-2 mb-4">
+        <input
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="New collection name"
+          className="flex-1 border border-line px-2 py-1.5 text-[12px]"
+        />
+        <button
+          onClick={add}
+          disabled={busy || !newName.trim()}
+          className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase bg-ink text-paper disabled:opacity-40"
+        >
+          Add
+        </button>
+      </div>
+      {!collections.length && (
+        <p className="text-[12px] text-ink-muted">No collections yet.</p>
+      )}
+      <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {collections.map(c => {
+          const count = (membership[c.id] ?? []).length
+          return (
+            <li key={c.id} className="border border-line p-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] truncate">{c.name}</p>
+                <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">
+                  {count} works · {c.privacy}
+                </p>
+              </div>
+              <button onClick={() => exportPdf(c)} className="text-[11px] uppercase tracking-[0.14em]">
+                PDF
+              </button>
+              <button onClick={() => rename(c)} className="text-[11px] uppercase tracking-[0.14em]">
+                Rename
+              </button>
+              <button onClick={() => remove(c)} className="text-[11px] uppercase tracking-[0.14em] text-red-600">
+                Delete
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

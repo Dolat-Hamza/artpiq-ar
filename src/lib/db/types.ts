@@ -31,6 +31,7 @@ export type Database = {
           privacy: string
           purchase_url: string | null
           sold: boolean
+          status: string
           sqsp_sku: string | null
           thumb_url: string | null
           title: string
@@ -48,6 +49,35 @@ export type Database = {
           height_cm: number
         }
         Update: Partial<Database['public']['Tables']['artworks']['Row']>
+        Relationships: []
+      }
+      collections: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          description: string | null
+          cover_url: string | null
+          privacy: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['collections']['Row']> & {
+          name: string
+          owner_id: string
+        }
+        Update: Partial<Database['public']['Tables']['collections']['Row']>
+        Relationships: []
+      }
+      artwork_collections: {
+        Row: {
+          artwork_id: string
+          collection_id: string
+          position: number
+          added_at: string
+        }
+        Insert: Database['public']['Tables']['artwork_collections']['Row']
+        Update: Partial<Database['public']['Tables']['artwork_collections']['Row']>
         Relationships: []
       }
       stock_rooms: {

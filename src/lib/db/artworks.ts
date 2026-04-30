@@ -1,4 +1,4 @@
-import { Artwork, ArtworkType, Orientation, Privacy } from '@/types'
+import { Artwork, ArtworkStatus, ArtworkType, Orientation, Privacy } from '@/types'
 import { Database } from './types'
 import { supabase } from './client'
 
@@ -33,6 +33,7 @@ export function rowToArtwork(r: Row): Artwork {
     sold: r.sold,
     transparent: r.transparent,
     sqspSku: r.sqsp_sku ?? undefined,
+    status: (r.status as ArtworkStatus) ?? 'for_sale',
   }
 }
 
@@ -65,6 +66,7 @@ export function artworkToRow(a: Artwork, ownerId: string | null): Insert {
     transparent: a.transparent ?? false,
     wiki_title: a.wikiTitle ?? null,
     sqsp_sku: a.sqspSku ?? null,
+    status: a.status ?? (a.sold ? 'sold' : 'for_sale'),
   }
 }
 
