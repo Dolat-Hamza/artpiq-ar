@@ -120,32 +120,81 @@ function CollectionPdf({
   const currency = artworks.find(a => a.currency)?.currency || ''
   return (
     <Document>
-      {/* Cover */}
-      <Page size="A4" style={styles.page}>
+      {/* Cover: title + grid of all works */}
+      <Page size="A4" style={styles.page} wrap>
         <Text style={styles.label}>Artpiq · Collection</Text>
-        <View style={{ marginTop: 80 }}>
-          <Text style={{ fontSize: 32, fontFamily: 'Helvetica-Bold' }}>
-            {collection.name}
+        <Text style={{ fontSize: 26, fontFamily: 'Helvetica-Bold', marginTop: 8 }}>
+          {collection.name}
+        </Text>
+        {collection.description && (
+          <Text style={{ marginTop: 6, fontSize: 10, color: '#555', lineHeight: 1.4 }}>
+            {collection.description}
           </Text>
-          {collection.description && (
-            <Text style={{ marginTop: 16, lineHeight: 1.5, fontSize: 12 }}>
-              {collection.description}
+        )}
+        <View style={{ flexDirection: 'row', gap: 16, marginTop: 10, marginBottom: 14 }}>
+          <Text style={{ fontSize: 9, color: '#666' }}>
+            {artworks.length} works
+          </Text>
+          {totalValue > 0 && (
+            <Text style={{ fontSize: 9, color: '#666' }}>
+              {currency} {totalValue.toLocaleString()} total
             </Text>
           )}
         </View>
-        <View style={{ marginTop: 60 }}>
-          <Text style={styles.label}>Works</Text>
-          <Text style={styles.value}>{artworks.length}</Text>
+        <View style={styles.divider} />
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 0,
+            marginTop: 8,
+          }}
+        >
+          {artworks.map(a => (
+            <View
+              key={a.id}
+              style={{
+                width: '33.33%',
+                paddingRight: 6,
+                paddingBottom: 12,
+              }}
+            >
+              {a.image && (
+                <Image
+                  src={a.image}
+                  style={{
+                    width: '100%',
+                    height: 120,
+                    objectFit: 'contain',
+                    backgroundColor: '#f5f5f5',
+                  }}
+                />
+              )}
+              <Text
+                style={{
+                  fontSize: 9,
+                  fontFamily: 'Helvetica-Bold',
+                  marginTop: 4,
+                }}
+              >
+                {a.title}
+              </Text>
+              <Text style={{ fontSize: 8, color: '#666' }}>
+                {a.artist || ''}
+                {a.year ? `  ·  ${a.year}` : ''}
+              </Text>
+              <Text style={{ fontSize: 8, color: '#666' }}>
+                {a.widthCm} × {a.heightCm} cm
+                {a.price != null
+                  ? `  ·  ${a.currency || ''} ${a.price.toLocaleString()}`
+                  : ''}
+              </Text>
+            </View>
+          ))}
         </View>
-        {totalValue > 0 && (
-          <View style={{ marginTop: 16 }}>
-            <Text style={styles.label}>Total list value</Text>
-            <Text style={styles.value}>
-              {currency} {totalValue.toLocaleString()}
-            </Text>
-          </View>
-        )}
-        <Text style={styles.footer}>artpiq.com · {new Date().toISOString().slice(0, 10)}</Text>
+        <Text style={styles.footer}>
+          artpiq.com · {new Date().toISOString().slice(0, 10)}
+        </Text>
       </Page>
       {/* One page per artwork */}
       {artworks.map(a => (
