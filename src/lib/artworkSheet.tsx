@@ -116,8 +116,6 @@ function CollectionPdf({
   collection: Collection
   artworks: Artwork[]
 }) {
-  const totalValue = artworks.reduce((s, a) => s + (a.price ?? 0), 0)
-  const currency = artworks.find(a => a.currency)?.currency || ''
   return (
     <Document>
       {/* Cover: title + grid of all works */}
@@ -131,15 +129,10 @@ function CollectionPdf({
             {collection.description}
           </Text>
         )}
-        <View style={{ flexDirection: 'row', gap: 16, marginTop: 10, marginBottom: 14 }}>
+        <View style={{ marginTop: 10, marginBottom: 14 }}>
           <Text style={{ fontSize: 9, color: '#666' }}>
             {artworks.length} works
           </Text>
-          {totalValue > 0 && (
-            <Text style={{ fontSize: 9, color: '#666' }}>
-              {currency} {totalValue.toLocaleString()} total
-            </Text>
-          )}
         </View>
         <View style={styles.divider} />
         <View
@@ -185,10 +178,18 @@ function CollectionPdf({
               </Text>
               <Text style={{ fontSize: 8, color: '#666' }}>
                 {a.widthCm} × {a.heightCm} cm
-                {a.price != null
-                  ? `  ·  ${a.currency || ''} ${a.price.toLocaleString()}`
-                  : ''}
               </Text>
+              {a.price != null && (
+                <Text
+                  style={{
+                    fontSize: 9,
+                    fontFamily: 'Helvetica-Bold',
+                    marginTop: 2,
+                  }}
+                >
+                  {a.currency || ''} {a.price.toLocaleString()}
+                </Text>
+              )}
             </View>
           ))}
         </View>
