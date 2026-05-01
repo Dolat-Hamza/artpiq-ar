@@ -67,6 +67,9 @@ export interface Collection {
   description?: string
   coverUrl?: string
   privacy: 'public' | 'private'
+  slug?: string | null
+  viewingRoomStatus?: ViewingRoomStatus
+  viewingRoomPassword?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -90,6 +93,10 @@ export interface FrameConfig {
 }
 
 // Stock rooms for sample-room composer
+export type RoomPerspective = 'front' | 'angled' | 'corner'
+export type RoomOrientation = 'portrait' | 'landscape' | 'square'
+export type WallSize = 'small' | 'medium' | 'large'
+
 export interface StockRoom {
   id: string
   name: string
@@ -100,4 +107,35 @@ export interface StockRoom {
   wallQuad: [[number, number], [number, number], [number, number], [number, number]]
   // real-world reference: width of wall in cm at quad to enable true-scale
   wallWidthCm: number
+  // ArtPlacer-parity metadata for library filters
+  perspective?: RoomPerspective
+  orientation?: RoomOrientation
+  wallSize?: WallSize
+  smart?: boolean
+}
+
+// Saved designs (compositions)
+export type ViewingRoomStatus = 'draft' | 'live'
+
+export interface DesignFolder {
+  id: string
+  ownerId: string
+  name: string
+  createdAt?: string
+}
+
+export interface SavedDesign {
+  id: string
+  ownerId: string
+  name: string
+  roomId?: string | null
+  myWallBgUrl?: string | null
+  placed: unknown // Placed[] from SampleRoom (jsonb-typed)
+  lighting: unknown
+  wallColor?: string | null
+  customize?: unknown
+  thumbUrl?: string | null
+  folderId?: string | null
+  createdAt?: string
+  updatedAt?: string
 }
