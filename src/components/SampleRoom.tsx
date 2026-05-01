@@ -23,14 +23,32 @@ interface Placed {
 
 const DEFAULT_FRAME: FrameState = { style: 'thin-black', widthMm: 30, matteMm: 0 }
 
-function loadImg(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+async function loadImgViaFetch(url: string): Promise<HTMLImageElement> {
+  // Fetch -> blob -> object URL avoids CORS-tainted canvas exports.
+  const r = await fetch(url, { mode: 'cors' })
+  if (!r.ok) throw new Error(`fetch ${r.status}`)
+  const blob = await r.blob()
+  const obj = URL.createObjectURL(blob)
+  return new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`load failed: ${url}`))
-    img.src = url
+    img.onerror = () => reject(new Error(`decode failed: ${url}`))
+    img.src = obj
   })
+}
+
+function loadImg(url: string): Promise<HTMLImageElement> {
+  // Try fetch path first; on failure fall back to crossOrigin img tag.
+  return loadImgViaFetch(url).catch(
+    () =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => resolve(img)
+        img.onerror = () => reject(new Error(`load failed: ${url}`))
+        img.src = url
+      }),
+  )
 }
 
 function quadWidthPx(quad: StockRoom['wallQuad'], imgW: number) {
@@ -52,6 +70,12 @@ export default function SampleRoom() {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
   const [stageW, setStageW] = useState(0)
+  // Sequence mode
+  const [sequence, setSequence] = useState<StockRoom[] | null>(null)
+  const [sequenceIdx, setSequenceIdx] = useState(0)
+  const [sequencePicker, setSequencePicker] = useState(false)
+  const [sequencePicks, setSequencePicks] = useState<string[]>([])
+  const [sequenceShots, setSequenceShots] = useState<{ blob: Blob; name: string }[]>([])
   const stageRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const dragRef = useRef<{
@@ -78,16 +102,18 @@ export default function SampleRoom() {
     setImgLoading(true)
   }, [room])
 
-  // Track stage width
+  // Track displayed image width (not container) so pxPerCm matches what user sees
   useEffect(() => {
     const update = () => {
-      if (stageRef.current) setStageW(stageRef.current.clientWidth)
+      const w = imgRef.current?.clientWidth ?? stageRef.current?.clientWidth ?? 0
+      setStageW(w)
     }
     update()
     const ro = new ResizeObserver(update)
     if (stageRef.current) ro.observe(stageRef.current)
+    if (imgRef.current) ro.observe(imgRef.current)
     return () => ro.disconnect()
-  }, [])
+  }, [room])
 
   const pxPerCm = useMemo(() => {
     if (!stageW || !imgLoaded || !imgRef.current?.naturalWidth) return null
@@ -99,9 +125,11 @@ export default function SampleRoom() {
   function addArtwork(a: Artwork) {
     const cx = (room.wallQuad[0][0] + room.wallQuad[1][0]) / 2
     const cy = (room.wallQuad[0][1] + room.wallQuad[2][1]) / 2
-    // Slight stagger so multiple stacks aren't perfectly overlapping
     const offset = placed.length * 0.04
     const id = uid()
+    // Cap initial width so a huge piece doesn't fill the wall on first add.
+    // Max half the wall, never more than the artwork's true width.
+    const initWidth = Math.min(a.widthCm || 60, room.wallWidthCm * 0.5)
     setPlaced(p => [
       ...p,
       {
@@ -109,7 +137,7 @@ export default function SampleRoom() {
         artworkId: a.id,
         cx: Math.min(0.95, cx + offset),
         cy: Math.min(0.95, cy + offset),
-        widthCm: a.widthCm,
+        widthCm: initWidth,
         frame: { ...DEFAULT_FRAME },
       },
     ])
@@ -185,6 +213,110 @@ export default function SampleRoom() {
       dragRef.current = null
     }
   }, [])
+
+  // Sequence helpers ---------------------------------------------------------
+  function startSequence() {
+    const picked = STOCK_ROOMS.filter(r => sequencePicks.includes(r.id))
+    if (picked.length < 1) return
+    setSequence(picked)
+    setSequenceIdx(0)
+    setSequenceShots([])
+    setSequencePicker(false)
+    setRoom(picked[0])
+  }
+
+  async function captureCurrentRoom(): Promise<Blob | null> {
+    if (!placed.length) return null
+    const bg = await loadImg(room.image)
+    const W = bg.naturalWidth
+    const H = bg.naturalHeight
+    const canvas = document.createElement('canvas')
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(bg, 0, 0, W, H)
+    const quadPxFull = quadWidthPx(room.wallQuad, W)
+    const ppcFull = quadPxFull / room.wallWidthCm
+    for (const item of placed) {
+      const aw = artworkById.get(item.artworkId)
+      if (!aw || !aw.image) continue
+      const ar = aw.heightCm / aw.widthCm
+      const aw_w = item.widthCm * ppcFull
+      const aw_h = item.widthCm * ar * ppcFull
+      const matte = (item.frame.matteMm / 10) * ppcFull
+      const fw = (item.frame.widthMm / 10) * ppcFull
+      const totalW = aw_w + (matte + fw) * 2
+      const totalH = aw_h + (matte + fw) * 2
+      const x = item.cx * W - totalW / 2
+      const y = item.cy * H - totalH / 2
+      const preset = FRAME_PRESETS[item.frame.style]
+      if (item.frame.style !== 'none') {
+        ctx.fillStyle = preset.borderColor
+        ctx.fillRect(x, y, totalW, totalH)
+      }
+      if (matte > 0) {
+        ctx.fillStyle = preset.matteColor
+        ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
+      }
+      try {
+        const img = await loadImg(aw.image)
+        ctx.drawImage(img, x + fw + matte, y + fw + matte, aw_w, aw_h)
+      } catch {
+        // skip if artwork image fails
+      }
+    }
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92),
+    )
+  }
+
+  async function confirmAndNext() {
+    if (!sequence) return
+    try {
+      setExporting(true)
+      const blob = await captureCurrentRoom()
+      if (blob) {
+        const slug = (s: string) =>
+          (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+        const first = placed[0] ? artworkById.get(placed[0].artworkId) : null
+        const stem = first
+          ? `${slug(first.title) || 'artwork'}_${slug(first.artist) || 'artist'}`
+          : 'sample'
+        const name = `${stem}_${String(sequenceIdx + 1).padStart(2, '0')}_${room.id}`
+        setSequenceShots(s => [...s, { blob, name }])
+      }
+      const nextIdx = sequenceIdx + 1
+      if (nextIdx >= sequence.length) {
+        // Finish: download all captured shots from this run
+        for (const s of sequenceShots) {
+          const url = URL.createObjectURL(s.blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${s.name}.jpg`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
+        showToast(`Sequence done — ${sequenceShots.length} images saved`)
+        setSequence(null)
+        setSequenceIdx(0)
+        setSequenceShots([])
+      } else {
+        setSequenceIdx(nextIdx)
+        setRoom(sequence[nextIdx])
+      }
+    } catch (e) {
+      console.error(e)
+      showToast('Sequence step failed')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  function cancelSequence() {
+    setSequence(null)
+    setSequenceIdx(0)
+    setSequenceShots([])
+  }
 
   // Export -------------------------------------------------------------------
   async function exportPng() {
@@ -263,21 +395,60 @@ export default function SampleRoom() {
               Place at scale — drag to move · corner to resize · pick room from sidebar
             </h1>
           </div>
-          <button
-            onClick={exportPng}
-            disabled={!placed.length || exporting}
-            className="px-4 py-2 text-[12px] tracking-[0.18em] uppercase bg-ink text-paper disabled:opacity-40"
-          >
-            {exporting ? 'Saving…' : `Save image (${placed.length})`}
-          </button>
+          <div className="flex gap-2 items-center">
+            {sequence ? (
+              <>
+                <span className="text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+                  Step {sequenceIdx + 1} / {sequence.length} · {room.name}
+                </span>
+                <button
+                  onClick={cancelSequence}
+                  className="px-3 py-2 text-[12px] tracking-[0.18em] uppercase border border-line"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAndNext}
+                  disabled={!placed.length || exporting}
+                  className="px-4 py-2 text-[12px] tracking-[0.18em] uppercase bg-ink text-paper disabled:opacity-40"
+                >
+                  {exporting
+                    ? 'Saving…'
+                    : sequenceIdx + 1 === sequence.length
+                      ? 'Save & finish'
+                      : 'Confirm & next'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setSequencePicks([])
+                    setSequencePicker(true)
+                  }}
+                  className="px-3 py-2 text-[12px] tracking-[0.18em] uppercase border border-line"
+                >
+                  Create sequence
+                </button>
+                <button
+                  onClick={exportPng}
+                  disabled={!placed.length || exporting}
+                  className="px-4 py-2 text-[12px] tracking-[0.18em] uppercase bg-ink text-paper disabled:opacity-40"
+                >
+                  {exporting ? 'Saving…' : `Save image (${placed.length})`}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="flex-1 max-w-content mx-auto w-full px-6 md:px-12 py-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-3 items-center">
           <div
             ref={stageRef}
-            className="relative w-full bg-line/40 overflow-hidden touch-none select-none"
+            className="relative bg-line/40 overflow-hidden touch-none select-none inline-block max-w-full"
+            style={{ maxHeight: '70vh' }}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
@@ -295,8 +466,7 @@ export default function SampleRoom() {
               key={room.id}
               src={room.image}
               alt={room.name}
-              className="block w-full h-auto"
-              crossOrigin="anonymous"
+              className="block w-auto h-auto max-w-full max-h-[70vh] mx-auto"
               onLoad={() => {
                 setImgLoaded(true)
                 setImgLoading(false)
@@ -352,8 +522,7 @@ export default function SampleRoom() {
                         <img
                           src={aw.image}
                           alt={aw.title}
-                          crossOrigin="anonymous"
-                          style={{
+                                      style={{
                             position: 'absolute',
                             inset: matte,
                             width: `calc(100% - ${matte * 2}px)`,
@@ -387,32 +556,12 @@ export default function SampleRoom() {
               })}
           </div>
 
-          {/* Bottom artwork thumbnail strip */}
-          <div className="border-t border-line pt-3">
-            <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-2">
-              Click to add — {artworks.length} artworks · {placed.length} on wall
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {artworks.map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => addArtwork(a)}
-                  title={`${a.title}${a.artist ? ' — ' + a.artist : ''}`}
-                  className="shrink-0 w-20 h-20 border border-line bg-paper hover:border-ink overflow-hidden relative"
-                >
-                  {a.thumb || a.image ? (
-                    <img
-                      src={a.thumb || a.image || ''}
-                      alt={a.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-[10px] text-ink-muted">{a.title}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Bottom artwork thumbnail strip with search */}
+          <ThumbStrip
+            artworks={artworks}
+            placedCount={placed.length}
+            onAdd={addArtwork}
+          />
 
           <p className="text-[11px] tracking-[0.16em] uppercase text-ink-muted">
             Wall ≈ {room.wallWidthCm} cm wide · drag to move · corner to resize · × to remove
@@ -509,6 +658,147 @@ export default function SampleRoom() {
           )}
         </aside>
       </main>
+
+      {sequencePicker && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setSequencePicker(false)}
+        >
+          <div
+            className="bg-paper max-w-[680px] w-full max-h-[85vh] overflow-y-auto p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted mb-2">
+              Create sequence
+            </p>
+            <h2 className="font-display text-[20px] mb-4">
+              Pick up to 10 rooms — artwork(s) will move through them
+            </h2>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {STOCK_ROOMS.map(r => {
+                const on = sequencePicks.includes(r.id)
+                const idx = sequencePicks.indexOf(r.id)
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      setSequencePicks(prev =>
+                        prev.includes(r.id)
+                          ? prev.filter(x => x !== r.id)
+                          : prev.length >= 10
+                            ? prev
+                            : [...prev, r.id],
+                      )
+                    }}
+                    className={`relative border ${on ? 'border-ink ring-2 ring-ink' : 'border-line'}`}
+                    title={r.name}
+                  >
+                    <img src={r.thumb} alt={r.name} className="w-full aspect-[4/3] object-cover" />
+                    {on && (
+                      <span className="absolute top-1 right-1 bg-ink text-paper text-[10px] w-5 h-5 grid place-items-center">
+                        {idx + 1}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex justify-between items-center">
+              <p className="text-[12px] text-ink-muted">
+                Selected {sequencePicks.length} / 10 — order = click order
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSequencePicker(false)}
+                  className="px-3 py-2 text-[11px] tracking-[0.16em] uppercase border border-line"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={startSequence}
+                  disabled={sequencePicks.length === 0}
+                  className="px-3 py-2 text-[11px] tracking-[0.16em] uppercase bg-ink text-paper disabled:opacity-40"
+                >
+                  Start sequence
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ThumbStrip({
+  artworks,
+  placedCount,
+  onAdd,
+}: {
+  artworks: Artwork[]
+  placedCount: number
+  onAdd: (a: Artwork) => void
+}) {
+  const [q, setQ] = useState('')
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase()
+    if (!needle) return artworks.slice(0, 200)
+    return artworks
+      .filter(a =>
+        [a.title, a.artist, a.medium, a.collection]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(needle),
+      )
+      .slice(0, 200)
+  }, [artworks, q])
+
+  return (
+    <div className="border-t border-line pt-3">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted">
+          Click to add — {filtered.length} of {artworks.length} · {placedCount} on wall
+        </p>
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="Search title / artist…"
+          className="border border-line px-2 py-1 text-[12px] w-48"
+        />
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+        {filtered.map(a => (
+          <button
+            key={a.id}
+            onClick={() => onAdd(a)}
+            title={`${a.title}${a.artist ? ' — ' + a.artist : ''}`}
+            className="shrink-0 w-20 h-20 border border-line bg-paper hover:border-ink overflow-hidden relative"
+          >
+            {a.thumb || a.image ? (
+              <img
+                src={a.thumb || a.image || ''}
+                alt={a.title}
+                loading="lazy"
+                className="w-full h-full object-cover"
+                onError={e => {
+                  const t = e.currentTarget
+                  t.style.display = 'none'
+                  const parent = t.parentElement
+                  if (parent && !parent.querySelector('.fb')) {
+                    const span = document.createElement('span')
+                    span.className = 'fb absolute inset-0 grid place-items-center text-[9px] text-ink-muted px-1 text-center'
+                    span.textContent = a.title.slice(0, 20)
+                    parent.appendChild(span)
+                  }
+                }}
+              />
+            ) : (
+              <span className="text-[10px] text-ink-muted">{a.title}</span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
