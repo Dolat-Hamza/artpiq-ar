@@ -23,7 +23,10 @@ export default function GalleryBar() {
   function toGalleryAR() {
     const paintings = selected.filter(a => a.type === 'painting')
     if (paintings.length < 1) { showToast('Select at least one painting'); return }
-    openGalleryAR(paintings.map(a => a.id))
+    if (paintings.length > 1) {
+      showToast('AR shows one artwork — first selection used')
+    }
+    openGalleryAR([paintings[0].id])
   }
 
   return (
