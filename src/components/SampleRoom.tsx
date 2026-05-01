@@ -70,6 +70,7 @@ export default function SampleRoom() {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
   const [stageW, setStageW] = useState(0)
+  const [dockTab, setDockTab] = useState<'rooms' | 'artworks' | 'tools'>('artworks')
   // Sequence mode
   const [sequence, setSequence] = useState<StockRoom[] | null>(null)
   const [sequenceIdx, setSequenceIdx] = useState(0)
@@ -95,6 +96,11 @@ export default function SampleRoom() {
   }, [artworks])
 
   const selected = placed.find(p => p.id === selectedId) ?? null
+
+  // Auto-switch dock to tools when something is selected
+  useEffect(() => {
+    if (selected) setDockTab('tools')
+  }, [selectedId])
 
   // Reset on room change
   useEffect(() => {
@@ -443,12 +449,12 @@ export default function SampleRoom() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-content mx-auto w-full px-6 md:px-12 py-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        <section className="flex flex-col gap-3 items-center">
+      <main className="flex-1 flex flex-col w-full">
+        <section className="flex-1 flex items-center justify-center bg-line/10 px-6 py-6 min-h-0">
           <div
             ref={stageRef}
-            className="relative bg-line/40 overflow-hidden touch-none select-none inline-block max-w-full"
-            style={{ maxHeight: '70vh' }}
+            className="relative bg-line/40 overflow-hidden touch-none select-none inline-block"
+            style={{ maxHeight: 'calc(100vh - 320px)', maxWidth: '100%' }}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
@@ -466,7 +472,8 @@ export default function SampleRoom() {
               key={room.id}
               src={room.image}
               alt={room.name}
-              className="block w-auto h-auto max-w-full max-h-[70vh] mx-auto"
+              className="block w-auto h-auto max-w-full mx-auto"
+              style={{ maxHeight: 'calc(100vh - 320px)' }}
               onLoad={() => {
                 setImgLoaded(true)
                 setImgLoading(false)
@@ -587,107 +594,120 @@ export default function SampleRoom() {
               })}
           </div>
 
-          {/* Bottom artwork thumbnail strip with search */}
-          <ThumbStrip
-            artworks={artworks}
-            placedCount={placed.length}
-            onAdd={addArtwork}
-          />
-
-          <p className="text-[11px] tracking-[0.16em] uppercase text-ink-muted">
-            Wall ≈ {room.wallWidthCm} cm wide · drag to move · corner to resize · × to remove
-          </p>
         </section>
 
-        {/* Sidebar */}
-        <aside className="flex flex-col gap-6 text-[13px]">
-          <Block label="Room">
-            <div className="grid grid-cols-3 gap-2">
-              {STOCK_ROOMS.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => setRoom(r)}
-                  className={`border ${r.id === room.id ? 'border-ink' : 'border-line'}`}
-                  title={r.name}
-                >
-                  <img src={r.thumb} alt={r.name} className="w-full aspect-[4/3] object-cover" />
-                </button>
-              ))}
-            </div>
-          </Block>
-
-          {selected ? (
-            <>
-              <Block label={`Selected · ${artworkById.get(selected.artworkId)?.title || 'artwork'}`}>
-                <Slider
-                  label={`Width: ${selected.widthCm.toFixed(0)} cm`}
-                  min={10}
-                  max={300}
-                  value={selected.widthCm}
-                  onChange={v => updatePlaced(selected.id, { widthCm: v })}
-                />
-                <button
-                  onClick={() => {
-                    const aw = artworkById.get(selected.artworkId)
-                    if (aw) updatePlaced(selected.id, { widthCm: aw.widthCm })
-                  }}
-                  className="mt-2 text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
-                >
-                  Reset to true scale
-                </button>
-              </Block>
-
-              <Block label="Frame">
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {FRAME_STYLES.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => updateFrame(selected.id, { style: s })}
-                      className={`px-2 py-2 text-[11px] tracking-[0.12em] uppercase border ${
-                        selected.frame.style === s
-                          ? 'border-ink bg-ink text-paper'
-                          : 'border-line'
-                      }`}
-                    >
-                      {FRAME_PRESETS[s].label}
-                    </button>
-                  ))}
-                </div>
-                <Slider
-                  label={`Frame width: ${selected.frame.widthMm} mm`}
-                  min={0}
-                  max={80}
-                  value={selected.frame.widthMm}
-                  onChange={v => updateFrame(selected.id, { widthMm: v })}
-                  disabled={selected.frame.style === 'none'}
-                />
-                <Slider
-                  label={`Matte: ${selected.frame.matteMm} mm`}
-                  min={0}
-                  max={120}
-                  value={selected.frame.matteMm}
-                  onChange={v => updateFrame(selected.id, { matteMm: v })}
-                />
-              </Block>
-            </>
-          ) : (
-            <p className="text-[12px] text-ink-muted">
-              Add an artwork from the strip below — or click a placed artwork to edit it.
-            </p>
-          )}
-
-          {placed.length > 0 && (
-            <button
-              onClick={() => {
-                setPlaced([])
-                setSelectedId(null)
-              }}
-              className="text-[11px] tracking-[0.16em] uppercase text-red-600 underline self-start"
-            >
-              Clear wall
-            </button>
-          )}
-        </aside>
+        {/* Bottom dock — ArtPlacer-style tab dock */}
+        <div className="border-t border-line bg-paper flex-shrink-0">
+          <div className="flex items-center px-4 md:px-8 h-10 gap-1 border-b border-line">
+            {(['rooms', 'artworks', 'tools'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setDockTab(t)}
+                className={`px-3 h-full text-[11px] tracking-[0.18em] uppercase ${
+                  dockTab === t
+                    ? 'text-ink border-b-2 border-ink -mb-px'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                {t === 'rooms' && `Rooms (${STOCK_ROOMS.length})`}
+                {t === 'artworks' && `Artworks (${artworks.length})`}
+                {t === 'tools' && (selected ? 'Edit selected' : 'Tools')}
+              </button>
+            ))}
+            <span className="ml-auto text-[11px] tracking-[0.14em] uppercase text-ink-muted">
+              Wall ≈ {room.wallWidthCm} cm · {placed.length} placed
+            </span>
+            {placed.length > 0 && (
+              <button
+                onClick={() => {
+                  setPlaced([])
+                  setSelectedId(null)
+                }}
+                className="ml-3 text-[11px] tracking-[0.14em] uppercase text-red-600"
+              >
+                Clear wall
+              </button>
+            )}
+          </div>
+          <div className="px-4 md:px-8 py-3 max-h-[200px] overflow-y-auto">
+            {dockTab === 'rooms' && (
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {STOCK_ROOMS.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => setRoom(r)}
+                    className={`shrink-0 border ${
+                      r.id === room.id ? 'border-ink ring-2 ring-ink' : 'border-line'
+                    }`}
+                    title={r.name}
+                  >
+                    <img
+                      src={r.thumb}
+                      alt={r.name}
+                      className="w-28 h-20 object-cover block"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            {dockTab === 'artworks' && (
+              <ThumbStrip
+                artworks={artworks}
+                placedCount={placed.length}
+                onAdd={addArtwork}
+              />
+            )}
+            {dockTab === 'tools' && (
+              <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
+                {selected ? (
+                  <>
+                    <div className="min-w-[220px]">
+                      <Slider
+                        label={`Width: ${selected.widthCm.toFixed(0)} cm`}
+                        min={10}
+                        max={300}
+                        value={selected.widthCm}
+                        onChange={v => updatePlaced(selected.id, { widthCm: v })}
+                      />
+                      <button
+                        onClick={() => {
+                          const aw = artworkById.get(selected.artworkId)
+                          if (aw) updatePlaced(selected.id, { widthCm: aw.widthCm })
+                        }}
+                        className="mt-2 text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
+                      >
+                        Reset to true scale
+                      </button>
+                    </div>
+                    <div className="min-w-[220px]">
+                      <Slider
+                        label={`Frame width: ${selected.frame.widthMm} mm`}
+                        min={0}
+                        max={80}
+                        value={selected.frame.widthMm}
+                        onChange={v => updateFrame(selected.id, { widthMm: v })}
+                        disabled={selected.frame.style === 'none'}
+                      />
+                    </div>
+                    <div className="min-w-[220px]">
+                      <Slider
+                        label={`Matte: ${selected.frame.matteMm} mm`}
+                        min={0}
+                        max={120}
+                        value={selected.frame.matteMm}
+                        onChange={v => updateFrame(selected.id, { matteMm: v })}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[12px] text-ink-muted">
+                    Click a placed artwork to edit. Frame style swatches appear directly under the selected piece.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </main>
 
       {sequencePicker && (
