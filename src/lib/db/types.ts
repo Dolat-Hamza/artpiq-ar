@@ -176,6 +176,27 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['art_shows']['Row']>
         Relationships: []
       }
+      virtual_exhibitions: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          slug: string | null
+          room_template: string
+          wall_artworks: Json
+          wall_color: string | null
+          lighting: Json
+          published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['virtual_exhibitions']['Row']> & {
+          owner_id: string
+          name: string
+        }
+        Update: Partial<Database['public']['Tables']['virtual_exhibitions']['Row']>
+        Relationships: []
+      }
       contacts: {
         Row: {
           id: string

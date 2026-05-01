@@ -166,6 +166,28 @@ export interface ArtShow {
   updatedAt?: string
 }
 
+export interface VirtualExhibitionWallArtwork {
+  artworkId: string
+  wall: 0 | 1 | 2 | 3 // box-gallery uses 4 walls, indexed N/E/S/W
+  position: number // 0..1 along the wall
+  height: number // 0..1 vertical position
+  scale: number // 0.5..2.0
+}
+
+export interface VirtualExhibition {
+  id: string
+  ownerId: string
+  name: string
+  slug?: string | null
+  roomTemplate: string
+  wallArtworks: VirtualExhibitionWallArtwork[]
+  wallColor?: string
+  lighting?: { intensity?: number }
+  published: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface Contact {
   id: string
   ownerId: string
