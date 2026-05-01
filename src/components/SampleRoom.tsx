@@ -146,10 +146,21 @@ export default function SampleRoom() {
   const [wallColor, setWallColor] = useState<string | null>(null)
   const [wallColorOpacity, setWallColorOpacity] = useState(0.45)
   const [zoomPct, setZoomPct] = useState(100) // 100..250
+  // Crop: normalized [0..1] inset from each edge (top, right, bottom, left)
+  const [cropInset, setCropInset] = useState({ top: 0, right: 0, bottom: 0, left: 0 })
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [showRoomsModal, setShowRoomsModal] = useState(false)
   const [savingDesign, setSavingDesign] = useState(false)
   const { user } = useAuth()
+
+  // ?room=<id> sets initial room
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const rid = new URLSearchParams(window.location.search).get('room')
+    if (!rid) return
+    const r = STOCK_ROOMS.find(x => x.id === rid)
+    if (r) setRoom(r)
+  }, [])
 
   // Restore an initial design from URL param ?design=<id> if any
   useEffect(() => {
@@ -438,7 +449,15 @@ export default function SampleRoom() {
     // Room BCS — apply via canvas filter while drawing background
     ctx.save()
     ctx.filter = bcsToFilter(lighting.room)
-    ctx.drawImage(bg, 0, 0, W, H)
+    if (cropInset.top || cropInset.right || cropInset.bottom || cropInset.left) {
+      const sx = cropInset.left * W
+      const sy = cropInset.top * H
+      const sw = W - sx - cropInset.right * W
+      const sh = H - sy - cropInset.bottom * H
+      ctx.drawImage(bg, sx, sy, sw, sh, 0, 0, W, H)
+    } else {
+      ctx.drawImage(bg, 0, 0, W, H)
+    }
     ctx.restore()
 
     // Wall color tint inside wall quad (clip + multiply fill)
@@ -696,6 +715,10 @@ export default function SampleRoom() {
                 filter: bcsToFilter(lighting.room),
                 transform: zoomPct !== 100 ? `scale(${zoomPct / 100})` : undefined,
                 transformOrigin: 'center',
+                clipPath:
+                  cropInset.top || cropInset.right || cropInset.bottom || cropInset.left
+                    ? `inset(${(cropInset.top * 100).toFixed(2)}% ${(cropInset.right * 100).toFixed(2)}% ${(cropInset.bottom * 100).toFixed(2)}% ${(cropInset.left * 100).toFixed(2)}%)`
+                    : undefined,
               }}
               onLoad={() => {
                 setImgLoaded(true)
@@ -1070,6 +1093,31 @@ export default function SampleRoom() {
                     value={zoomPct}
                     onChange={setZoomPct}
                   />
+                </div>
+                <div className="w-full">
+                  <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1">
+                    Crop room
+                  </p>
+                  <div className="flex flex-wrap gap-x-6 gap-y-2">
+                    {(['top', 'right', 'bottom', 'left'] as const).map(side => (
+                      <div key={side} className="min-w-[150px]">
+                        <Slider
+                          label={`${side}: ${(cropInset[side] * 100).toFixed(0)}%`}
+                          min={0}
+                          max={0.45}
+                          step={0.01}
+                          value={cropInset[side]}
+                          onChange={v => setCropInset(c => ({ ...c, [side]: v }))}
+                        />
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setCropInset({ top: 0, right: 0, bottom: 0, left: 0 })}
+                      className="self-end text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
+                    >
+                      Reset crop
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
