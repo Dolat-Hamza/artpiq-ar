@@ -124,6 +124,33 @@ export interface DesignFolder {
   createdAt?: string
 }
 
+export interface Contact {
+  id: string
+  ownerId: string
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  country?: string | null
+  category?: string | null
+  tags?: string[] | null
+  source?: string | null
+  notes?: string | null
+  lastSeenAt?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Subscriber {
+  id: string
+  ownerId: string
+  email: string
+  name?: string | null
+  source?: string | null
+  optedInAt?: string
+  optedOutAt?: string | null
+  createdAt?: string
+}
+
 export interface SavedDesign {
   id: string
   ownerId: string

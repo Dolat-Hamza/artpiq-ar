@@ -135,6 +135,44 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['room_favorites']['Row']>
         Relationships: []
       }
+      contacts: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string | null
+          email: string | null
+          phone: string | null
+          country: string | null
+          category: string | null
+          tags: string[] | null
+          source: string | null
+          notes: string | null
+          last_seen_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['contacts']['Row']> & { owner_id: string }
+        Update: Partial<Database['public']['Tables']['contacts']['Row']>
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          id: string
+          owner_id: string
+          email: string
+          name: string | null
+          source: string | null
+          opted_in_at: string
+          opted_out_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['subscribers']['Row']> & {
+          owner_id: string
+          email: string
+        }
+        Update: Partial<Database['public']['Tables']['subscribers']['Row']>
+        Relationships: []
+      }
       stock_rooms: {
         Row: {
           category: string

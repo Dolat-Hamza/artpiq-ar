@@ -3,7 +3,96 @@ import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getCollectionBySlug, listArtworksInLiveCollection } from '@/lib/db/collections'
 import { rowToArtwork } from '@/lib/db/artworks'
+import NewsletterForm from '@/components/NewsletterForm'
 import { Artwork, Collection } from '@/types'
+
+function LeadForm({ ownerId, collectionName }: { ownerId: string; collectionName: string }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [website, setWebsite] = useState('')
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(null)
+    setBusy(true)
+    try {
+      const r = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerId,
+          email,
+          name,
+          notes: `Viewing room: ${collectionName}\n${notes}`,
+          source: 'Viewing-Room',
+          website,
+        }),
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.error || `HTTP ${r.status}`)
+      }
+      setDone(true)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (done) {
+    return (
+      <p className="text-[13px] text-emerald-700">
+        Thanks — the artist has been notified and will reach out shortly.
+      </p>
+    )
+  }
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-2 max-w-md">
+      <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted">Get in touch</p>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Your name"
+        className="border border-line px-2 py-1.5 text-[13px]"
+      />
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="Email"
+        className="border border-line px-2 py-1.5 text-[13px]"
+      />
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="Message (which work, budget, etc.)"
+        rows={3}
+        className="border border-line px-2 py-1.5 text-[13px]"
+      />
+      <input
+        tabIndex={-1}
+        autoComplete="off"
+        type="text"
+        value={website}
+        onChange={e => setWebsite(e.target.value)}
+        style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+        aria-hidden="true"
+      />
+      <button
+        type="submit"
+        disabled={busy}
+        className="self-start px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase bg-ink text-paper disabled:opacity-40"
+      >
+        {busy ? 'Sending…' : 'Send'}
+      </button>
+      {err && <p className="text-[12px] text-red-600">{err}</p>}
+    </form>
+  )
+}
 
 export default function ViewingRoomPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -168,6 +257,16 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
           ))}
         </div>
       </main>
+      <section className="border-t border-line bg-line/10">
+        <div className="max-w-content mx-auto px-6 md:px-12 py-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <LeadForm ownerId={collection.ownerId} collectionName={collection.name} />
+          <NewsletterForm
+            ownerId={collection.ownerId}
+            source={`Viewing-Room:${collection.slug || collection.id}`}
+            label="Subscribe for updates"
+          />
+        </div>
+      </section>
       <footer className="border-t border-line py-6">
         <div className="max-w-content mx-auto px-6 md:px-12 flex justify-between items-center text-[11px] tracking-[0.16em] uppercase text-ink-muted">
           <span>artpiq · viewing room</span>
