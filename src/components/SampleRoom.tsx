@@ -1,9 +1,11 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Heart, Pipette, X } from 'lucide-react'
 import { useStore } from '@/store'
 import { STOCK_ROOMS } from '@/lib/rooms'
 import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
+import { useAuth } from '@/lib/db/auth'
+import { addFavorite, listFavorites, removeFavorite } from '@/lib/db/favorites'
 import { Artwork, FrameStyle, StockRoom } from '@/types'
 
 interface FrameState {
@@ -50,6 +52,11 @@ const NEUTRAL_LIGHTING: LightingState = {
 
 function bcsToFilter(bcs: BCS): string {
   return `brightness(${bcs.brightness}%) contrast(${bcs.contrast}%) saturate(${bcs.saturation}%)`
+}
+
+// Build a CSS clip-path polygon string from a normalized wall quad.
+function quadToClipPath(quad: StockRoom['wallQuad']): string {
+  return `polygon(${quad.map(([x, y]) => `${(x * 100).toFixed(2)}% ${(y * 100).toFixed(2)}%`).join(', ')})`
 }
 
 const DEFAULT_FRAME: FrameState = { style: 'thin-black', widthMm: 30, matteMm: 0 }
@@ -134,6 +141,13 @@ export default function SampleRoom() {
   const [lighting, setLighting] = useState<LightingState>(NEUTRAL_LIGHTING)
   const [lightingSub, setLightingSub] = useState<LightingSubtab>('room')
   const [roomCat, setRoomCat] = useState<RoomCategory>('all')
+  // Customize: wall color tint + zoom + crop (crop deferred)
+  const [wallColor, setWallColor] = useState<string | null>(null)
+  const [wallColorOpacity, setWallColorOpacity] = useState(0.45)
+  const [zoomPct, setZoomPct] = useState(100) // 100..250
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [showRoomsModal, setShowRoomsModal] = useState(false)
+  const { user } = useAuth()
   // Sequence mode
   const [sequence, setSequence] = useState<StockRoom[] | null>(null)
   const [sequenceIdx, setSequenceIdx] = useState(0)
@@ -168,6 +182,29 @@ export default function SampleRoom() {
   useEffect(() => {
     if (selected) setDockTab('tools')
   }, [selectedId])
+
+  // Load room favorites for signed-in user
+  useEffect(() => {
+    if (!user) return
+    listFavorites(user.id)
+      .then(ids => setFavorites(new Set(ids)))
+      .catch(() => {})
+  }, [user])
+
+  async function toggleFavorite(roomId: string) {
+    if (!user) return
+    const isFav = favorites.has(roomId)
+    const next = new Set(favorites)
+    if (isFav) {
+      next.delete(roomId)
+      setFavorites(next)
+      try { await removeFavorite(user.id, roomId) } catch {}
+    } else {
+      next.add(roomId)
+      setFavorites(next)
+      try { await addFavorite(user.id, roomId) } catch {}
+    }
+  }
 
   // Reset on room change
   useEffect(() => {
@@ -332,6 +369,22 @@ export default function SampleRoom() {
     ctx.filter = bcsToFilter(lighting.room)
     ctx.drawImage(bg, 0, 0, W, H)
     ctx.restore()
+
+    // Wall color tint inside wall quad (clip + multiply fill)
+    if (wallColor) {
+      ctx.save()
+      ctx.beginPath()
+      const q = room.wallQuad
+      ctx.moveTo(q[0][0] * W, q[0][1] * H)
+      for (let i = 1; i < q.length; i++) ctx.lineTo(q[i][0] * W, q[i][1] * H)
+      ctx.closePath()
+      ctx.clip()
+      ctx.globalAlpha = wallColorOpacity
+      ctx.globalCompositeOperation = 'multiply'
+      ctx.fillStyle = wallColor
+      ctx.fillRect(0, 0, W, H)
+      ctx.restore()
+    }
 
     const quadPxFull = quadWidthPx(room.wallQuad, W)
     const ppcFull = quadPxFull / room.wallWidthCm
@@ -553,7 +606,12 @@ export default function SampleRoom() {
               src={room.image}
               alt={room.name}
               className="block w-auto h-auto max-w-full mx-auto"
-              style={{ maxHeight: 'calc(100vh - 320px)', filter: bcsToFilter(lighting.room) }}
+              style={{
+                maxHeight: 'calc(100vh - 320px)',
+                filter: bcsToFilter(lighting.room),
+                transform: zoomPct !== 100 ? `scale(${zoomPct / 100})` : undefined,
+                transformOrigin: 'center',
+              }}
               onLoad={() => {
                 setImgLoaded(true)
                 setImgLoading(false)
@@ -565,6 +623,20 @@ export default function SampleRoom() {
               }}
               draggable={false}
             />
+            {/* Wall color tint clip-path over the wall quad */}
+            {wallColor && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: wallColor,
+                  opacity: wallColorOpacity,
+                  clipPath: quadToClipPath(room.wallQuad),
+                  WebkitClipPath: quadToClipPath(room.wallQuad),
+                  mixBlendMode: 'multiply',
+                  zIndex: 1,
+                }}
+              />
+            )}
             {pxPerCm &&
               placed.map(item => {
                 const aw = artworkById.get(item.artworkId)
@@ -725,7 +797,7 @@ export default function SampleRoom() {
           <div className="px-4 md:px-8 py-3 max-h-[200px] overflow-y-auto">
             {dockTab === 'rooms' && (
               <div>
-                <div className="flex gap-1 mb-2 flex-wrap">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   {ROOM_CATEGORIES.map(cat => (
                     <button
                       key={cat}
@@ -739,23 +811,43 @@ export default function SampleRoom() {
                       {cat}
                     </button>
                   ))}
+                  <button
+                    onClick={() => setShowRoomsModal(true)}
+                    className="ml-auto px-3 h-7 text-[10px] tracking-[0.16em] uppercase border border-line hover:border-ink"
+                  >
+                    Browse all · Suggested · Favorites
+                  </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                   {STOCK_ROOMS.filter(r => roomCat === 'all' || r.category === roomCat).map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => setRoom(r)}
-                      className={`shrink-0 border ${
-                        r.id === room.id ? 'border-ink ring-2 ring-ink' : 'border-line'
-                      }`}
-                      title={r.name}
-                    >
-                      <img
-                        src={r.thumb}
-                        alt={r.name}
-                        className="w-28 h-20 object-cover block"
-                      />
-                    </button>
+                    <div key={r.id} className="shrink-0 relative group">
+                      <button
+                        onClick={() => setRoom(r)}
+                        className={`block border ${
+                          r.id === room.id ? 'border-ink ring-2 ring-ink' : 'border-line'
+                        }`}
+                        title={r.name}
+                      >
+                        <img
+                          src={r.thumb}
+                          alt={r.name}
+                          className="w-28 h-20 object-cover block"
+                        />
+                      </button>
+                      {user && (
+                        <button
+                          onClick={() => toggleFavorite(r.id)}
+                          className="absolute top-1 right-1 w-6 h-6 grid place-items-center bg-paper/80 border border-line"
+                          title={favorites.has(r.id) ? 'Unfavorite' : 'Favorite'}
+                        >
+                          <Heart
+                            size={12}
+                            fill={favorites.has(r.id) ? '#e11d48' : 'transparent'}
+                            stroke={favorites.has(r.id) ? '#e11d48' : 'currentColor'}
+                          />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -829,9 +921,72 @@ export default function SampleRoom() {
               </div>
             )}
             {dockTab === 'customize' && (
-              <p className="text-[12px] text-ink-muted">
-                Wall color, crop, and zoom — coming in next ship.
-              </p>
+              <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
+                <div>
+                  <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1">
+                    Wall color
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={wallColor || '#ffffff'}
+                      onChange={e => setWallColor(e.target.value)}
+                      className="w-10 h-9 border border-line cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={wallColor || ''}
+                      placeholder="#hex"
+                      onChange={e => setWallColor(e.target.value || null)}
+                      className="w-24 h-9 px-2 border border-line text-[12px] tabular-nums uppercase"
+                    />
+                    {typeof window !== 'undefined' && 'EyeDropper' in window && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            // @ts-expect-error EyeDropper not in lib.dom yet
+                            const ed = new window.EyeDropper()
+                            const r = await ed.open()
+                            setWallColor(r.sRGBHex)
+                          } catch {}
+                        }}
+                        title="Pick color from screen"
+                        className="h-9 w-9 grid place-items-center border border-line hover:border-ink"
+                      >
+                        <Pipette size={14} />
+                      </button>
+                    )}
+                    {wallColor && (
+                      <button
+                        onClick={() => setWallColor(null)}
+                        className="text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="min-w-[180px]">
+                  <Slider
+                    label={`Tint opacity: ${(wallColorOpacity * 100).toFixed(0)}%`}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={wallColorOpacity}
+                    onChange={setWallColorOpacity}
+                  />
+                </div>
+                <div className="min-w-[200px]">
+                  <Slider
+                    label={`Zoom: ${zoomPct}%`}
+                    min={100}
+                    max={250}
+                    step={5}
+                    value={zoomPct}
+                    onChange={setZoomPct}
+                  />
+                </div>
+              </div>
             )}
             {dockTab === 'artworks' && (
               <ThumbStrip
@@ -942,6 +1097,18 @@ export default function SampleRoom() {
         </div>
       </main>
 
+      {showRoomsModal && (
+        <RoomsModal
+          currentRoom={room}
+          favorites={favorites}
+          onPickRoom={r => {
+            setRoom(r)
+            setShowRoomsModal(false)
+          }}
+          onClose={() => setShowRoomsModal(false)}
+          onToggleFavorite={user ? toggleFavorite : undefined}
+        />
+      )}
       {sequencePicker && (
         <div
           className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -1009,6 +1176,104 @@ export default function SampleRoom() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function RoomsModal({
+  currentRoom,
+  favorites,
+  onPickRoom,
+  onClose,
+  onToggleFavorite,
+}: {
+  currentRoom: StockRoom
+  favorites: Set<string>
+  onPickRoom: (r: StockRoom) => void
+  onClose: () => void
+  onToggleFavorite?: (roomId: string) => void
+}) {
+  const [tab, setTab] = useState<'suggested' | 'favorites' | 'all'>('suggested')
+  const suggested = useMemo(() => {
+    return STOCK_ROOMS.filter(
+      r =>
+        r.id !== currentRoom.id &&
+        (r.orientation === currentRoom.orientation ||
+          r.perspective === currentRoom.perspective ||
+          r.category === currentRoom.category),
+    )
+  }, [currentRoom])
+  const list =
+    tab === 'all' ? STOCK_ROOMS : tab === 'favorites' ? STOCK_ROOMS.filter(r => favorites.has(r.id)) : suggested
+  return (
+    <div
+      className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-paper w-full max-w-[1000px] max-h-[88vh] overflow-y-auto p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted">Room mockups</p>
+          <button onClick={onClose} className="text-ink-muted hover:text-ink">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex gap-2 mb-4">
+          {(['suggested', 'favorites', 'all'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 h-8 text-[11px] tracking-[0.16em] uppercase rounded-full ${
+                tab === t ? 'bg-ink text-paper' : 'border border-line text-ink-muted'
+              }`}
+            >
+              {t === 'suggested' && `Suggested (${suggested.length})`}
+              {t === 'favorites' && `My Favorites (${favorites.size})`}
+              {t === 'all' && `All (${STOCK_ROOMS.length})`}
+            </button>
+          ))}
+        </div>
+        {!list.length && (
+          <p className="text-[12px] text-ink-muted py-12 text-center">
+            {tab === 'favorites'
+              ? 'No favorites yet — tap the heart on any room to save it here.'
+              : 'No rooms.'}
+          </p>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {list.map(r => (
+            <div key={r.id} className="relative group">
+              <button
+                onClick={() => onPickRoom(r)}
+                className={`block w-full border ${
+                  r.id === currentRoom.id ? 'border-ink ring-2 ring-ink' : 'border-line'
+                }`}
+                title={r.name}
+              >
+                <img src={r.thumb} alt={r.name} className="w-full aspect-[4/3] object-cover" />
+                <p className="px-2 py-1.5 text-[11px] text-left tracking-[0.06em]">{r.name}</p>
+              </button>
+              {onToggleFavorite && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation()
+                    onToggleFavorite(r.id)
+                  }}
+                  className="absolute top-1.5 right-1.5 w-7 h-7 grid place-items-center bg-paper/85 border border-line"
+                >
+                  <Heart
+                    size={14}
+                    fill={favorites.has(r.id) ? '#e11d48' : 'transparent'}
+                    stroke={favorites.has(r.id) ? '#e11d48' : 'currentColor'}
+                  />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
