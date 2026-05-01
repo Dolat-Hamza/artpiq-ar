@@ -540,24 +540,27 @@ export default function SampleRoom() {
                         />
                       )}
                     </div>
-                    {/* Remove */}
-                    <button
-                      onClick={e => {
-                        e.stopPropagation()
-                        removePlaced(item.id)
-                      }}
-                      className="absolute -top-3 -right-3 w-6 h-6 bg-paper border border-ink rounded-full flex items-center justify-center"
-                      aria-label="Remove"
-                    >
-                      <X size={12} />
-                    </button>
-                    {/* Resize */}
-                    <div
-                      onPointerDown={e => onPointerDown(e, item.id, 'resize')}
-                      className="absolute -right-2 -bottom-2 w-5 h-5 bg-ink border-2 border-paper cursor-nwse-resize"
-                      style={{ touchAction: 'none' }}
-                      aria-label="Resize"
-                    />
+                    {/* Remove + Resize — only when selected */}
+                    {isSelected && (
+                      <>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            removePlaced(item.id)
+                          }}
+                          className="absolute -top-3 -right-3 w-6 h-6 bg-paper border border-ink rounded-full flex items-center justify-center"
+                          aria-label="Remove"
+                        >
+                          <X size={12} />
+                        </button>
+                        <div
+                          onPointerDown={e => onPointerDown(e, item.id, 'resize')}
+                          className="absolute -right-2 -bottom-2 w-5 h-5 bg-ink border-2 border-paper cursor-nwse-resize"
+                          style={{ touchAction: 'none' }}
+                          aria-label="Resize"
+                        />
+                      </>
+                    )}
                     {/* Floating frame toolbar — sits directly beneath artwork when selected */}
                     {isSelected && (
                       <div

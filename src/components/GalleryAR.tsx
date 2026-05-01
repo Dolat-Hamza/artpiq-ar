@@ -28,7 +28,9 @@ function sceneViewerHref(modelUrl: string, fallbackUrl: string): string {
 }
 
 export default function GalleryAR() {
-  const { galleryArOpen, galleryArIds, closeGalleryAR, artworks, showToast } = useStore()
+  const { galleryArOpen, galleryArIds: rawIds, closeGalleryAR, artworks, showToast } = useStore()
+  // AR limited to 1 artwork — Quick Look / Scene Viewer don't support per-piece manipulation
+  const galleryArIds = rawIds.slice(0, 1)
   const iosLinkRef = useRef<HTMLAnchorElement>(null)
   const platform = useMemo(detectPlatform, [])
   const [origin, setOrigin] = useState('')
@@ -89,7 +91,7 @@ export default function GalleryAR() {
 
         <div className="flex items-center h-[56px] px-6 md:px-12 border-b border-line">
           <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted flex-1">
-            Gallery in AR · {selected.length} works
+            Artwork in AR
           </p>
           <button
             onClick={closeGalleryAR}
@@ -103,12 +105,11 @@ export default function GalleryAR() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 py-10 md:py-16">
             <h2 className="font-display text-[36px] md:text-[48px] leading-[1.02] tracking-tight text-ink">
-              A private hang
+              {selected[0]?.title || 'Artwork'} in AR
             </h2>
             <p className="mt-3 text-[14px] text-ink-muted max-w-[560px]">
-              All {selected.length} works combined as one scene, normalised to a shared hanging
-              height. On iPhone the composition moves as one — Apple Quick Look does not support
-              per-artwork manipulation.
+              Place the work on your wall at true scale. AR is single-artwork only — Quick Look
+              and Scene Viewer don&rsquo;t support per-piece manipulation.
             </p>
 
             <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
@@ -163,8 +164,7 @@ export default function GalleryAR() {
 
             {platform === 'ios' && (
               <p className="mt-6 text-[11px] text-ink-muted leading-relaxed max-w-[520px]">
-                Quick Look places the whole arrangement at once. To reposition individual works,
-                use “Compose on My Wall”.
+                For multi-artwork composition, use the Sample Room or My Wall views.
               </p>
             )}
           </div>
