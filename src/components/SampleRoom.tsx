@@ -6,6 +6,7 @@ import { STOCK_ROOMS } from '@/lib/rooms'
 import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
 import { useAuth } from '@/lib/db/auth'
 import { addFavorite, listFavorites, removeFavorite } from '@/lib/db/favorites'
+import { createDesign, uploadDesignThumb } from '@/lib/db/savedDesigns'
 import { Artwork, FrameStyle, StockRoom } from '@/types'
 
 interface FrameState {
@@ -147,7 +148,77 @@ export default function SampleRoom() {
   const [zoomPct, setZoomPct] = useState(100) // 100..250
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [showRoomsModal, setShowRoomsModal] = useState(false)
+  const [savingDesign, setSavingDesign] = useState(false)
   const { user } = useAuth()
+
+  // Restore an initial design from URL param ?design=<id> if any
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const id = new URLSearchParams(window.location.search).get('design')
+    if (!id) return
+    import('@/lib/db/savedDesigns').then(async mod => {
+      try {
+        const d = await mod.getDesign(id)
+        if (!d) return
+        const r = STOCK_ROOMS.find(x => x.id === d.roomId)
+        if (r) setRoom(r)
+        if (Array.isArray(d.placed)) setPlaced(d.placed as Placed[])
+        if (d.lighting && typeof d.lighting === 'object') setLighting(d.lighting as LightingState)
+        if (d.wallColor) setWallColor(d.wallColor)
+        if (d.customize && typeof d.customize === 'object') {
+          const c = d.customize as { wallColorOpacity?: number; zoomPct?: number }
+          if (c.wallColorOpacity !== undefined) setWallColorOpacity(c.wallColorOpacity)
+          if (c.zoomPct !== undefined) setZoomPct(c.zoomPct)
+        }
+      } catch {
+        showToast('Could not load design')
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function saveDesign() {
+    if (!user) {
+      showToast('Sign in to save designs')
+      return
+    }
+    if (!placed.length) {
+      showToast('Add an artwork first')
+      return
+    }
+    const name = window.prompt('Design name', `${room.name} — ${new Date().toLocaleDateString()}`) || ''
+    if (!name.trim()) return
+    setSavingDesign(true)
+    try {
+      // Render thumbnail JPEG via existing capture pipeline
+      const thumbBlob = await captureCurrentRoom()
+      // Persist row first to get id
+      const design = await createDesign({
+        ownerId: user.id,
+        name: name.trim(),
+        roomId: room.id,
+        placed: placed as unknown,
+        lighting: lighting as unknown,
+        wallColor: wallColor,
+        customize: { wallColorOpacity, zoomPct },
+      })
+      if (thumbBlob) {
+        try {
+          const url = await uploadDesignThumb(user.id, design.id, thumbBlob)
+          // Best-effort thumb URL update
+          await import('@/lib/db/savedDesigns').then(m => m.updateDesign(design.id, { thumbUrl: url }))
+        } catch {
+          // Thumb upload optional
+        }
+      }
+      showToast(`Saved "${design.name}"`)
+    } catch (e) {
+      console.error(e)
+      showToast('Save failed')
+    } finally {
+      setSavingDesign(false)
+    }
+  }
   // Sequence mode
   const [sequence, setSequence] = useState<StockRoom[] | null>(null)
   const [sequenceIdx, setSequenceIdx] = useState(0)
@@ -560,6 +631,20 @@ export default function SampleRoom() {
               </>
             ) : (
               <>
+                <a
+                  href="/admin/designs"
+                  className="hidden md:inline-block px-3 py-2 text-[12px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink"
+                >
+                  My Designs
+                </a>
+                <button
+                  onClick={saveDesign}
+                  disabled={!user || !placed.length || savingDesign}
+                  className="px-3 py-2 text-[12px] tracking-[0.18em] uppercase border border-line disabled:opacity-40"
+                  title={!user ? 'Sign in to save' : 'Save composition'}
+                >
+                  {savingDesign ? 'Saving…' : 'Save design'}
+                </button>
                 <button
                   onClick={() => {
                     setSequencePicks([])
