@@ -33,6 +33,13 @@ export type Database = {
           sold: boolean
           status: string
           sqsp_sku: string | null
+          location_address: string | null
+          location_country: string | null
+          commission_pct: number | null
+          tax_amount: number | null
+          contact_name: string | null
+          contact_email: string | null
+          contact_phone: string | null
           thumb_url: string | null
           title: string
           transparent: boolean

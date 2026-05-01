@@ -32,20 +32,31 @@ export interface Artwork {
   transparent?: boolean
   sqspSku?: string
   status?: ArtworkStatus
+  locationAddress?: string
+  locationCountry?: string
+  commissionPct?: number
+  taxAmount?: number
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
 }
 
 export type ArtworkStatus =
   | 'for_sale'
-  | 'sold'
+  | 'sale_pending'
+  | 'for_rent'
   | 'rented'
   | 'reserved'
+  | 'sold'
   | 'not_for_sale'
 
 export const ARTWORK_STATUSES: ArtworkStatus[] = [
   'for_sale',
-  'sold',
+  'sale_pending',
+  'for_rent',
   'rented',
   'reserved',
+  'sold',
   'not_for_sale',
 ]
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ARTWORK_STATUSES, Artwork, ArtworkStatus, Collection } from '@/types'
 import {
   artworksToCsv,
+  duplicateArtwork,
   newArtwork,
   parseCsv,
   rowsToArtworks,
@@ -30,9 +31,11 @@ import LoginForm from './LoginForm'
 
 const STATUS_LABEL: Record<ArtworkStatus, string> = {
   for_sale: 'For sale',
-  sold: 'Sold',
+  sale_pending: 'Sale pending',
+  for_rent: 'For rent',
   rented: 'Rented',
   reserved: 'Reserved',
+  sold: 'Sold',
   not_for_sale: 'Not for sale',
 }
 
@@ -162,6 +165,26 @@ export default function AdminArtworks() {
   function openNewEditor() {
     setEditing(newArtwork())
     setEditingCollections([])
+  }
+
+  async function duplicate(a: Artwork) {
+    if (!user) return
+    const dup = duplicateArtwork(a)
+    try {
+      setBusy(true)
+      const saved = await upsertArtwork(dup, user.id)
+      // Inherit collection memberships
+      try {
+        const cids = await collectionsForArtwork(a.id)
+        if (cids.length) await setArtworkCollections(saved.id, cids)
+      } catch {}
+      setList(prev => [saved, ...prev])
+      openEditor(saved)
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Duplicate failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function remove(id: string) {
@@ -356,7 +379,22 @@ export default function AdminArtworks() {
                     Edit
                   </button>
                   <button
-                    onClick={() => exportArtworkPdf(a)}
+                    onClick={() => duplicate(a)}
+                    className="text-[11px] uppercase tracking-[0.16em]"
+                  >
+                    Duplicate
+                  </button>
+                  <button
+                    onClick={() => {
+                      const slug = (s: string) =>
+                        (s || '')
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '_')
+                          .replace(/^_|_$/g, '')
+                      const def = `${slug(a.title) || a.id}_${slug(a.artist) || 'artist'}_01`
+                      const name = prompt('PDF filename (without .pdf)', def)
+                      if (name) exportArtworkPdf({ ...a, id: name })
+                    }}
                     className="text-[11px] uppercase tracking-[0.16em]"
                   >
                     PDF
@@ -432,9 +470,12 @@ function EditorDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onCancel}>
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 md:p-8"
+      onClick={onCancel}
+    >
       <div
-        className="w-full max-w-[520px] bg-paper h-full overflow-y-auto"
+        className="w-full max-w-[920px] bg-paper max-h-[92vh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <header className="sticky top-0 bg-paper border-b border-line px-6 py-4 flex items-center justify-between z-10">
@@ -546,14 +587,86 @@ function EditorDrawer({
               <input value={aw.currency ?? 'EUR'} onChange={e => set('currency', e.target.value)} className="input" />
             </Field>
           </div>
-          <Field label="SQSP SKU (Squarespace Commerce)">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="SQSP SKU">
+              <input
+                value={aw.sqspSku ?? ''}
+                onChange={e => set('sqspSku', e.target.value || undefined)}
+                placeholder="Defaults to artwork id"
+                className="input"
+              />
+            </Field>
+            <Field label="Commission %">
+              <input
+                type="number"
+                step="0.1"
+                value={aw.commissionPct ?? ''}
+                onChange={e =>
+                  set('commissionPct', e.target.value ? Number(e.target.value) : undefined)
+                }
+                className="input"
+              />
+            </Field>
+          </div>
+          <Field label="Tax amount">
             <input
-              value={aw.sqspSku ?? ''}
-              onChange={e => set('sqspSku', e.target.value || undefined)}
-              placeholder="Defaults to artwork id"
+              type="number"
+              step="0.01"
+              value={aw.taxAmount ?? ''}
+              onChange={e =>
+                set('taxAmount', e.target.value ? Number(e.target.value) : undefined)
+              }
               className="input"
             />
           </Field>
+          <div className="border-t border-line pt-3 mt-1">
+            <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted mb-2">
+              Location
+            </p>
+          </div>
+          <Field label="Location address">
+            <input
+              value={aw.locationAddress ?? ''}
+              onChange={e => set('locationAddress', e.target.value || undefined)}
+              className="input"
+            />
+          </Field>
+          <Field label="Location country">
+            <input
+              value={aw.locationCountry ?? ''}
+              onChange={e => set('locationCountry', e.target.value || undefined)}
+              className="input"
+            />
+          </Field>
+          <div className="border-t border-line pt-3 mt-1">
+            <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted mb-2">
+              Contact (attached to artwork)
+            </p>
+          </div>
+          <Field label="Contact name">
+            <input
+              value={aw.contactName ?? ''}
+              onChange={e => set('contactName', e.target.value || undefined)}
+              className="input"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Contact email">
+              <input
+                type="email"
+                value={aw.contactEmail ?? ''}
+                onChange={e => set('contactEmail', e.target.value || undefined)}
+                className="input"
+              />
+            </Field>
+            <Field label="Contact phone">
+              <input
+                value={aw.contactPhone ?? ''}
+                onChange={e => set('contactPhone', e.target.value || undefined)}
+                className="input"
+              />
+            </Field>
+          </div>
           <Field label="Description">
             <textarea
               value={aw.description ?? ''}

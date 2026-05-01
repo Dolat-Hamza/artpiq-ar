@@ -33,6 +33,15 @@ export function newArtwork(): Artwork {
   }
 }
 
+export function duplicateArtwork(a: Artwork): Artwork {
+  return {
+    ...a,
+    id: `aw_${Math.random().toString(36).slice(2, 10)}`,
+    title: a.title ? `${a.title} (copy)` : '',
+    sqspSku: undefined,
+  }
+}
+
 // Minimal CSV parser — handles quoted fields and commas. No streaming.
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = []
