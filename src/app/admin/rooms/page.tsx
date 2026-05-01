@@ -1,7 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import SiteNav from '@/components/SiteNav'
 import { STOCK_ROOMS, filterRooms } from '@/lib/rooms'
 
 const CATS = ['all', 'living', 'bedroom', 'office', 'kitchen', 'gallery', 'plain'] as const
@@ -30,7 +29,6 @@ export default function RoomsLibraryPage() {
 
   return (
     <>
-      <SiteNav />
       <div className="min-h-dvh bg-paper text-ink">
         <header className="border-b border-line">
           <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-4 flex-wrap">

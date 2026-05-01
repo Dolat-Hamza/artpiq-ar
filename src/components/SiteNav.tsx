@@ -1,7 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeft, Image as ImageIcon, Settings, Home } from 'lucide-react'
+import {
+  ArrowLeft,
+  Home,
+  Image as ImageIcon,
+  LayoutGrid,
+  Star,
+  User,
+} from 'lucide-react'
 
 export default function SiteNav({ showBack = true }: { showBack?: boolean }) {
   const pathname = usePathname()
@@ -9,7 +16,8 @@ export default function SiteNav({ showBack = true }: { showBack?: boolean }) {
   const links = [
     { href: '/', label: 'Gallery', icon: Home },
     { href: '/sample-room', label: 'Sample room', icon: ImageIcon },
-    { href: '/admin/artworks', label: 'Admin', icon: Settings },
+    { href: '/admin/exhibitions', label: 'Exhibitions', icon: Star },
+    { href: '/admin', label: 'Admin', icon: LayoutGrid },
   ]
 
   return (
@@ -27,7 +35,7 @@ export default function SiteNav({ showBack = true }: { showBack?: boolean }) {
         <Link href="/" className="font-display text-[20px] tracking-tight leading-none">
           artpiq<span className="text-accent">.</span>
         </Link>
-        <div className="ml-auto flex items-center gap-1 sm:gap-4 text-[13px]">
+        <div className="ml-auto flex items-center gap-1 sm:gap-3 text-[13px]">
           {links.map(l => {
             const active =
               l.href === '/' ? pathname === '/' : pathname.startsWith(l.href)
