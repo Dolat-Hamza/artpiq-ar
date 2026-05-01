@@ -1,9 +1,26 @@
 'use client'
-import { useEffect, useMemo, useRef } from 'react'
+import { Component, Suspense, useEffect, useMemo, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { Artwork, VirtualExhibition } from '@/types'
+
+// Per-artwork error boundary — keeps a single bad texture from killing the scene.
+class ArtworkBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { failed: false }
+  }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch() { /* swallow */ }
+  render() {
+    if (this.state.failed) return null
+    return this.props.children as React.ReactElement
+  }
+}
 
 // Box gallery: 16m × 16m room, 4m tall walls.
 const ROOM_W = 16
@@ -160,15 +177,18 @@ export default function GalleryScene({
         if (!aw || !aw.image) return null
         const ar = aw.heightCm / aw.widthCm
         return (
-          <ArtworkPlane
-            key={i}
-            src={aw.image}
-            wall={wa.wall}
-            position01={wa.position}
-            height01={wa.height}
-            scale={wa.scale}
-            ar={ar}
-          />
+          <ArtworkBoundary key={i}>
+            <Suspense fallback={null}>
+              <ArtworkPlane
+                src={aw.image}
+                wall={wa.wall}
+                position01={wa.position}
+                height01={wa.height}
+                scale={wa.scale}
+                ar={ar}
+              />
+            </Suspense>
+          </ArtworkBoundary>
         )
       })}
       <FirstPersonControls />
