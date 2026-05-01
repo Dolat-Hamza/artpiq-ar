@@ -1,4 +1,4 @@
-import { Collection } from '@/types'
+import { Collection, ViewingRoomStatus } from '@/types'
 import { Database } from './types'
 import { supabase } from './client'
 
@@ -12,9 +12,53 @@ function rowToCollection(r: Row): Collection {
     description: r.description ?? undefined,
     coverUrl: r.cover_url ?? undefined,
     privacy: (r.privacy as 'public' | 'private') ?? 'private',
+    slug: r.slug ?? null,
+    viewingRoomStatus: (r.viewing_room_status as ViewingRoomStatus) ?? 'draft',
+    viewingRoomPassword: r.viewing_room_password ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }
+}
+
+export function slugify(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80)
+}
+
+export async function getCollectionBySlug(slug: string): Promise<Collection | null> {
+  const { data, error } = await supabase()
+    .from('collections')
+    .select('*')
+    .eq('slug', slug)
+    .eq('viewing_room_status', 'live')
+    .maybeSingle()
+  if (error) return null
+  return data ? rowToCollection(data) : null
+}
+
+export async function listArtworksInLiveCollection(slug: string) {
+  const sb = supabase()
+  const { data: col } = await sb
+    .from('collections')
+    .select('id')
+    .eq('slug', slug)
+    .eq('viewing_room_status', 'live')
+    .maybeSingle()
+  if (!col) return []
+  const { data: ac } = await sb
+    .from('artwork_collections')
+    .select('artwork_id, position')
+    .eq('collection_id', col.id)
+    .order('position', { ascending: true })
+  if (!ac || !ac.length) return []
+  const ids = ac.map(r => r.artwork_id)
+  const { data: arts } = await sb.from('artworks').select('*').in('id', ids)
+  return arts ?? []
 }
 
 export async function listMyCollections(ownerId: string): Promise<Collection[]> {
@@ -44,13 +88,27 @@ export async function createCollection(
 
 export async function updateCollection(
   id: string,
-  patch: Partial<Pick<Collection, 'name' | 'description' | 'privacy' | 'coverUrl'>>,
+  patch: Partial<
+    Pick<
+      Collection,
+      | 'name'
+      | 'description'
+      | 'privacy'
+      | 'coverUrl'
+      | 'slug'
+      | 'viewingRoomStatus'
+      | 'viewingRoomPassword'
+    >
+  >,
 ): Promise<void> {
   const row: Database['public']['Tables']['collections']['Update'] = {}
   if (patch.name !== undefined) row.name = patch.name
   if (patch.description !== undefined) row.description = patch.description
   if (patch.privacy !== undefined) row.privacy = patch.privacy
   if (patch.coverUrl !== undefined) row.cover_url = patch.coverUrl
+  if (patch.slug !== undefined) row.slug = patch.slug
+  if (patch.viewingRoomStatus !== undefined) row.viewing_room_status = patch.viewingRoomStatus
+  if (patch.viewingRoomPassword !== undefined) row.viewing_room_password = patch.viewingRoomPassword
   const { error } = await supabase().from('collections').update(row).eq('id', id)
   if (error) throw error
 }

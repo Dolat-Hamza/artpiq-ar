@@ -22,10 +22,12 @@ import {
   deleteCollection,
   listMyCollections,
   setArtworkCollections,
+  slugify,
   updateCollection,
 } from '@/lib/db/collections'
 import { signOut, useAuth } from '@/lib/db/auth'
 import { exportArtworkPdf, exportCollectionPdf } from '@/lib/artworkSheet'
+import { exportInventoryPdf } from '@/lib/inventoryReport'
 import { downloadSqspCsv } from '@/lib/sqspExport'
 import LoginForm from './LoginForm'
 
@@ -295,6 +297,14 @@ export default function AdminArtworks() {
               title="Squarespace Commerce import format"
             >
               Export SQSP
+            </button>
+            <button
+              onClick={() => exportInventoryPdf(list, { groupBy: 'artist', ownerEmail: user.email ?? '' })}
+              disabled={!list.length}
+              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line disabled:opacity-40"
+              title="Full inventory PDF grouped by artist"
+            >
+              Inventory PDF
             </button>
             <button
               onClick={() => setShowCollectionsPanel(s => !s)}
@@ -968,30 +978,132 @@ function CollectionsPanel({
       {!collections.length && (
         <p className="text-[12px] text-ink-muted">No collections yet.</p>
       )}
-      <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <ul className="grid grid-cols-1 gap-2">
         {collections.map(c => {
           const count = (membership[c.id] ?? []).length
-          return (
-            <li key={c.id} className="border border-line p-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] truncate">{c.name}</p>
-                <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">
-                  {count} works · {c.privacy}
-                </p>
-              </div>
-              <button onClick={() => exportPdf(c)} className="text-[11px] uppercase tracking-[0.14em]">
-                PDF
-              </button>
-              <button onClick={() => rename(c)} className="text-[11px] uppercase tracking-[0.14em]">
-                Rename
-              </button>
-              <button onClick={() => remove(c)} className="text-[11px] uppercase tracking-[0.14em] text-red-600">
-                Delete
-              </button>
-            </li>
-          )
+          return <CollectionRow key={c.id} c={c} count={count} onChange={onChange}
+            onPdf={() => exportPdf(c)} onRename={() => rename(c)} onDelete={() => remove(c)} />
         })}
       </ul>
     </div>
+  )
+}
+
+function CollectionRow({
+  c,
+  count,
+  onChange,
+  onPdf,
+  onRename,
+  onDelete,
+}: {
+  c: Collection
+  count: number
+  onChange: () => void
+  onPdf: () => void
+  onRename: () => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [slug, setSlug] = useState(c.slug ?? slugify(c.name))
+  const [status, setStatus] = useState<'draft' | 'live'>(c.viewingRoomStatus ?? 'draft')
+  const [pw, setPw] = useState(c.viewingRoomPassword ?? '')
+  const [busy, setBusy] = useState(false)
+
+  async function persist() {
+    setBusy(true)
+    try {
+      await updateCollection(c.id, {
+        slug: slug || null,
+        viewingRoomStatus: status,
+        viewingRoomPassword: pw || null,
+      })
+      onChange()
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const url = slug && typeof window !== 'undefined'
+    ? `${window.location.origin}/v/${slug}`
+    : ''
+
+  return (
+    <li className="border border-line">
+      <div className="p-3 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] truncate">{c.name}</p>
+          <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">
+            {count} works · {c.privacy}
+            {status === 'live' && slug ? ' · viewing room live' : ''}
+          </p>
+        </div>
+        <button onClick={() => setOpen(o => !o)} className="text-[11px] uppercase tracking-[0.14em]">
+          {open ? 'Close' : 'Viewing room'}
+        </button>
+        <button onClick={onPdf} className="text-[11px] uppercase tracking-[0.14em]">PDF</button>
+        <button onClick={onRename} className="text-[11px] uppercase tracking-[0.14em]">Rename</button>
+        <button onClick={onDelete} className="text-[11px] uppercase tracking-[0.14em] text-red-600">Delete</button>
+      </div>
+      {open && (
+        <div className="border-t border-line p-3 grid gap-2 text-[12px]">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] tracking-[0.14em] uppercase text-ink-muted w-20">Slug</label>
+            <span className="text-ink-muted">/v/</span>
+            <input
+              value={slug}
+              onChange={e => setSlug(slugify(e.target.value))}
+              placeholder="my-collection"
+              className="border border-line px-2 py-1 flex-1 text-[12px]"
+            />
+            {url && (
+              <button
+                onClick={() => navigator.clipboard.writeText(url)}
+                className="text-[10px] tracking-[0.14em] uppercase underline"
+              >
+                Copy URL
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] tracking-[0.14em] uppercase text-ink-muted w-20">Status</label>
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value as 'draft' | 'live')}
+              className="border border-line bg-paper px-2 py-1 text-[12px]"
+            >
+              <option value="draft">Draft</option>
+              <option value="live">Live</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] tracking-[0.14em] uppercase text-ink-muted w-20">Password</label>
+            <input
+              type="text"
+              value={pw}
+              onChange={e => setPw(e.target.value)}
+              placeholder="Optional gating password"
+              className="border border-line px-2 py-1 flex-1 text-[12px]"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 mt-1">
+            <button
+              onClick={persist}
+              disabled={busy}
+              className="px-3 py-1 text-[11px] tracking-[0.14em] uppercase bg-ink text-paper disabled:opacity-40"
+            >
+              {busy ? 'Saving…' : 'Save viewing room'}
+            </button>
+          </div>
+          {status === 'live' && url && (
+            <p className="text-[11px] text-ink-muted">
+              Live at <a href={url} target="_blank" rel="noopener" className="underline">{url}</a>
+            </p>
+          )}
+        </div>
+      )}
+    </li>
   )
 }
