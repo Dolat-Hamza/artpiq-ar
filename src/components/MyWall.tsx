@@ -84,9 +84,23 @@ export default function MyWall() {
   const [activeId, setActiveId] = useState<number | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
+  // True-cm scaling: user tells us how wide (cm) of wall is visible in their photo.
+  // Without this we cannot place artworks at real scale; default 300 cm = ~3 m wall.
+  const [wallWidthCm, setWallWidthCm] = useState<number>(300)
 
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const [stageW, setStageW] = useState(0)
+
+  useEffect(() => {
+    const update = () => setStageW(stageRef.current?.clientWidth ?? 0)
+    update()
+    const ro = new ResizeObserver(update)
+    if (stageRef.current) ro.observe(stageRef.current)
+    return () => ro.disconnect()
+  }, [bgUrl])
+
+  const pxPerCm = stageW > 0 && wallWidthCm > 0 ? stageW / wallWidthCm : null
 
   const paintings = useMemo(() => ARTWORKS.filter(a => a.type === 'painting'), [])
 
@@ -260,8 +274,10 @@ export default function MyWall() {
       let img: HTMLImageElement
       try { img = await loadImg(src, true) } catch { continue }
 
-      // Base on-screen width for painting (see LayerNode).
-      const baseW = Math.min(rect.width * 0.35, 260)
+      // True-scale: artwork.widthCm * px-per-cm derived from user's wall width.
+      const baseW = pxPerCm && aw!.widthCm > 0
+        ? aw!.widthCm * pxPerCm
+        : Math.min(rect.width * 0.35, 260)
       const aspect = (aw!.heightCm || 60) / (aw!.widthCm || 80)
       const w = baseW * l.scale
       const h = w * aspect
@@ -288,15 +304,25 @@ export default function MyWall() {
     }
 
     const blob: Blob = await new Promise((res) => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92))
-    const file = new File([blob], 'my-wall.jpg', { type: 'image/jpeg' })
 
+    // Filename prompt — default name_artist_01 from first layer if available.
+    const slug = (s: string) =>
+      (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+    const firstLayer = layers[0]
+    const firstAw = firstLayer ? ARTWORKS.find(a => a.id === firstLayer.artworkId) : null
+    const def = firstAw
+      ? `${slug(firstAw.title) || 'artwork'}_${slug(firstAw.artist) || 'artist'}_01`
+      : 'my-wall'
+    const name = (typeof window !== 'undefined' ? window.prompt('Image filename (without .jpg)', def) : def) || def
+
+    const file = new File([blob], `${name}.jpg`, { type: 'image/jpeg' })
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
     if (nav.canShare?.({ files: [file] }) && navigator.share) {
-      try { await navigator.share({ files: [file], title: 'My Wall' }); return } catch {}
+      try { await navigator.share({ files: [file], title: name }); return } catch {}
     }
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = 'my-wall.jpg'
+    a.href = url; a.download = `${name}.jpg`
     document.body.appendChild(a); a.click(); a.remove()
     setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
@@ -310,12 +336,28 @@ export default function MyWall() {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        <div className="flex items-center h-[56px] px-5 md:px-10 border-b border-line flex-shrink-0">
+        <div className="flex items-center h-[56px] px-5 md:px-10 border-b border-line flex-shrink-0 gap-2">
           <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted flex-1">My Wall</p>
+          {bgUrl && (
+            <label className="hidden sm:flex items-center gap-1.5 text-[11px] tracking-[0.14em] uppercase text-ink-muted">
+              Wall width
+              <input
+                type="number"
+                min={50}
+                max={2000}
+                step={10}
+                value={wallWidthCm}
+                onChange={e => setWallWidthCm(Number(e.target.value) || 300)}
+                className="w-16 h-8 px-2 border border-line text-ink text-[12px] tabular-nums"
+                title="Real wall width visible in your photo (cm). Drives true-scale artwork sizing."
+              />
+              cm
+            </label>
+          )}
           {bgUrl && (
             <button
               onClick={resetAll}
-              className="hidden sm:inline-block h-9 px-3 text-[12px] text-ink-muted hover:text-ink mr-2"
+              className="hidden sm:inline-block h-9 px-3 text-[12px] text-ink-muted hover:text-ink"
             >
               Start over
             </button>
@@ -323,7 +365,7 @@ export default function MyWall() {
           {bgUrl && (
             <button
               onClick={exportImage}
-              className="h-9 px-3 text-[12px] bg-ink text-paper flex items-center gap-2 mr-2"
+              className="h-9 px-3 text-[12px] bg-ink text-paper flex items-center gap-2"
             >
               <Download size={14} /> Save
             </button>
@@ -374,6 +416,7 @@ export default function MyWall() {
                   layer={l}
                   artwork={aw}
                   active={activeId === l.id}
+                  pxPerCm={pxPerCm}
                   onSelect={() => { setActiveId(l.id); bringToFront(l.id) }}
                   onChange={(p) => updateLayer(l.id, p)}
                   onRemove={() => removeLayer(l.id)}
@@ -511,7 +554,7 @@ function EmptyState({ onCamera, onGallery, loading }:
 }
 
 function LayerNode({
-  layer, artwork, active, onSelect, onChange, onRemove, onDuplicate, onBringToFront,
+  layer, artwork, active, onSelect, onChange, onRemove, onDuplicate, onBringToFront, pxPerCm,
 }: {
   layer: WallLayer
   artwork: Artwork
@@ -521,6 +564,7 @@ function LayerNode({
   onRemove: () => void
   onDuplicate: () => void
   onBringToFront: () => void
+  pxPerCm: number | null
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const localRef = useRef({ x: layer.x, y: layer.y, scale: layer.scale, rotation: layer.rotation })
@@ -546,7 +590,11 @@ function LayerNode({
   )
 
   const aspect = (artwork.heightCm || 60) / (artwork.widthCm || 80)
-  const baseW = 'min(35vw, 260px)'
+  // True scale: artwork.widthCm * px-per-cm. Falls back to fluid 35vw cap if unknown.
+  const baseW: string =
+    pxPerCm && artwork.widthCm > 0
+      ? `${Math.round(artwork.widthCm * pxPerCm)}px`
+      : 'min(35vw, 260px)'
 
   return (
     <div
