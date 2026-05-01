@@ -137,7 +137,8 @@ function FirstPersonControls() {
     camera.getWorldDirection(dir.current)
     dir.current.y = 0
     dir.current.normalize()
-    const right = new THREE.Vector3().crossVectors(dir.current, new THREE.Vector3(0, 1, 0)).negate()
+    // forward × up gives a +X-pointing right vector in three.js right-handed coords
+    const right = new THREE.Vector3().crossVectors(dir.current, new THREE.Vector3(0, 1, 0))
     if (k['KeyW'] || k['ArrowUp']) camera.position.addScaledVector(dir.current, speed)
     if (k['KeyS'] || k['ArrowDown']) camera.position.addScaledVector(dir.current, -speed)
     if (k['KeyA'] || k['ArrowLeft']) camera.position.addScaledVector(right, -speed)
