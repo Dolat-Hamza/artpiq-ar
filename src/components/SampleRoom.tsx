@@ -19,9 +19,34 @@ interface Placed {
   cy: number
   widthCm: number
   frame: FrameState
+  rotation: number // degrees
+  matteColor: string // hex
+  shadowStrength: number // 0..2
 }
 
 const DEFAULT_FRAME: FrameState = { style: 'thin-black', widthMm: 30, matteMm: 0 }
+const DEFAULT_MATTE = '#ffffff'
+
+const MATTE_PALETTE: { value: string; label: string }[] = [
+  { value: '#ffffff', label: 'White' },
+  { value: '#fafaf7', label: 'Off-white' },
+  { value: '#e9e3d5', label: 'Cream' },
+  { value: '#cfc8b6', label: 'Oat' },
+  { value: '#9aa0a6', label: 'Grey' },
+  { value: '#1c1c1c', label: 'Black' },
+]
+
+type LightingMode = 'neutral' | 'warm' | 'cool' | 'dim' | 'spotlight'
+const LIGHTING_OVERLAY: Record<LightingMode, { bg: string; mix: string; label: string }> = {
+  neutral: { bg: 'transparent', mix: 'normal', label: 'Neutral' },
+  warm:    { bg: 'rgba(255, 175, 80, 0.12)',  mix: 'multiply', label: 'Warm' },
+  cool:    { bg: 'rgba(80, 140, 220, 0.12)',  mix: 'multiply', label: 'Cool' },
+  dim:     { bg: 'rgba(0, 0, 0, 0.28)',       mix: 'multiply', label: 'Dim' },
+  spotlight:{ bg: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.20) 0%, rgba(0,0,0,0.45) 70%)', mix: 'multiply', label: 'Spotlight' },
+}
+
+type RoomCategory = 'all' | 'living' | 'bedroom' | 'office' | 'kitchen' | 'gallery' | 'plain'
+const ROOM_CATEGORIES: RoomCategory[] = ['all', 'living', 'bedroom', 'office', 'kitchen', 'gallery', 'plain']
 
 async function loadImgViaFetch(url: string): Promise<HTMLImageElement> {
   // Fetch -> blob -> object URL avoids CORS-tainted canvas exports.
@@ -61,6 +86,13 @@ function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
 
+// Scale a CSS box-shadow string by a multiplier on its blur + offset + alpha.
+function scaleShadow(shadow: string, k: number): string {
+  if (!shadow || k === 1) return shadow
+  if (k === 0) return 'none'
+  return shadow.replace(/(-?\d+(?:\.\d+)?)px/g, (_, n) => `${(parseFloat(n) * k).toFixed(1)}px`)
+}
+
 export default function SampleRoom() {
   const { artworks, showToast } = useStore()
   const [room, setRoom] = useState<StockRoom>(STOCK_ROOMS[0])
@@ -70,7 +102,9 @@ export default function SampleRoom() {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
   const [stageW, setStageW] = useState(0)
-  const [dockTab, setDockTab] = useState<'rooms' | 'artworks' | 'tools'>('artworks')
+  const [dockTab, setDockTab] = useState<'rooms' | 'artworks' | 'tools' | 'lighting'>('artworks')
+  const [lighting, setLighting] = useState<LightingMode>('neutral')
+  const [roomCat, setRoomCat] = useState<RoomCategory>('all')
   // Sequence mode
   const [sequence, setSequence] = useState<StockRoom[] | null>(null)
   const [sequenceIdx, setSequenceIdx] = useState(0)
@@ -85,8 +119,12 @@ export default function SampleRoom() {
     startCy: number
     startX: number
     startY: number
-    mode: 'move' | 'resize'
+    mode: 'move' | 'resize' | 'rotate'
     startWidthCm: number
+    startRotation: number
+    pivotX: number
+    pivotY: number
+    startAngle: number
   } | null>(null)
 
   const artworkById = useMemo(() => {
@@ -145,6 +183,9 @@ export default function SampleRoom() {
         cy: Math.min(0.95, cy + offset),
         widthCm: initWidth,
         frame: { ...DEFAULT_FRAME },
+        rotation: 0,
+        matteColor: DEFAULT_MATTE,
+        shadowStrength: 1,
       },
     ])
     setSelectedId(id)
@@ -167,13 +208,17 @@ export default function SampleRoom() {
 
   // Drag handlers ------------------------------------------------------------
   const onPointerDown = useCallback(
-    (e: React.PointerEvent, id: string, mode: 'move' | 'resize') => {
-      if (!stageRef.current) return
+    (e: React.PointerEvent, id: string, mode: 'move' | 'resize' | 'rotate') => {
+      if (!stageRef.current || !imgRef.current) return
       e.stopPropagation()
       const target = placed.find(p => p.id === id)
       if (!target) return
       ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
       setSelectedId(id)
+      const stageRect = imgRef.current.getBoundingClientRect()
+      const pivotX = stageRect.left + target.cx * stageRect.width
+      const pivotY = stageRect.top + target.cy * stageRect.height
+      const startAngle = Math.atan2(e.clientY - pivotY, e.clientX - pivotX) * (180 / Math.PI)
       dragRef.current = {
         id,
         startCx: target.cx,
@@ -182,6 +227,10 @@ export default function SampleRoom() {
         startY: e.clientY,
         mode,
         startWidthCm: target.widthCm,
+        startRotation: target.rotation,
+        pivotX,
+        pivotY,
+        startAngle,
       }
     },
     [placed],
@@ -201,11 +250,19 @@ export default function SampleRoom() {
           cx: Math.max(0.02, Math.min(0.98, ref.startCx + ndx)),
           cy: Math.max(0.02, Math.min(0.98, ref.startCy + ndy)),
         })
-      } else {
+      } else if (ref.mode === 'resize') {
         if (!pxPerCm) return
         const dCm = (dx + dy) / pxPerCm / 2
         const nextW = Math.max(5, Math.min(500, ref.startWidthCm + dCm))
         updatePlaced(ref.id, { widthCm: nextW })
+      } else {
+        // rotate
+        const angle = Math.atan2(e.clientY - ref.pivotY, e.clientX - ref.pivotX) * (180 / Math.PI)
+        const delta = angle - ref.startAngle
+        let next = ref.startRotation + delta
+        // Snap every 22.5° while shift-ish slow drag — simple snap to 5°
+        next = Math.round(next / 1) // no-op, kept for future snap
+        updatePlaced(ref.id, { rotation: next })
       }
     },
     [pxPerCm],
@@ -241,6 +298,23 @@ export default function SampleRoom() {
     canvas.height = H
     const ctx = canvas.getContext('2d')!
     ctx.drawImage(bg, 0, 0, W, H)
+
+    // Lighting overlay (mirrors on-screen overlay)
+    if (lighting !== 'neutral') {
+      ctx.save()
+      ctx.globalCompositeOperation = 'multiply'
+      if (lighting === 'spotlight') {
+        const grad = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.4, Math.max(W, H) * 0.7)
+        grad.addColorStop(0, 'rgba(255,255,255,0.20)')
+        grad.addColorStop(1, 'rgba(0,0,0,0.45)')
+        ctx.fillStyle = grad
+      } else if (lighting === 'warm') ctx.fillStyle = 'rgba(255,175,80,0.12)'
+      else if (lighting === 'cool') ctx.fillStyle = 'rgba(80,140,220,0.12)'
+      else if (lighting === 'dim') ctx.fillStyle = 'rgba(0,0,0,0.28)'
+      ctx.fillRect(0, 0, W, H)
+      ctx.restore()
+    }
+
     const quadPxFull = quadWidthPx(room.wallQuad, W)
     const ppcFull = quadPxFull / room.wallWidthCm
     for (const item of placed) {
@@ -253,15 +327,31 @@ export default function SampleRoom() {
       const fw = (item.frame.widthMm / 10) * ppcFull
       const totalW = aw_w + (matte + fw) * 2
       const totalH = aw_h + (matte + fw) * 2
-      const x = item.cx * W - totalW / 2
-      const y = item.cy * H - totalH / 2
+      const cx = item.cx * W
+      const cy = item.cy * H
       const preset = FRAME_PRESETS[item.frame.style]
+
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate((item.rotation * Math.PI) / 180)
+      // Shadow scaled by item.shadowStrength
+      if (item.shadowStrength > 0 && item.frame.style !== 'none') {
+        ctx.shadowColor = `rgba(0,0,0,${0.22 * item.shadowStrength})`
+        ctx.shadowBlur = 14 * item.shadowStrength
+        ctx.shadowOffsetY = 8 * item.shadowStrength
+      }
+      const x = -totalW / 2
+      const y = -totalH / 2
       if (item.frame.style !== 'none') {
         ctx.fillStyle = preset.borderColor
         ctx.fillRect(x, y, totalW, totalH)
       }
+      // Reset shadow before matte/img so it doesn't double up
+      ctx.shadowColor = 'transparent'
+      ctx.shadowBlur = 0
+      ctx.shadowOffsetY = 0
       if (matte > 0) {
-        ctx.fillStyle = preset.matteColor
+        ctx.fillStyle = item.matteColor
         ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
       }
       try {
@@ -270,6 +360,7 @@ export default function SampleRoom() {
       } catch {
         // skip if artwork image fails
       }
+      ctx.restore()
     }
     return await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92),
@@ -329,46 +420,11 @@ export default function SampleRoom() {
     if (!placed.length || exporting) return
     setExporting(true)
     try {
-      const bg = await loadImg(room.image)
-      const W = bg.naturalWidth
-      const H = bg.naturalHeight
-      const canvas = document.createElement('canvas')
-      canvas.width = W
-      canvas.height = H
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(bg, 0, 0, W, H)
-
-      const quadPxFull = quadWidthPx(room.wallQuad, W)
-      const ppcFull = quadPxFull / room.wallWidthCm
-
-      for (const item of placed) {
-        const aw = artworkById.get(item.artworkId)
-        if (!aw || !aw.image) continue
-        const ar = aw.heightCm / aw.widthCm
-        const aw_w = item.widthCm * ppcFull
-        const aw_h = item.widthCm * ar * ppcFull
-        const matte = (item.frame.matteMm / 10) * ppcFull
-        const fw = (item.frame.widthMm / 10) * ppcFull
-        const totalW = aw_w + (matte + fw) * 2
-        const totalH = aw_h + (matte + fw) * 2
-        const x = item.cx * W - totalW / 2
-        const y = item.cy * H - totalH / 2
-        const preset = FRAME_PRESETS[item.frame.style]
-        if (item.frame.style !== 'none') {
-          ctx.fillStyle = preset.borderColor
-          ctx.fillRect(x, y, totalW, totalH)
-        }
-        if (matte > 0) {
-          ctx.fillStyle = preset.matteColor
-          ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
-        }
-        const img = await loadImg(aw.image)
-        ctx.drawImage(img, x + fw + matte, y + fw + matte, aw_w, aw_h)
+      const blob = await captureCurrentRoom()
+      if (!blob) {
+        showToast('Nothing to save')
+        return
       }
-
-      const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92),
-      )
       const url = URL.createObjectURL(blob)
       const slug = (s: string) =>
         (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
@@ -485,6 +541,17 @@ export default function SampleRoom() {
               }}
               draggable={false}
             />
+            {/* Lighting overlay above room photo, below artworks */}
+            {lighting !== 'neutral' && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: LIGHTING_OVERLAY[lighting].bg,
+                  mixBlendMode: LIGHTING_OVERLAY[lighting].mix as React.CSSProperties['mixBlendMode'],
+                  zIndex: 1,
+                }}
+              />
+            )}
             {pxPerCm &&
               placed.map(item => {
                 const aw = artworkById.get(item.artworkId)
@@ -509,11 +576,11 @@ export default function SampleRoom() {
                     style={{
                       left: `${item.cx * 100}%`,
                       top: `${item.cy * 100}%`,
-                      transform: 'translate(-50%, -50%)',
+                      transform: `translate(-50%, -50%) rotate(${item.rotation}deg)`,
                       width: w + (matte + fw) * 2,
                       height: h + (matte + fw) * 2,
                       background: FRAME_PRESETS[item.frame.style].borderColor,
-                      boxShadow: FRAME_PRESETS[item.frame.style].shadow,
+                      boxShadow: scaleShadow(FRAME_PRESETS[item.frame.style].shadow, item.shadowStrength),
                       touchAction: 'none',
                     }}
                   >
@@ -521,7 +588,7 @@ export default function SampleRoom() {
                       style={{
                         position: 'absolute',
                         inset: fw,
-                        background: FRAME_PRESETS[item.frame.style].matteColor,
+                        background: item.matteColor,
                         pointerEvents: 'none',
                       }}
                     >
@@ -540,7 +607,7 @@ export default function SampleRoom() {
                         />
                       )}
                     </div>
-                    {/* Remove + Resize — only when selected */}
+                    {/* Remove + Resize + Rotate — only when selected */}
                     {isSelected && (
                       <>
                         <button
@@ -558,6 +625,13 @@ export default function SampleRoom() {
                           className="absolute -right-2 -bottom-2 w-5 h-5 bg-ink border-2 border-paper cursor-nwse-resize"
                           style={{ touchAction: 'none' }}
                           aria-label="Resize"
+                        />
+                        <div
+                          onPointerDown={e => onPointerDown(e, item.id, 'rotate')}
+                          className="absolute -left-2 -top-2 w-5 h-5 bg-paper border-2 border-ink rounded-full cursor-grab"
+                          style={{ touchAction: 'none' }}
+                          aria-label="Rotate"
+                          title="Drag to rotate"
                         />
                       </>
                     )}
@@ -602,7 +676,7 @@ export default function SampleRoom() {
         {/* Bottom dock — ArtPlacer-style tab dock */}
         <div className="border-t border-line bg-paper flex-shrink-0">
           <div className="flex items-center px-4 md:px-8 h-10 gap-1 border-b border-line">
-            {(['rooms', 'artworks', 'tools'] as const).map(t => (
+            {(['rooms', 'artworks', 'lighting', 'tools'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setDockTab(t)}
@@ -614,6 +688,7 @@ export default function SampleRoom() {
               >
                 {t === 'rooms' && `Rooms (${STOCK_ROOMS.length})`}
                 {t === 'artworks' && `Artworks (${artworks.length})`}
+                {t === 'lighting' && `Lighting · ${LIGHTING_OVERLAY[lighting].label}`}
                 {t === 'tools' && (selected ? 'Edit selected' : 'Tools')}
               </button>
             ))}
@@ -634,21 +709,55 @@ export default function SampleRoom() {
           </div>
           <div className="px-4 md:px-8 py-3 max-h-[200px] overflow-y-auto">
             {dockTab === 'rooms' && (
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {STOCK_ROOMS.map(r => (
+              <div>
+                <div className="flex gap-1 mb-2 flex-wrap">
+                  {ROOM_CATEGORIES.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setRoomCat(cat)}
+                      className={`px-2.5 h-7 text-[10px] tracking-[0.16em] uppercase border ${
+                        roomCat === cat
+                          ? 'bg-ink text-paper border-ink'
+                          : 'border-line text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {STOCK_ROOMS.filter(r => roomCat === 'all' || r.category === roomCat).map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setRoom(r)}
+                      className={`shrink-0 border ${
+                        r.id === room.id ? 'border-ink ring-2 ring-ink' : 'border-line'
+                      }`}
+                      title={r.name}
+                    >
+                      <img
+                        src={r.thumb}
+                        alt={r.name}
+                        className="w-28 h-20 object-cover block"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {dockTab === 'lighting' && (
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(LIGHTING_OVERLAY) as LightingMode[]).map(mode => (
                   <button
-                    key={r.id}
-                    onClick={() => setRoom(r)}
-                    className={`shrink-0 border ${
-                      r.id === room.id ? 'border-ink ring-2 ring-ink' : 'border-line'
+                    key={mode}
+                    onClick={() => setLighting(mode)}
+                    className={`px-3 h-9 text-[11px] tracking-[0.16em] uppercase border ${
+                      lighting === mode
+                        ? 'bg-ink text-paper border-ink'
+                        : 'border-line text-ink-muted hover:text-ink'
                     }`}
-                    title={r.name}
                   >
-                    <img
-                      src={r.thumb}
-                      alt={r.name}
-                      className="w-28 h-20 object-cover block"
-                    />
+                    {LIGHTING_OVERLAY[mode].label}
                   </button>
                 ))}
               </div>
@@ -699,6 +808,45 @@ export default function SampleRoom() {
                         max={120}
                         value={selected.frame.matteMm}
                         onChange={v => updateFrame(selected.id, { matteMm: v })}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1">
+                        Matte color
+                      </p>
+                      <div className="flex gap-1">
+                        {MATTE_PALETTE.map(m => (
+                          <button
+                            key={m.value}
+                            onClick={() => updatePlaced(selected.id, { matteColor: m.value })}
+                            className={`w-7 h-7 border ${
+                              selected.matteColor === m.value
+                                ? 'ring-2 ring-ink border-ink'
+                                : 'border-line'
+                            }`}
+                            style={{ background: m.value }}
+                            title={m.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="min-w-[180px]">
+                      <Slider
+                        label={`Rotation: ${selected.rotation.toFixed(0)}°`}
+                        min={-45}
+                        max={45}
+                        value={selected.rotation}
+                        onChange={v => updatePlaced(selected.id, { rotation: v })}
+                      />
+                    </div>
+                    <div className="min-w-[180px]">
+                      <Slider
+                        label={`Shadow: ${(selected.shadowStrength * 100).toFixed(0)}%`}
+                        min={0}
+                        max={2}
+                        step={0.05}
+                        value={selected.shadowStrength}
+                        onChange={v => updatePlaced(selected.id, { shadowStrength: v })}
                       />
                     </div>
                   </>
@@ -870,6 +1018,7 @@ function Slider({
   label,
   min,
   max,
+  step,
   value,
   onChange,
   disabled,
@@ -877,6 +1026,7 @@ function Slider({
   label: string
   min: number
   max: number
+  step?: number
   value: number
   onChange: (n: number) => void
   disabled?: boolean
@@ -890,6 +1040,7 @@ function Slider({
         type="range"
         min={min}
         max={max}
+        step={step ?? 1}
         value={value}
         disabled={disabled}
         onChange={e => onChange(Number(e.target.value))}
