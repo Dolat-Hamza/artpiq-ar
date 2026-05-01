@@ -551,6 +551,37 @@ export default function SampleRoom() {
                       style={{ touchAction: 'none' }}
                       aria-label="Resize"
                     />
+                    {/* Floating frame toolbar — sits directly beneath artwork when selected */}
+                    {isSelected && (
+                      <div
+                        className="absolute left-1/2 top-full mt-3 -translate-x-1/2 flex items-center gap-1 bg-paper border border-ink shadow-md px-1.5 py-1 z-20"
+                        onPointerDown={e => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {FRAME_STYLES.map(s => (
+                          <button
+                            key={s}
+                            onClick={() => updateFrame(item.id, { style: s })}
+                            title={FRAME_PRESETS[s].label}
+                            className={`w-6 h-6 border ${
+                              item.frame.style === s
+                                ? 'ring-2 ring-ink'
+                                : 'border-line'
+                            }`}
+                            style={{
+                              background:
+                                s === 'none'
+                                  ? '#ffffff'
+                                  : FRAME_PRESETS[s].borderColor,
+                            }}
+                          />
+                        ))}
+                        <span className="mx-1 h-5 w-px bg-line" />
+                        <span className="text-[11px] tracking-[0.14em] uppercase text-ink-muted px-1 tabular-nums">
+                          {item.widthCm.toFixed(0)} × {(item.widthCm * (aw.heightCm / aw.widthCm)).toFixed(0)} cm
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )
               })}
