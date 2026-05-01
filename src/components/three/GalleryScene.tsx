@@ -66,13 +66,16 @@ function ArtworkPlane({
   const halfRoom = ROOM_W / 2
   const along = (position01 - 0.5) * (ROOM_W - 2)
   const y = ROOM_H * Math.min(0.85, Math.max(0.15, height01))
-  // Compute world position based on wall index
+  // Compute world position. Wall boxes are 0.1m thick centered at ±halfRoom; their
+  // room-facing surface sits at ±(halfRoom - WALL_THICKNESS/2). Push art ~0.05m off
+  // the surface into the room so it's clearly in front of the wall material.
+  const offset = WALL_THICKNESS / 2 + 0.05 // 0.10 m total inset from outer edge
   let pos: [number, number, number]
-  let rotY = w.rotationY
-  if (wall === 0) pos = [along, y, -halfRoom + 0.05]
-  else if (wall === 1) pos = [halfRoom - 0.05, y, along]
-  else if (wall === 2) pos = [-along, y, halfRoom - 0.05]
-  else pos = [-halfRoom + 0.05, y, -along]
+  const rotY = w.rotationY
+  if (wall === 0) pos = [along, y, -halfRoom + offset]
+  else if (wall === 1) pos = [halfRoom - offset, y, along]
+  else if (wall === 2) pos = [-along, y, halfRoom - offset]
+  else pos = [-halfRoom + offset, y, -along]
   return (
     <group position={pos} rotation={[0, rotY, 0]}>
       {/* Frame backing */}
