@@ -21,7 +21,35 @@ interface Placed {
   frame: FrameState
   rotation: number // degrees
   matteColor: string // hex
-  shadowStrength: number // 0..2
+  shadowOpacity: number // 0..1
+  shadowSpread: number // 0..40 px (base)
+}
+
+// ArtPlacer-parity lighting model: per-channel B/C/S sliders, applied separately
+// to room background, placed artwork images, and shadow casting.
+export interface BCS {
+  brightness: number // 0..200 (100 = neutral)
+  contrast: number
+  saturation: number
+}
+const NEUTRAL_BCS: BCS = { brightness: 100, contrast: 100, saturation: 100 }
+
+export interface LightingState {
+  room: BCS
+  artwork: BCS
+  // Shadow channel only multiplies opacity/spread of the per-piece shadow (global).
+  shadowGlobalOpacity: number // 0..200
+  shadowGlobalSpread: number // 0..200
+}
+const NEUTRAL_LIGHTING: LightingState = {
+  room: { ...NEUTRAL_BCS },
+  artwork: { ...NEUTRAL_BCS },
+  shadowGlobalOpacity: 100,
+  shadowGlobalSpread: 100,
+}
+
+function bcsToFilter(bcs: BCS): string {
+  return `brightness(${bcs.brightness}%) contrast(${bcs.contrast}%) saturate(${bcs.saturation}%)`
 }
 
 const DEFAULT_FRAME: FrameState = { style: 'thin-black', widthMm: 30, matteMm: 0 }
@@ -36,14 +64,8 @@ const MATTE_PALETTE: { value: string; label: string }[] = [
   { value: '#1c1c1c', label: 'Black' },
 ]
 
-type LightingMode = 'neutral' | 'warm' | 'cool' | 'dim' | 'spotlight'
-const LIGHTING_OVERLAY: Record<LightingMode, { bg: string; mix: string; label: string }> = {
-  neutral: { bg: 'transparent', mix: 'normal', label: 'Neutral' },
-  warm:    { bg: 'rgba(255, 175, 80, 0.12)',  mix: 'multiply', label: 'Warm' },
-  cool:    { bg: 'rgba(80, 140, 220, 0.12)',  mix: 'multiply', label: 'Cool' },
-  dim:     { bg: 'rgba(0, 0, 0, 0.28)',       mix: 'multiply', label: 'Dim' },
-  spotlight:{ bg: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.20) 0%, rgba(0,0,0,0.45) 70%)', mix: 'multiply', label: 'Spotlight' },
-}
+// Lighting sub-tabs in dock
+type LightingSubtab = 'room' | 'artwork' | 'shadow'
 
 type RoomCategory = 'all' | 'living' | 'bedroom' | 'office' | 'kitchen' | 'gallery' | 'plain'
 const ROOM_CATEGORIES: RoomCategory[] = ['all', 'living', 'bedroom', 'office', 'kitchen', 'gallery', 'plain']
@@ -86,11 +108,17 @@ function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
 
-// Scale a CSS box-shadow string by a multiplier on its blur + offset + alpha.
-function scaleShadow(shadow: string, k: number): string {
-  if (!shadow || k === 1) return shadow
-  if (k === 0) return 'none'
-  return shadow.replace(/(-?\d+(?:\.\d+)?)px/g, (_, n) => `${(parseFloat(n) * k).toFixed(1)}px`)
+// Compose a box-shadow string from a placed piece's per-item shadow values
+// modulated by global lighting shadow channel.
+function composeShadow(
+  item: { frame: { style: string }; shadowOpacity: number; shadowSpread: number },
+  lighting: LightingState,
+): string {
+  if (item.frame.style === 'none' || item.shadowOpacity === 0) return 'none'
+  const opacity = item.shadowOpacity * (lighting.shadowGlobalOpacity / 100)
+  const spread = item.shadowSpread * (lighting.shadowGlobalSpread / 100)
+  const offsetY = spread * 0.5
+  return `0 ${offsetY.toFixed(1)}px ${spread.toFixed(1)}px rgba(0,0,0,${opacity.toFixed(3)})`
 }
 
 export default function SampleRoom() {
@@ -102,8 +130,9 @@ export default function SampleRoom() {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
   const [stageW, setStageW] = useState(0)
-  const [dockTab, setDockTab] = useState<'rooms' | 'artworks' | 'tools' | 'lighting'>('artworks')
-  const [lighting, setLighting] = useState<LightingMode>('neutral')
+  const [dockTab, setDockTab] = useState<'artworks' | 'lighting' | 'customize' | 'rooms' | 'tools'>('artworks')
+  const [lighting, setLighting] = useState<LightingState>(NEUTRAL_LIGHTING)
+  const [lightingSub, setLightingSub] = useState<LightingSubtab>('room')
   const [roomCat, setRoomCat] = useState<RoomCategory>('all')
   // Sequence mode
   const [sequence, setSequence] = useState<StockRoom[] | null>(null)
@@ -185,7 +214,8 @@ export default function SampleRoom() {
         frame: { ...DEFAULT_FRAME },
         rotation: 0,
         matteColor: DEFAULT_MATTE,
-        shadowStrength: 1,
+        shadowOpacity: 0.22,
+        shadowSpread: 14,
       },
     ])
     setSelectedId(id)
@@ -297,23 +327,11 @@ export default function SampleRoom() {
     canvas.width = W
     canvas.height = H
     const ctx = canvas.getContext('2d')!
+    // Room BCS — apply via canvas filter while drawing background
+    ctx.save()
+    ctx.filter = bcsToFilter(lighting.room)
     ctx.drawImage(bg, 0, 0, W, H)
-
-    // Lighting overlay (mirrors on-screen overlay)
-    if (lighting !== 'neutral') {
-      ctx.save()
-      ctx.globalCompositeOperation = 'multiply'
-      if (lighting === 'spotlight') {
-        const grad = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.4, Math.max(W, H) * 0.7)
-        grad.addColorStop(0, 'rgba(255,255,255,0.20)')
-        grad.addColorStop(1, 'rgba(0,0,0,0.45)')
-        ctx.fillStyle = grad
-      } else if (lighting === 'warm') ctx.fillStyle = 'rgba(255,175,80,0.12)'
-      else if (lighting === 'cool') ctx.fillStyle = 'rgba(80,140,220,0.12)'
-      else if (lighting === 'dim') ctx.fillStyle = 'rgba(0,0,0,0.28)'
-      ctx.fillRect(0, 0, W, H)
-      ctx.restore()
-    }
+    ctx.restore()
 
     const quadPxFull = quadWidthPx(room.wallQuad, W)
     const ppcFull = quadPxFull / room.wallWidthCm
@@ -334,11 +352,13 @@ export default function SampleRoom() {
       ctx.save()
       ctx.translate(cx, cy)
       ctx.rotate((item.rotation * Math.PI) / 180)
-      // Shadow scaled by item.shadowStrength
-      if (item.shadowStrength > 0 && item.frame.style !== 'none') {
-        ctx.shadowColor = `rgba(0,0,0,${0.22 * item.shadowStrength})`
-        ctx.shadowBlur = 14 * item.shadowStrength
-        ctx.shadowOffsetY = 8 * item.shadowStrength
+      // Shadow: per-piece opacity/spread modulated by global lighting shadow channel
+      if (item.frame.style !== 'none' && item.shadowOpacity > 0) {
+        const opacity = item.shadowOpacity * (lighting.shadowGlobalOpacity / 100)
+        const spread = item.shadowSpread * (lighting.shadowGlobalSpread / 100)
+        ctx.shadowColor = `rgba(0,0,0,${opacity})`
+        ctx.shadowBlur = spread
+        ctx.shadowOffsetY = spread * 0.5
       }
       const x = -totalW / 2
       const y = -totalH / 2
@@ -356,7 +376,11 @@ export default function SampleRoom() {
       }
       try {
         const img = await loadImg(aw.image)
+        // Apply artwork BCS via canvas filter
+        ctx.save()
+        ctx.filter = bcsToFilter(lighting.artwork)
         ctx.drawImage(img, x + fw + matte, y + fw + matte, aw_w, aw_h)
+        ctx.restore()
       } catch {
         // skip if artwork image fails
       }
@@ -529,7 +553,7 @@ export default function SampleRoom() {
               src={room.image}
               alt={room.name}
               className="block w-auto h-auto max-w-full mx-auto"
-              style={{ maxHeight: 'calc(100vh - 320px)' }}
+              style={{ maxHeight: 'calc(100vh - 320px)', filter: bcsToFilter(lighting.room) }}
               onLoad={() => {
                 setImgLoaded(true)
                 setImgLoading(false)
@@ -541,17 +565,6 @@ export default function SampleRoom() {
               }}
               draggable={false}
             />
-            {/* Lighting overlay above room photo, below artworks */}
-            {lighting !== 'neutral' && (
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: LIGHTING_OVERLAY[lighting].bg,
-                  mixBlendMode: LIGHTING_OVERLAY[lighting].mix as React.CSSProperties['mixBlendMode'],
-                  zIndex: 1,
-                }}
-              />
-            )}
             {pxPerCm &&
               placed.map(item => {
                 const aw = artworkById.get(item.artworkId)
@@ -580,7 +593,7 @@ export default function SampleRoom() {
                       width: w + (matte + fw) * 2,
                       height: h + (matte + fw) * 2,
                       background: FRAME_PRESETS[item.frame.style].borderColor,
-                      boxShadow: scaleShadow(FRAME_PRESETS[item.frame.style].shadow, item.shadowStrength),
+                      boxShadow: composeShadow(item, lighting),
                       touchAction: 'none',
                     }}
                   >
@@ -596,12 +609,13 @@ export default function SampleRoom() {
                         <img
                           src={aw.image}
                           alt={aw.title}
-                                      style={{
+                          style={{
                             position: 'absolute',
                             inset: matte,
                             width: `calc(100% - ${matte * 2}px)`,
                             height: `calc(100% - ${matte * 2}px)`,
                             objectFit: 'fill',
+                            filter: bcsToFilter(lighting.artwork),
                           }}
                           draggable={false}
                         />
@@ -676,7 +690,7 @@ export default function SampleRoom() {
         {/* Bottom dock — ArtPlacer-style tab dock */}
         <div className="border-t border-line bg-paper flex-shrink-0">
           <div className="flex items-center px-4 md:px-8 h-10 gap-1 border-b border-line">
-            {(['rooms', 'artworks', 'lighting', 'tools'] as const).map(t => (
+            {(['artworks', 'lighting', 'customize', 'rooms', 'tools'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setDockTab(t)}
@@ -686,9 +700,10 @@ export default function SampleRoom() {
                     : 'text-ink-muted hover:text-ink'
                 }`}
               >
-                {t === 'rooms' && `Rooms (${STOCK_ROOMS.length})`}
                 {t === 'artworks' && `Artworks (${artworks.length})`}
-                {t === 'lighting' && `Lighting · ${LIGHTING_OVERLAY[lighting].label}`}
+                {t === 'lighting' && 'Lighting'}
+                {t === 'customize' && 'Customize'}
+                {t === 'rooms' && `Rooms (${STOCK_ROOMS.length})`}
                 {t === 'tools' && (selected ? 'Edit selected' : 'Tools')}
               </button>
             ))}
@@ -746,21 +761,77 @@ export default function SampleRoom() {
               </div>
             )}
             {dockTab === 'lighting' && (
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(LIGHTING_OVERLAY) as LightingMode[]).map(mode => (
+              <div>
+                <div className="flex gap-1 mb-3">
+                  {(['room', 'artwork', 'shadow'] as LightingSubtab[]).map(sub => (
+                    <button
+                      key={sub}
+                      onClick={() => setLightingSub(sub)}
+                      disabled={sub === 'shadow' && !selected}
+                      className={`px-3 h-7 text-[10px] tracking-[0.18em] uppercase ${
+                        lightingSub === sub
+                          ? 'border-b-2 border-ink text-ink -mb-px'
+                          : 'text-ink-muted hover:text-ink'
+                      } ${sub === 'shadow' && !selected ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
                   <button
-                    key={mode}
-                    onClick={() => setLighting(mode)}
-                    className={`px-3 h-9 text-[11px] tracking-[0.16em] uppercase border ${
-                      lighting === mode
-                        ? 'bg-ink text-paper border-ink'
-                        : 'border-line text-ink-muted hover:text-ink'
-                    }`}
+                    onClick={() => {
+                      if (lightingSub === 'room') setLighting(l => ({ ...l, room: { ...NEUTRAL_BCS } }))
+                      else if (lightingSub === 'artwork') setLighting(l => ({ ...l, artwork: { ...NEUTRAL_BCS } }))
+                      else if (lightingSub === 'shadow' && selected) {
+                        updatePlaced(selected.id, { shadowOpacity: 0.22, shadowSpread: 14 })
+                      }
+                    }}
+                    className="ml-auto text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
                   >
-                    {LIGHTING_OVERLAY[mode].label}
+                    Reset
                   </button>
-                ))}
+                </div>
+                {lightingSub === 'room' && (
+                  <BCSSliders
+                    bcs={lighting.room}
+                    onChange={v => setLighting(l => ({ ...l, room: v }))}
+                  />
+                )}
+                {lightingSub === 'artwork' && (
+                  <BCSSliders
+                    bcs={lighting.artwork}
+                    onChange={v => setLighting(l => ({ ...l, artwork: v }))}
+                  />
+                )}
+                {lightingSub === 'shadow' && selected && (
+                  <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
+                    <div className="min-w-[220px]">
+                      <Slider
+                        label={`Shadow opacity: ${(selected.shadowOpacity * 100).toFixed(0)}%`}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={selected.shadowOpacity}
+                        onChange={v => updatePlaced(selected.id, { shadowOpacity: v })}
+                      />
+                    </div>
+                    <div className="min-w-[220px]">
+                      <Slider
+                        label={`Shadow spread: ${selected.shadowSpread.toFixed(0)} px`}
+                        min={0}
+                        max={40}
+                        step={1}
+                        value={selected.shadowSpread}
+                        onChange={v => updatePlaced(selected.id, { shadowSpread: v })}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+            )}
+            {dockTab === 'customize' && (
+              <p className="text-[12px] text-ink-muted">
+                Wall color, crop, and zoom — coming in next ship.
+              </p>
             )}
             {dockTab === 'artworks' && (
               <ThumbStrip
@@ -841,12 +912,22 @@ export default function SampleRoom() {
                     </div>
                     <div className="min-w-[180px]">
                       <Slider
-                        label={`Shadow: ${(selected.shadowStrength * 100).toFixed(0)}%`}
+                        label={`Shadow opacity: ${(selected.shadowOpacity * 100).toFixed(0)}%`}
                         min={0}
-                        max={2}
-                        step={0.05}
-                        value={selected.shadowStrength}
-                        onChange={v => updatePlaced(selected.id, { shadowStrength: v })}
+                        max={1}
+                        step={0.01}
+                        value={selected.shadowOpacity}
+                        onChange={v => updatePlaced(selected.id, { shadowOpacity: v })}
+                      />
+                    </div>
+                    <div className="min-w-[180px]">
+                      <Slider
+                        label={`Shadow spread: ${selected.shadowSpread.toFixed(0)} px`}
+                        min={0}
+                        max={40}
+                        step={1}
+                        value={selected.shadowSpread}
+                        onChange={v => updatePlaced(selected.id, { shadowSpread: v })}
                       />
                     </div>
                   </>
@@ -928,6 +1009,43 @@ export default function SampleRoom() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function BCSSliders({ bcs, onChange }: { bcs: BCS; onChange: (b: BCS) => void }) {
+  return (
+    <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
+      <div className="min-w-[220px]">
+        <Slider
+          label={`Brightness: ${bcs.brightness}`}
+          min={0}
+          max={200}
+          step={1}
+          value={bcs.brightness}
+          onChange={v => onChange({ ...bcs, brightness: v })}
+        />
+      </div>
+      <div className="min-w-[220px]">
+        <Slider
+          label={`Contrast: ${bcs.contrast}`}
+          min={0}
+          max={200}
+          step={1}
+          value={bcs.contrast}
+          onChange={v => onChange({ ...bcs, contrast: v })}
+        />
+      </div>
+      <div className="min-w-[220px]">
+        <Slider
+          label={`Saturation: ${bcs.saturation}`}
+          min={0}
+          max={200}
+          step={1}
+          value={bcs.saturation}
+          onChange={v => onChange({ ...bcs, saturation: v })}
+        />
+      </div>
     </div>
   )
 }
