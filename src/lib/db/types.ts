@@ -15,6 +15,10 @@ export type Database = {
           artist: string | null
           collection: string | null
           colors: string[] | null
+          commission_pct: number | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
           currency: string | null
           depth_cm: number | null
@@ -22,6 +26,8 @@ export type Database = {
           height_cm: number
           id: string
           image_url: string | null
+          location_address: string | null
+          location_country: string | null
           material: string | null
           medium: string | null
           nft_url: string | null
@@ -33,13 +39,7 @@ export type Database = {
           sold: boolean
           status: string
           sqsp_sku: string | null
-          location_address: string | null
-          location_country: string | null
-          commission_pct: number | null
           tax_amount: number | null
-          contact_name: string | null
-          contact_email: string | null
-          contact_phone: string | null
           thumb_url: string | null
           title: string
           transparent: boolean
@@ -66,6 +66,9 @@ export type Database = {
           description: string | null
           cover_url: string | null
           privacy: string
+          slug: string | null
+          viewing_room_status: string | null
+          viewing_room_password: string | null
           created_at: string
           updated_at: string
         }
@@ -87,6 +90,51 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['artwork_collections']['Row']>
         Relationships: []
       }
+      design_folders: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          created_at: string
+        }
+        Insert: { name: string; owner_id: string; id?: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['design_folders']['Row']>
+        Relationships: []
+      }
+      saved_designs: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          room_id: string | null
+          my_wall_bg_url: string | null
+          placed: Json
+          lighting: Json
+          wall_color: string | null
+          customize: Json
+          thumb_url: string | null
+          folder_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['saved_designs']['Row']> & {
+          name: string
+          owner_id: string
+          placed: Json
+        }
+        Update: Partial<Database['public']['Tables']['saved_designs']['Row']>
+        Relationships: []
+      }
+      room_favorites: {
+        Row: {
+          owner_id: string
+          room_id: string
+          created_at: string
+        }
+        Insert: { owner_id: string; room_id: string; created_at?: string }
+        Update: Partial<Database['public']['Tables']['room_favorites']['Row']>
+        Relationships: []
+      }
       stock_rooms: {
         Row: {
           category: string
@@ -94,8 +142,12 @@ export type Database = {
           id: string
           image_url: string
           name: string
+          orientation: string | null
+          perspective: string | null
+          smart: boolean | null
           thumb_url: string
           wall_quad: Json
+          wall_size: string | null
           wall_width_cm: number
         }
         Insert: Database['public']['Tables']['stock_rooms']['Row']
