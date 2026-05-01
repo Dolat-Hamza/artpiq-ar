@@ -29,14 +29,12 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
           if (sessionStorage.getItem(`vr-pw-${col.id}`) === col.viewingRoomPassword) {
             setAuthed(true)
             const rows = await listArtworksInLiveCollection(slug)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            setArtworks(rows.map((r: any) => rowToArtwork(r)))
+            setArtworks(rows.map(r => rowToArtwork(r as Parameters<typeof rowToArtwork>[0])))
           }
         } else {
           setAuthed(true)
           const rows = await listArtworksInLiveCollection(slug)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setArtworks(rows.map((r: any) => rowToArtwork(r)))
+          setArtworks(rows.map(r => rowToArtwork(r as Parameters<typeof rowToArtwork>[0])))
         }
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : 'load failed')
@@ -92,8 +90,7 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
               sessionStorage.setItem(`vr-pw-${collection.id}`, pwInput)
               setAuthed(true)
               const rows = await listArtworksInLiveCollection(slug)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              setArtworks(rows.map((r: any) => rowToArtwork(r)))
+              setArtworks(rows.map(r => rowToArtwork(r as Parameters<typeof rowToArtwork>[0])))
             } else {
               setErr('wrong-pw')
             }
