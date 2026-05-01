@@ -232,9 +232,16 @@ export default function SampleRoom() {
         canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92),
       )
       const url = URL.createObjectURL(blob)
+      const slug = (s: string) =>
+        (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+      const first = placed[0] ? artworkById.get(placed[0].artworkId) : null
+      const def = first
+        ? `${slug(first.title) || 'artwork'}_${slug(first.artist) || 'artist'}_01`
+        : `sample-room-${room.id}-${Date.now()}`
+      const name = prompt('Image filename (without .jpg)', def) || def
       const a = document.createElement('a')
       a.href = url
-      a.download = `sample-room-${room.id}-${Date.now()}.jpg`
+      a.download = `${name}.jpg`
       a.click()
       URL.revokeObjectURL(url)
       showToast('Image saved')

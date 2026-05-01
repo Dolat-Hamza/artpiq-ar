@@ -34,6 +34,13 @@ export function rowToArtwork(r: Row): Artwork {
     transparent: r.transparent,
     sqspSku: r.sqsp_sku ?? undefined,
     status: (r.status as ArtworkStatus) ?? 'for_sale',
+    locationAddress: r.location_address ?? undefined,
+    locationCountry: r.location_country ?? undefined,
+    commissionPct: r.commission_pct == null ? undefined : Number(r.commission_pct),
+    taxAmount: r.tax_amount == null ? undefined : Number(r.tax_amount),
+    contactName: r.contact_name ?? undefined,
+    contactEmail: r.contact_email ?? undefined,
+    contactPhone: r.contact_phone ?? undefined,
   }
 }
 
@@ -67,6 +74,13 @@ export function artworkToRow(a: Artwork, ownerId: string | null): Insert {
     wiki_title: a.wikiTitle ?? null,
     sqsp_sku: a.sqspSku ?? null,
     status: a.status ?? (a.sold ? 'sold' : 'for_sale'),
+    location_address: a.locationAddress ?? null,
+    location_country: a.locationCountry ?? null,
+    commission_pct: a.commissionPct ?? null,
+    tax_amount: a.taxAmount ?? null,
+    contact_name: a.contactName ?? null,
+    contact_email: a.contactEmail ?? null,
+    contact_phone: a.contactPhone ?? null,
   }
 }
 
