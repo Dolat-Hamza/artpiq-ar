@@ -74,7 +74,7 @@ export default function InboxAdmin() {
               {embedSnippet}
             </pre>
             <p className="text-[11px] text-ink-muted mt-1">
-              Or use the React component <code>&lt;NewsletterForm ownerId="{user.id}" /&gt;</code> directly.
+              Or use the React component <code>&lt;NewsletterForm ownerId={'{'}user.id{'}'} /&gt;</code> directly.
             </p>
           </div>
         )}
