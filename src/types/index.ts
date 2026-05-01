@@ -124,6 +124,48 @@ export interface DesignFolder {
   createdAt?: string
 }
 
+export interface DiscoverProfile {
+  ownerId: string
+  slug: string
+  displayName: string
+  bio?: string | null
+  heroImageUrl?: string | null
+  contactEmail?: string | null
+  social?: Record<string, string> // { instagram, twitter, website, ... }
+  theme?: { accent?: string; bg?: string }
+  published: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ArtShowWall {
+  id: string
+  x: number // normalized [0..1] of floor plan
+  y: number
+  length: number // normalized
+  rotation: number // degrees
+}
+
+export interface ArtShowPlacement {
+  id: string
+  artworkId: string
+  wallId: string
+  position: number // 0..1 along the wall
+  widthCm?: number
+}
+
+export interface ArtShow {
+  id: string
+  ownerId: string
+  name: string
+  venueName?: string | null
+  floorPlanUrl?: string | null
+  wallSegments: ArtShowWall[]
+  placements: ArtShowPlacement[]
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface Contact {
   id: string
   ownerId: string
