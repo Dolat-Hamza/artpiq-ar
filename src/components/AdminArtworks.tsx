@@ -804,92 +804,179 @@ function FilterBar({
 }) {
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) =>
     onChange({ ...filters, [k]: v })
+  const [open, setOpen] = useState<Record<string, boolean>>({
+    collection: true,
+    status: true,
+    type: true,
+    price: true,
+  })
+  const toggle = (k: string) => setOpen(s => ({ ...s, [k]: !s[k] }))
+  const dirty =
+    !!filters.q ||
+    filters.status !== 'all' ||
+    filters.type !== 'all' ||
+    filters.collectionId !== 'all' ||
+    !!filters.priceMin ||
+    !!filters.priceMax
   return (
-    <div className="border border-line p-4 mb-6 grid gap-3 grid-cols-1 md:grid-cols-6 text-[12px]">
+    <div className="text-[12px]">
+      {/* Search */}
       <input
         value={filters.q}
         onChange={e => set('q', e.target.value)}
-        placeholder="Search title / artist / medium…"
-        className="border border-line px-2 py-1.5 md:col-span-2"
+        placeholder="Search…"
+        className="w-full border border-line px-3 h-9 bg-paper text-[12px] mb-3"
       />
-      <select
-        value={filters.status}
-        onChange={e => set('status', e.target.value as Filters['status'])}
-        className="border border-line px-2 py-1.5 bg-paper"
-      >
-        <option value="all">All statuses</option>
-        {ARTWORK_STATUSES.map(s => (
-          <option key={s} value={s}>
-            {STATUS_LABEL[s]}
-          </option>
-        ))}
-      </select>
-      <select
-        value={filters.type}
-        onChange={e => set('type', e.target.value)}
-        className="border border-line px-2 py-1.5 bg-paper"
-      >
-        <option value="all">All types</option>
-        <option value="painting">Painting</option>
-        <option value="sculpture">Sculpture</option>
-        <option value="video">Video</option>
-        <option value="digital">Digital</option>
-      </select>
-      <select
-        value={filters.collectionId}
-        onChange={e => set('collectionId', e.target.value)}
-        className="border border-line px-2 py-1.5 bg-paper"
-      >
-        <option value="all">All collections</option>
+
+      <Section label="Collection" open={open.collection} onToggle={() => toggle('collection')}>
+        <RadioRow
+          name="col"
+          checked={filters.collectionId === 'all'}
+          onChange={() => set('collectionId', 'all')}
+          label={`All collections (${total})`}
+        />
         {collections.map(c => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
+          <RadioRow
+            key={c.id}
+            name="col"
+            checked={filters.collectionId === c.id}
+            onChange={() => set('collectionId', c.id)}
+            label={c.name}
+          />
         ))}
-      </select>
-      <div className="flex gap-1">
-        <input
-          value={filters.priceMin}
-          onChange={e => set('priceMin', e.target.value)}
-          placeholder="min €"
-          className="border border-line px-2 py-1.5 w-1/2 min-w-0"
-          inputMode="numeric"
+      </Section>
+
+      <Section label="Status" open={open.status} onToggle={() => toggle('status')}>
+        <RadioRow
+          name="st"
+          checked={filters.status === 'all'}
+          onChange={() => set('status', 'all')}
+          label="All statuses"
         />
-        <input
-          value={filters.priceMax}
-          onChange={e => set('priceMax', e.target.value)}
-          placeholder="max €"
-          className="border border-line px-2 py-1.5 w-1/2 min-w-0"
-          inputMode="numeric"
-        />
-      </div>
-      <p className="md:col-span-6 text-[11px] tracking-[0.16em] uppercase text-ink-muted">
-        Showing {shown} of {total}
-        {(filters.q ||
-          filters.status !== 'all' ||
-          filters.type !== 'all' ||
-          filters.collectionId !== 'all' ||
-          filters.priceMin ||
-          filters.priceMax) && (
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                q: '',
-                status: 'all',
-                type: 'all',
-                collectionId: 'all',
-                priceMin: '',
-                priceMax: '',
-              })
-            }
-            className="ml-3 underline normal-case tracking-normal"
-          >
-            Clear
-          </button>
-        )}
+        {ARTWORK_STATUSES.map(s => (
+          <RadioRow
+            key={s}
+            name="st"
+            checked={filters.status === s}
+            onChange={() => set('status', s)}
+            label={STATUS_LABEL[s]}
+          />
+        ))}
+      </Section>
+
+      <Section label="Type of artwork" open={open.type} onToggle={() => toggle('type')}>
+        {[
+          ['all', 'All types'],
+          ['painting', 'Painting'],
+          ['sculpture', 'Sculpture'],
+          ['video', 'Video'],
+          ['digital', 'Digital'],
+        ].map(([v, lbl]) => (
+          <RadioRow
+            key={v}
+            name="ty"
+            checked={filters.type === v}
+            onChange={() => set('type', v)}
+            label={lbl}
+          />
+        ))}
+      </Section>
+
+      <Section label="Price" open={open.price} onToggle={() => toggle('price')}>
+        <div className="flex gap-2">
+          <input
+            value={filters.priceMin}
+            onChange={e => set('priceMin', e.target.value)}
+            placeholder="min €"
+            className="border border-line px-2 h-8 w-1/2 min-w-0 bg-paper"
+            inputMode="numeric"
+          />
+          <input
+            value={filters.priceMax}
+            onChange={e => set('priceMax', e.target.value)}
+            placeholder="max €"
+            className="border border-line px-2 h-8 w-1/2 min-w-0 bg-paper"
+            inputMode="numeric"
+          />
+        </div>
+      </Section>
+
+      {dirty && (
+        <button
+          type="button"
+          onClick={() =>
+            onChange({
+              q: '',
+              status: 'all',
+              type: 'all',
+              collectionId: 'all',
+              priceMin: '',
+              priceMax: '',
+            })
+          }
+          className="mt-4 text-[11px] tracking-[0.14em] uppercase underline text-ink-muted hover:text-ink"
+        >
+          Clear filters
+        </button>
+      )}
+      <p className="mt-4 text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+        {shown} of {total}
       </p>
     </div>
+  )
+}
+
+function Section({
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="border-t border-line">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between py-3 text-[10px] tracking-[0.14em] uppercase font-bold text-ink"
+      >
+        {label}
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${open ? '' : '-rotate-90'} text-ink-muted`}
+        />
+      </button>
+      {open && <div className="pb-4 grid gap-1.5">{children}</div>}
+    </div>
+  )
+}
+
+function RadioRow({
+  name,
+  checked,
+  onChange,
+  label,
+}: {
+  name: string
+  checked: boolean
+  onChange: () => void
+  label: string
+}) {
+  return (
+    <label className="flex items-center gap-2 text-[12px] cursor-pointer hover:text-ink text-ink-soft">
+      <input
+        type="radio"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        className="accent-accent"
+      />
+      <span className="truncate">{label}</span>
+    </label>
   )
 }
 
