@@ -1,7 +1,7 @@
 # Graph Report - /Users/dolathamza/Documents/GitHub/artpiq-ar  (2026-05-04)
 
 ## Corpus Check
-- 81 files · ~37,609 words
+- 81 files · ~39,524 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -76,14 +76,14 @@
 ## Surprising Connections (you probably didn't know these)
 - `listFavorites()` --calls--> `supabase()`  [INFERRED]
   /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/favorites.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `listPublicArtworksByOwner()` --calls--> `supabase()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/discover.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `signOut()` --calls--> `supabase()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `captureCurrentRoom()` --calls--> `GET()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SampleRoom.tsx → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/api/ar/painting/[id]/route.ts
-- `confirmAndNext()` --calls--> `GET()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SampleRoom.tsx → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/api/ar/painting/[id]/route.ts
+- `supabase()` --calls--> `listPublicArtworksByOwner()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/discover.ts
+- `supabase()` --calls--> `signOut()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts
+- `GET()` --calls--> `captureCurrentRoom()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/api/ar/painting/[id]/route.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SampleRoom.tsx
+- `GET()` --calls--> `confirmAndNext()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/api/ar/painting/[id]/route.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SampleRoom.tsx
 
 ## Communities
 

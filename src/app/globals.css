@@ -21,13 +21,18 @@
 
   /* Semantic aliases — component class names stay the same */
   --paper: #FFFFFF;
-  --ink: var(--slate-800);    /* readable dark, not pure black */
-  --ink-muted: var(--slate-500);
+  --ink: var(--slate-800);
+  --ink-muted: #475569;       /* AA-safe slate-600 */
   --line: var(--slate-200);
-  --accent: var(--indigo);
+  --line-strong: #CBD5E1;
+  --accent: #2563EB;          /* deeper indigo, AA on white */
   --accent-soft: #DBEAFE;
   --accent-ink: #ffffff;
-  --surface: var(--slate-50); /* off-white card surface */
+  --surface: var(--slate-50);
+  --surface-stage: #EDEDEA;
+  --surface-dock: #141414;
+  --on-dock: #F4F4F0;
+  --on-dock-muted: #A8A8A0;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -73,3 +78,112 @@ body {
 
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Focus rings — universal accessible focus indicator */
+*:focus { outline: none; }
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.55);
+  border-radius: 3px;
+  transition: box-shadow 120ms ease-out;
+}
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px rgba(37,99,235,0.55);
+}
+
+/* Dock tab utility (used in Sample Room dock + similar surfaces) */
+.dock-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--on-dock-muted);
+  position: relative;
+  transition: color 150ms ease-out;
+}
+.dock-tab:hover { color: var(--on-dock); }
+.dock-tab[data-active="true"] {
+  color: var(--on-dock);
+}
+.dock-tab[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  background: var(--on-dock);
+}
+
+/* Range input style — matches accent color on every browser */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: -5px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.20);
+  cursor: pointer;
+}
+input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+input[type="range"]::-moz-range-track { height: 4px; background: var(--line); border-radius: 2px; }
+input[type="range"]::-moz-range-thumb { height: 14px; width: 14px; border-radius: 50%; background: var(--accent); border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.2); cursor: pointer; }
+
+/* Status pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+.pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+.pill-sale { color: #047857; background: #ECFDF5; }
+.pill-sold { color: #475569; background: #F1F5F9; }
+.pill-reserved { color: #B45309; background: #FFFBEB; }
+.pill-rented { color: #6D28D9; background: #F5F3FF; }
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sp 0.7s linear infinite;
+}
