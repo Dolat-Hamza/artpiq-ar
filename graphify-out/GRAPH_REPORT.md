@@ -1,11 +1,11 @@
 # Graph Report - /Users/dolathamza/Documents/GitHub/artpiq-ar  (2026-05-04)
 
 ## Corpus Check
-- 88 files · ~42,596 words
+- 88 files · ~42,707 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 324 nodes · 469 edges · 57 communities detected
+- 325 nodes · 470 edges · 57 communities detected
 - Extraction: 68% EXTRACTED · 32% INFERRED · 0% AMBIGUOUS · INFERRED: 149 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -111,7 +111,7 @@ Cohesion: 0.12
 Nodes (13): addFavorite(), listFavorites(), removeFavorite(), addArtwork(), bcsToFilter(), captureCurrentRoom(), confirmAndNext(), exportPng() (+5 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (6): share(), decodeBitmap(), exportImage(), normalizeToBlob(), onFile(), withTimeout()
 
 ### Community 5 - "Community 5"
@@ -131,12 +131,12 @@ Cohesion: 0.17
 Nodes (1): Page()
 
 ### Community 9 - "Community 9"
-Cohesion: 0.2
-Nodes (5): FakeCanvas, FakeHTMLImageElement, FakeImageData, install(), installCanvasShim()
-
-### Community 10 - "Community 10"
 Cohesion: 0.3
 Nodes (9): addWall(), onWallMove(), persist(), placeArtwork(), removePlacement(), removeWall(), uid(), updateWall() (+1 more)
+
+### Community 10 - "Community 10"
+Cohesion: 0.22
+Nodes (5): FakeCanvas, FakeHTMLImageElement, FakeImageData, install(), installCanvasShim()
 
 ### Community 11 - "Community 11"
 Cohesion: 0.27
@@ -335,47 +335,47 @@ Nodes (0):
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 25`** (2 nodes): `AppShell()`, `AppShell.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 26`** (2 nodes): `handleClick()`, `ArtworkCard.tsx`
+- **Thin community `Community 26`** (2 nodes): `Hero()`, `Catalogue.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 27`** (2 nodes): `Toast()`, `Toast.tsx`
+- **Thin community `Community 27`** (2 nodes): `handleClick()`, `ArtworkCard.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 28`** (2 nodes): `StatusPill()`, `StatusPill.tsx`
+- **Thin community `Community 28`** (2 nodes): `Toast()`, `Toast.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 29`** (2 nodes): `onKey()`, `Dialog.tsx`
+- **Thin community `Community 29`** (2 nodes): `StatusPill()`, `StatusPill.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 30`** (2 nodes): `fetchWikiImages()`, `artworks.ts`
+- **Thin community `Community 30`** (2 nodes): `onKey()`, `Dialog.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 31`** (2 nodes): `groupArtworks()`, `inventoryReport.tsx`
+- **Thin community `Community 31`** (2 nodes): `fetchWikiImages()`, `artworks.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 32`** (2 nodes): `filterRooms()`, `rooms.ts`
+- **Thin community `Community 32`** (2 nodes): `groupArtworks()`, `inventoryReport.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (1 nodes): `postcss.config.mjs`
+- **Thin community `Community 33`** (2 nodes): `filterRooms()`, `rooms.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (1 nodes): `next-env.d.ts`
+- **Thin community `Community 34`** (1 nodes): `postcss.config.mjs`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (1 nodes): `tailwind.config.ts`
+- **Thin community `Community 35`** (1 nodes): `next-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (1 nodes): `next.config.ts`
+- **Thin community `Community 36`** (1 nodes): `tailwind.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (1 nodes): `model-viewer.d.ts`
+- **Thin community `Community 37`** (1 nodes): `next.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (1 nodes): `index.ts`
+- **Thin community `Community 38`** (1 nodes): `model-viewer.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (1 nodes): `layout.tsx`
+- **Thin community `Community 39`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 40`** (1 nodes): `page.tsx`
+- **Thin community `Community 40`** (1 nodes): `layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 41`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 42`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (1 nodes): `AdminShell.tsx`
+- **Thin community `Community 43`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (1 nodes): `QROverlay.tsx`
+- **Thin community `Community 44`** (1 nodes): `AdminShell.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 45`** (1 nodes): `Header.tsx`
+- **Thin community `Community 45`** (1 nodes): `QROverlay.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 46`** (1 nodes): `Catalogue.tsx`
+- **Thin community `Community 46`** (1 nodes): `Header.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 47`** (1 nodes): `SiteNav.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -402,10 +402,10 @@ Nodes (0):
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `supabase()` connect `Community 0` to `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 11`, `Community 12`, `Community 15`?**
-  _High betweenness centrality (0.334) - this node is a cross-community bridge._
-- **Why does `exportImage()` connect `Community 4` to `Community 0`, `Community 9`, `Community 2`, `Community 3`?**
-  _High betweenness centrality (0.088) - this node is a cross-community bridge._
-- **Why does `captureCurrentRoom()` connect `Community 3` to `Community 0`, `Community 9`, `Community 2`, `Community 1`?**
+  _High betweenness centrality (0.332) - this node is a cross-community bridge._
+- **Why does `exportImage()` connect `Community 4` to `Community 0`, `Community 2`, `Community 3`?**
+  _High betweenness centrality (0.087) - this node is a cross-community bridge._
+- **Why does `captureCurrentRoom()` connect `Community 3` to `Community 0`, `Community 1`, `Community 2`, `Community 4`?**
   _High betweenness centrality (0.080) - this node is a cross-community bridge._
 - **Are the 59 inferred relationships involving `supabase()` (e.g. with `createDesign()` and `listDesigns()`) actually correct?**
   _`supabase()` has 59 INFERRED edges - model-reasoned connections that need verification._

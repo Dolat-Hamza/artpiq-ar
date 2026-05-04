@@ -39,7 +39,9 @@ export default function SiteNav({ showBack = true }: { showBack?: boolean }) {
         <div className="ml-auto flex items-center gap-1 text-body">
           {links.map(l => {
             const active =
-              l.href === '/' ? pathname === '/' : pathname.startsWith(l.href)
+              l.href === '/' || l.href === '/admin'
+                ? pathname === l.href
+                : pathname === l.href || pathname.startsWith(l.href + '/')
             const Icon = l.icon
             return (
               <Link

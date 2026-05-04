@@ -16,7 +16,7 @@ import {
   Star,
   Users,
 } from 'lucide-react'
-import { useAuth } from '@/lib/db/auth'
+import { signOut, useAuth } from '@/lib/db/auth'
 import { listMyArtworks } from '@/lib/db/artworks'
 import { listMyCollections } from '@/lib/db/collections'
 import { listDesigns } from '@/lib/db/savedDesigns'
@@ -43,6 +43,7 @@ export default function AdminDashboard() {
   const { user, loading } = useAuth()
   const [counts, setCounts] = useState<Counts | null>(null)
   const [recentDesigns, setRecentDesigns] = useState<SavedDesign[]>([])
+  const [openMenu, setOpenMenu] = useState<'gift' | 'bell' | 'avatar' | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -88,20 +89,101 @@ export default function AdminDashboard() {
     <div className="min-h-dvh bg-bg">
       {/* Top bar — ArtPlacer style */}
       <header className="bg-paper border-b border-line h-topbar flex items-center px-6 md:px-10 sticky top-0 z-20">
-        <div className="ml-auto flex items-center gap-3">
-          <button aria-label="Refer and earn" className="relative w-9 h-9 grid place-items-center rounded hover:bg-line/60">
-            <Gift size={18} strokeWidth={1.6} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" />
-          </button>
-          <button aria-label="Notifications" className="relative w-9 h-9 grid place-items-center rounded hover:bg-line/60">
-            <Bell size={18} strokeWidth={1.6} />
-            <span className="absolute top-1 right-1 min-w-4 h-4 px-1 text-[10px] grid place-items-center bg-accent text-paper rounded-full font-bold">
-              1
-            </span>
-          </button>
-          <div className="w-9 h-9 grid place-items-center rounded-full bg-ink text-paper text-[12px] font-bold uppercase">
-            {(name[0] || '?').toUpperCase()}
-            {(name[1] || '').toUpperCase()}
+        <div className="ml-auto flex items-center gap-3 relative">
+          <div className="relative">
+            <button
+              aria-label="Refer and earn"
+              onClick={() => setOpenMenu(openMenu === 'gift' ? null : 'gift')}
+              className="relative w-9 h-9 grid place-items-center rounded hover:bg-line/60"
+            >
+              <Gift size={18} strokeWidth={1.6} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" />
+            </button>
+            {openMenu === 'gift' && (
+              <Menu onClose={() => setOpenMenu(null)} className="w-[280px]">
+                <div className="px-4 py-3">
+                  <p className="font-display text-[14px] mb-1">Refer & earn</p>
+                  <p className="text-meta text-ink-muted">
+                    Share artpiq with another artist or gallery and you both get a free month.
+                  </p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/?ref=${user.id.slice(0, 8)}`)
+                      setOpenMenu(null)
+                    }}
+                    className="btn-primary mt-3 w-full"
+                  >
+                    Copy referral link
+                  </button>
+                </div>
+              </Menu>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              aria-label="Notifications"
+              onClick={() => setOpenMenu(openMenu === 'bell' ? null : 'bell')}
+              className="relative w-9 h-9 grid place-items-center rounded hover:bg-line/60"
+            >
+              <Bell size={18} strokeWidth={1.6} />
+              {(counts?.contacts ?? 0) > 0 && (
+                <span className="absolute top-1 right-1 min-w-4 h-4 px-1 text-[10px] grid place-items-center bg-accent text-paper rounded-full font-bold">
+                  {counts?.contacts}
+                </span>
+              )}
+            </button>
+            {openMenu === 'bell' && (
+              <Menu onClose={() => setOpenMenu(null)} className="w-[300px]">
+                <p className="px-4 py-3 font-display text-[14px] border-b border-line">Notifications</p>
+                {(counts?.contacts ?? 0) === 0 ? (
+                  <p className="px-4 py-6 text-meta text-ink-muted text-center">No new notifications</p>
+                ) : (
+                  <Link
+                    href="/admin/contacts"
+                    onClick={() => setOpenMenu(null)}
+                    className="block px-4 py-3 hover:bg-bg text-body"
+                  >
+                    <span className="font-bold">{counts?.contacts} new contact{counts?.contacts === 1 ? '' : 's'}</span>
+                    <span className="block text-meta text-ink-muted mt-0.5">View CRM</span>
+                  </Link>
+                )}
+              </Menu>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setOpenMenu(openMenu === 'avatar' ? null : 'avatar')}
+              aria-label="Account menu"
+              className="w-9 h-9 grid place-items-center rounded-full bg-ink text-paper text-[12px] font-bold uppercase hover:opacity-90"
+            >
+              {(name[0] || '?').toUpperCase()}
+              {(name[1] || '').toUpperCase()}
+            </button>
+            {openMenu === 'avatar' && (
+              <Menu onClose={() => setOpenMenu(null)} className="w-[220px]">
+                <div className="px-4 py-3 border-b border-line">
+                  <p className="font-bold text-body truncate">{name}</p>
+                  <p className="text-meta text-ink-muted truncate">{user.email}</p>
+                </div>
+                <Link href="/admin/profile" onClick={() => setOpenMenu(null)} className="block px-4 py-2 text-body hover:bg-bg">
+                  Discover Profile
+                </Link>
+                <Link href="/admin/inbox" onClick={() => setOpenMenu(null)} className="block px-4 py-2 text-body hover:bg-bg">
+                  Newsletter
+                </Link>
+                <Link href="/admin/contacts" onClick={() => setOpenMenu(null)} className="block px-4 py-2 text-body hover:bg-bg">
+                  Contacts
+                </Link>
+                <button
+                  onClick={() => { setOpenMenu(null); signOut() }}
+                  className="block w-full text-left px-4 py-2 text-body hover:bg-bg border-t border-line text-red-600"
+                >
+                  Sign out
+                </button>
+              </Menu>
+            )}
           </div>
         </div>
       </header>
@@ -137,12 +219,12 @@ export default function AdminDashboard() {
               We&rsquo;d love to learn about your goals and explore how artpiq&rsquo;s full range
               of tools can support your growth.
             </p>
-            <Link
-              href="/admin/profile"
+            <a
+              href="mailto:hello@artpiq.com?subject=Account%20Manager%20Meeting%20Request&body=Hi%20artpiq%20team%2C%0A%0AI%27d%20like%20to%20schedule%20a%20one-on-one%20meeting%20to%20discuss%20my%20goals%20and%20how%20artpiq%20can%20help.%0A%0AThanks%21"
               className="mt-4 self-start inline-flex items-center gap-2 px-4 h-9 bg-paper text-ink rounded-full text-[11px] font-bold uppercase tracking-[0.06em] hover:bg-accent hover:text-paper transition-colors"
             >
               <Calendar size={13} strokeWidth={2} /> Let&rsquo;s meet
-            </Link>
+            </a>
           </div>
           <Link
             href="/sample-room"
@@ -154,7 +236,10 @@ export default function AdminDashboard() {
                 <PlayCircle size={26} strokeWidth={1.4} />
               </div>
               <p className="text-meta uppercase tracking-[0.18em] text-ink-muted">
-                Watch on-demand demo
+                Open sample room
+              </p>
+              <p className="text-[11px] text-ink-muted/70 mt-1">
+                Try the composer with a stock room
               </p>
             </div>
           </Link>
@@ -177,12 +262,19 @@ export default function AdminDashboard() {
                 <Link
                   key={d.id}
                   href={`/sample-room?design=${d.id}`}
-                  className="block aspect-[4/3] bg-line/40 border border-line rounded overflow-hidden hover:border-ink hover:shadow-card transition-all ease-snap"
+                  className="block aspect-[4/3] bg-bg border border-line rounded overflow-hidden hover:border-ink hover:shadow-card transition-all ease-snap relative group"
                   title={d.name}
                 >
-                  {d.thumbUrl && (
+                  {d.thumbUrl ? (
                     <img src={d.thumbUrl} alt={d.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full grid place-items-center">
+                      <ImageIcon size={20} strokeWidth={1.4} className="text-ink-muted/60" />
+                    </div>
                   )}
+                  <span className="absolute inset-x-0 bottom-0 px-2 py-1 bg-paper/90 backdrop-blur text-[10px] font-bold truncate text-ink opacity-0 group-hover:opacity-100 transition-opacity">
+                    {d.name}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -206,6 +298,27 @@ export default function AdminDashboard() {
         </section>
       </main>
     </div>
+  )
+}
+
+function Menu({
+  children,
+  onClose,
+  className,
+}: {
+  children: React.ReactNode
+  onClose: () => void
+  className?: string
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className={`absolute right-0 top-full mt-2 bg-paper border border-line rounded-md shadow-pop py-1 z-50 ${className ?? ''}`}
+      >
+        {children}
+      </div>
+    </>
   )
 }
 

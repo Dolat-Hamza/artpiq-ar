@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Trash2, FolderPlus, Folder, MoreHorizontal, Plus, Download, FolderInput, ChevronDown } from 'lucide-react'
+import { Trash2, FolderPlus, Folder, MoreHorizontal, Plus, Download, FolderInput, ChevronDown, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import {
   createFolder,
@@ -241,9 +241,12 @@ function DesignCard({
               className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
             />
           ) : (
-            <span className="grid place-items-center w-full h-full text-meta uppercase text-ink-muted">
-              no thumbnail
-            </span>
+            <div className="grid place-items-center w-full h-full bg-bg gap-1.5">
+              <ImageIcon size={28} strokeWidth={1.2} className="text-ink-muted/50" />
+              <span className="text-meta uppercase tracking-[0.16em] text-ink-muted/60">
+                Open to render
+              </span>
+            </div>
           )}
         </Link>
         {/* SMART teal badge — placeholder for the AR-ready signal */}

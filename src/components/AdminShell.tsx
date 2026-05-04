@@ -84,7 +84,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <nav className="overflow-y-auto flex-1 py-2">
           <ul>
             {TOP.map(it => {
-              const active = pathname === it.href || pathname.startsWith(it.href + '/')
+              const active = it.href === '/admin' ? pathname === '/admin' : (pathname === it.href || pathname.startsWith(it.href + '/'))
               const Icon = it.icon
               return (
                 <li key={it.href}>
@@ -114,7 +114,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 {open && (
                   <ul>
                     {g.items.map(it => {
-                      const active = pathname === it.href || pathname.startsWith(it.href + '/')
+                      const active = it.href === '/admin' ? pathname === '/admin' : (pathname === it.href || pathname.startsWith(it.href + '/'))
                       const Icon = it.icon
                       return (
                         <li key={it.href}>
@@ -162,7 +162,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           { href: '/admin/designs', label: 'Designs', icon: LayoutGrid },
           { href: '/admin/contacts', label: 'CRM', icon: Users },
         ].map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
+          const active = href === '/admin' ? pathname === '/admin' : (pathname === href || pathname.startsWith(href + '/'))
           return (
             <Link
               key={href}
