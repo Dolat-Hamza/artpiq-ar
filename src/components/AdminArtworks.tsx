@@ -31,7 +31,7 @@ import { exportInventoryPdf } from '@/lib/inventoryReport'
 import { downloadSqspCsv } from '@/lib/sqspExport'
 import LoginForm from './LoginForm'
 import StatusPill from './ui/StatusPill'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Copy, FileDown, Pencil, Trash2 } from 'lucide-react'
 
 const STATUS_LABEL: Record<ArtworkStatus, string> = {
   for_sale: 'For sale',
@@ -260,25 +260,30 @@ export default function AdminArtworks() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Admin · {user.email}</p>
-            <h1 className="font-display text-[24px] tracking-tight">Artworks ({list.length})</h1>
-          </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={e => {
-                const f = e.target.files?.[0]
-                if (f) importCsv(f)
-                e.target.value = ''
-              }}
-            />
+    <div className="min-h-dvh bg-bg text-ink">
+      {/* ArtPlacer-style page header */}
+      <header className="bg-paper border-b border-line">
+        <div className="px-6 md:px-10 h-16 flex items-center gap-4 flex-wrap">
+          <h1 className="font-display text-[18px] tracking-[0.18em] uppercase">Artworks</h1>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) importCsv(f)
+              e.target.value = ''
+            }}
+          />
+          <button
+            onClick={openNewEditor}
+            disabled={busy}
+            className="btn-outline"
+          >
+            <span className="text-[14px]">+</span> Upload Artworks
+          </button>
+          <div className="ml-auto flex items-center gap-3">
             <ExportMenu
               onImport={() => fileRef.current?.click()}
               onExportCsv={exportCsv}
@@ -290,85 +295,94 @@ export default function AdminArtworks() {
             />
             <button
               onClick={() => setShowCollectionsPanel(s => !s)}
-              className="h-9 px-3 text-[11px] tracking-[0.18em] uppercase border border-line hover:border-ink"
+              className="btn-outline"
             >
               Collections · {collections.length}
             </button>
-            <button
-              onClick={openNewEditor}
-              className="h-9 px-4 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper hover:bg-slate-700"
-              disabled={busy}
-            >
-              + New
-            </button>
           </div>
         </div>
-        {err && (
-          <p className="max-w-content mx-auto px-6 md:px-12 pb-3 text-[12px] text-red-600">{err}</p>
-        )}
+        {/* Sub bar — quota + bulk + sort */}
+        <div className="px-6 md:px-10 h-11 border-t border-line bg-bg flex items-center gap-4 text-meta uppercase tracking-[0.12em] text-ink-muted">
+          <span>
+            Quota: <span className="text-ink font-bold">{list.length} / 1500</span>
+          </span>
+          <span className="ml-auto">{filtered.length} of {list.length} shown</span>
+        </div>
+        {err && <p className="px-6 md:px-10 py-2 text-[12px] text-red-600">{err}</p>}
       </header>
 
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8">
-        {showCollectionsPanel && (
-          <CollectionsPanel
+      <main className="px-6 md:px-10 py-6 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+        {/* Left filter sidebar */}
+        <aside className="text-body lg:sticky lg:top-[124px] lg:self-start">
+          {showCollectionsPanel && (
+            <CollectionsPanel
+              collections={collections}
+              membership={collectionMembership}
+              artworks={list}
+              ownerId={user.id}
+              onChange={refresh}
+            />
+          )}
+          <FilterBar
+            filters={filters}
+            onChange={setFilters}
             collections={collections}
-            membership={collectionMembership}
-            artworks={list}
-            ownerId={user.id}
-            onChange={refresh}
+            shown={filtered.length}
+            total={list.length}
           />
-        )}
-        <FilterBar
-          filters={filters}
-          onChange={setFilters}
-          collections={collections}
-          shown={filtered.length}
-          total={list.length}
-        />
-        {!list.length && !busy && (
-          <p className="text-ink-muted text-[13px]">
-            No artworks yet. Click <em>New</em> or <em>Import CSV</em>.
-          </p>
-        )}
-        {list.length > 0 && !filtered.length && (
-          <p className="text-ink-muted text-[13px] py-8 text-center">
-            No artworks match the filters.
-          </p>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        </aside>
+
+        {/* Grid */}
+        <section>
+          {!list.length && !busy && (
+            <div className="py-20 text-center">
+              <p className="text-body text-ink-muted">No artworks yet.</p>
+              <button onClick={openNewEditor} className="btn-primary mt-4">
+                + Upload your first artwork
+              </button>
+            </div>
+          )}
+          {list.length > 0 && !filtered.length && (
+            <p className="text-ink-muted text-body py-8 text-center">
+              No artworks match the filters.
+            </p>
+          )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
           {filtered.map(a => (
-            <article key={a.id} className="border border-line p-4 flex gap-4 hover:border-ink-muted hover:shadow-card transition-all ease-snap">
-              {a.thumb ? (
-                <img src={a.thumb} alt={a.title} className="w-24 h-24 object-cover" />
-              ) : (
-                <div className="w-24 h-24 bg-line/40" />
-              )}
-              <div className="flex-1 min-w-0 text-[13px]">
-                <p className="font-display truncate">{a.title || '(untitled)'}</p>
-                <p className="text-ink-muted truncate">{a.artist}</p>
-                <p className="text-ink-muted">
-                  {a.widthCm}×{a.heightCm} cm · {a.medium || a.type}
-                </p>
-                {a.collection && (
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mt-1">
-                    {a.collection}
-                  </p>
+            <article key={a.id} className="group">
+              <div className="aspect-[4/5] bg-paper border border-line/60 overflow-hidden relative">
+                {a.thumb ? (
+                  <img
+                    src={a.thumb}
+                    alt={a.title}
+                    className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-line/30 grid place-items-center text-meta uppercase text-ink-muted">
+                    no image
+                  </div>
                 )}
-                <div className="mt-1.5">
-                  <StatusPill status={a.status ?? 'for_sale'} />
-                </div>
-                <div className="flex gap-2 mt-2 flex-wrap">
+                {a.privacy === 'private' && (
+                  <span className="absolute top-2 left-2 text-[10px] tracking-[0.16em] uppercase bg-paper/85 backdrop-blur px-1.5 py-0.5 rounded-xs">
+                    Private
+                  </span>
+                )}
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                   <button
                     onClick={() => openEditor(a)}
-                    className="text-[11px] uppercase tracking-[0.16em]"
+                    aria-label="Edit"
+                    className="w-8 h-8 grid place-items-center bg-paper/90 backdrop-blur rounded-sm text-ink hover:bg-paper"
+                    title="Edit"
                   >
-                    Edit
+                    <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => duplicate(a)}
-                    className="text-[11px] uppercase tracking-[0.16em]"
+                    aria-label="Duplicate"
+                    className="w-8 h-8 grid place-items-center bg-paper/90 backdrop-blur rounded-sm text-ink hover:bg-paper"
+                    title="Duplicate"
                   >
-                    Duplicate
+                    <Copy size={14} />
                   </button>
                   <button
                     onClick={() => {
@@ -378,24 +392,39 @@ export default function AdminArtworks() {
                           .replace(/[^a-z0-9]+/g, '_')
                           .replace(/^_|_$/g, '')
                       const def = `${slug(a.title) || a.id}_${slug(a.artist) || 'artist'}_01`
-                      const name = prompt('PDF filename (without .pdf)', def)
+                      const name = prompt('PDF filename', def)
                       if (name) exportArtworkPdf({ ...a, id: name })
                     }}
-                    className="text-[11px] uppercase tracking-[0.16em]"
+                    aria-label="PDF"
+                    className="w-8 h-8 grid place-items-center bg-paper/90 backdrop-blur rounded-sm text-ink hover:bg-paper"
+                    title="Export PDF"
                   >
-                    PDF
+                    <FileDown size={14} />
                   </button>
                   <button
                     onClick={() => remove(a.id)}
-                    className="text-[11px] uppercase tracking-[0.16em] text-red-600"
+                    aria-label="Delete"
+                    className="w-8 h-8 grid place-items-center bg-paper/90 backdrop-blur rounded-sm text-red-600 hover:bg-paper"
+                    title="Delete"
                   >
-                    Delete
+                    <Trash2 size={14} />
                   </button>
+                </div>
+              </div>
+              <div className="text-center mt-3 text-[13px]">
+                <p className="font-bold truncate">{a.title || '(untitled)'}</p>
+                <p className="text-ink-muted">{a.artist}</p>
+                <p className="text-ink-muted text-[12px] italic mt-0.5">
+                  Height: {a.heightCm} cm · Width: {a.widthCm} cm
+                </p>
+                <div className="mt-1.5 inline-flex">
+                  <StatusPill status={a.status ?? 'for_sale'} />
                 </div>
               </div>
             </article>
           ))}
         </div>
+        </section>
       </main>
 
       {editing && (
