@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#F8FAFC',
+  // Allow user-scaling for accessibility (was: maximumScale: 1)
+  themeColor: '#FFFFFF',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,13 +26,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={sans.variable}>
       <head>
         <meta name="referrer" content="no-referrer-when-downgrade" />
-        <script
-          type="module"
-          src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"
-          async
-        />
+        {/* model-viewer script moved to ARLauncher (lazy-load only when AR opened) */}
       </head>
-      <body>{children}</body>
+      <body>
+        <noscript>
+          <div style={{ padding: 24, textAlign: 'center', fontFamily: 'sans-serif' }}>
+            artpiq requires JavaScript. Please enable it to compose mockups and browse the gallery.
+          </div>
+        </noscript>
+        {children}
+      </body>
     </html>
   )
 }

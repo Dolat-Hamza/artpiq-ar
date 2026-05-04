@@ -27,6 +27,23 @@ function sceneViewerHref(modelUrl: string, fallbackUrl: string): string {
   return `intent://arvr.google.com/scene-viewer/1.0?file=${file}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${fallback};end`
 }
 
+// Lazy-load model-viewer custom element on first AR open. Browser-only.
+let modelViewerLoaded = false
+function ensureModelViewer() {
+  if (modelViewerLoaded || typeof document === 'undefined') return
+  if (document.querySelector('script[data-mv]')) {
+    modelViewerLoaded = true
+    return
+  }
+  const s = document.createElement('script')
+  s.type = 'module'
+  s.async = true
+  s.dataset.mv = '1'
+  s.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js'
+  document.head.appendChild(s)
+  modelViewerLoaded = true
+}
+
 export default function ARLauncher() {
   const { arOpen, current, closeAR, openMyWall } = useStore()
   const iosLinkRef = useRef<HTMLAnchorElement>(null)
@@ -34,6 +51,11 @@ export default function ARLauncher() {
   const [origin, setOrigin] = useState('')
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
+
+  // Inject model-viewer script only when AR sheet is opened
+  useEffect(() => {
+    if (arOpen) ensureModelViewer()
+  }, [arOpen])
 
   if (!current) return null
 
