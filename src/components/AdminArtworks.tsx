@@ -30,6 +30,8 @@ import { exportArtworkPdf, exportCollectionPdf } from '@/lib/artworkSheet'
 import { exportInventoryPdf } from '@/lib/inventoryReport'
 import { downloadSqspCsv } from '@/lib/sqspExport'
 import LoginForm from './LoginForm'
+import StatusPill from './ui/StatusPill'
+import { ChevronDown } from 'lucide-react'
 
 const STATUS_LABEL: Record<ArtworkStatus, string> = {
   for_sale: 'For sale',
@@ -265,7 +267,7 @@ export default function AdminArtworks() {
             <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Admin · {user.email}</p>
             <h1 className="font-display text-[24px] tracking-tight">Artworks ({list.length})</h1>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             <input
               ref={fileRef}
               type="file"
@@ -277,53 +279,27 @@ export default function AdminArtworks() {
                 e.target.value = ''
               }}
             />
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
-              disabled={busy}
-            >
-              Import CSV
-            </button>
-            <button
-              onClick={exportCsv}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
-            >
-              Export CSV
-            </button>
-            <button
-              onClick={() => downloadSqspCsv(list)}
+            <ExportMenu
+              onImport={() => fileRef.current?.click()}
+              onExportCsv={exportCsv}
+              onExportSqsp={() => downloadSqspCsv(list)}
+              onExportInventory={() =>
+                exportInventoryPdf(list, { groupBy: 'artist', ownerEmail: user.email ?? '' })
+              }
               disabled={!list.length}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line disabled:opacity-40"
-              title="Squarespace Commerce import format"
-            >
-              Export SQSP
-            </button>
-            <button
-              onClick={() => exportInventoryPdf(list, { groupBy: 'artist', ownerEmail: user.email ?? '' })}
-              disabled={!list.length}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line disabled:opacity-40"
-              title="Full inventory PDF grouped by artist"
-            >
-              Inventory PDF
-            </button>
+            />
             <button
               onClick={() => setShowCollectionsPanel(s => !s)}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
+              className="h-9 px-3 text-[11px] tracking-[0.18em] uppercase border border-line hover:border-ink"
             >
-              Collections ({collections.length})
+              Collections · {collections.length}
             </button>
             <button
               onClick={openNewEditor}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper"
+              className="h-9 px-4 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper hover:bg-slate-700"
               disabled={busy}
             >
               + New
-            </button>
-            <button
-              onClick={signOut}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line"
-            >
-              Sign out
             </button>
           </div>
         </div>
@@ -361,7 +337,7 @@ export default function AdminArtworks() {
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(a => (
-            <article key={a.id} className="border border-line p-4 flex gap-4">
+            <article key={a.id} className="border border-line p-4 flex gap-4 hover:border-ink-muted hover:shadow-card transition-all ease-snap">
               {a.thumb ? (
                 <img src={a.thumb} alt={a.title} className="w-24 h-24 object-cover" />
               ) : (
@@ -378,9 +354,9 @@ export default function AdminArtworks() {
                     {a.collection}
                   </p>
                 )}
-                <p className="text-[10px] uppercase tracking-[0.16em] text-ink-muted mt-1">
-                  {STATUS_LABEL[a.status ?? 'for_sale']}
-                </p>
+                <div className="mt-1.5">
+                  <StatusPill status={a.status ?? 'for_sale'} />
+                </div>
                 <div className="flex gap-2 mt-2 flex-wrap">
                   <button
                     onClick={() => openEditor(a)}
@@ -986,6 +962,76 @@ function CollectionsPanel({
         })}
       </ul>
     </div>
+  )
+}
+
+function ExportMenu({
+  onImport,
+  onExportCsv,
+  onExportSqsp,
+  onExportInventory,
+  disabled,
+}: {
+  onImport: () => void
+  onExportCsv: () => void
+  onExportSqsp: () => void
+  onExportInventory: () => void
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onClick = () => setOpen(false)
+    document.addEventListener('keydown', onKey)
+    setTimeout(() => document.addEventListener('click', onClick), 0)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('click', onClick)
+    }
+  }, [open])
+  return (
+    <div className="relative">
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        className="h-9 px-3 text-[11px] tracking-[0.18em] uppercase border border-line hover:border-ink inline-flex items-center gap-1.5"
+      >
+        Import / Export
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div
+          onClick={e => e.stopPropagation()}
+          className="absolute right-0 top-full mt-1 z-30 bg-paper border border-line rounded-md shadow-pop min-w-[200px] py-1"
+        >
+          <MenuItem onClick={() => { onImport(); setOpen(false) }}>Import CSV…</MenuItem>
+          <div className="my-1 border-t border-line" />
+          <MenuItem disabled={disabled} onClick={() => { onExportCsv(); setOpen(false) }}>Export CSV</MenuItem>
+          <MenuItem disabled={disabled} onClick={() => { onExportSqsp(); setOpen(false) }}>Export Squarespace CSV</MenuItem>
+          <MenuItem disabled={disabled} onClick={() => { onExportInventory(); setOpen(false) }}>Inventory Report PDF</MenuItem>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MenuItem({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full text-left px-3 py-2 text-[12px] tracking-[0.06em] hover:bg-line/40 disabled:opacity-40"
+    >
+      {children}
+    </button>
   )
 }
 
