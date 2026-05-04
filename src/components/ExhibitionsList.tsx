@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createExhibition, deleteExhibition, listExhibitions } from '@/lib/db/exhibitions'
 import { VirtualExhibition } from '@/types'
 import LoginForm from './LoginForm'
+import AdminPageHeader from './ui/AdminPageHeader'
 
 export default function ExhibitionsList() {
   const { user, loading } = useAuth()
@@ -42,47 +43,93 @@ export default function ExhibitionsList() {
     refresh()
   }
 
-  if (loading) return <div className="p-8 text-[13px] text-ink-muted">Loading…</div>
+  if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
   if (!user) return <div className="min-h-dvh flex items-center justify-center p-6"><LoginForm /></div>
 
+  const live = list.filter(v => v.published).length
+
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-3">
-          <div className="flex-1">
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Virtual Exhibitions</p>
-            <h1 className="font-display text-[22px] tracking-tight">{list.length} exhibitions</h1>
-          </div>
-          <button onClick={add} className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper inline-flex items-center gap-2">
-            <Plus size={13} /> New exhibition
+    <div className="min-h-dvh bg-bg text-ink">
+      <AdminPageHeader
+        title="Virtual Exhibitions"
+        actions={
+          <button onClick={add} className="btn-primary">
+            <Plus size={14} strokeWidth={2.5} /> New exhibition
           </button>
-        </div>
-      </header>
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8">
+        }
+        subBar={
+          <>
+            <span>
+              Total: <span className="text-ink font-bold">{list.length}</span>
+            </span>
+            <span className="text-ink-muted">·</span>
+            <span>
+              Live: <span className="text-ink font-bold">{live}</span>
+            </span>
+          </>
+        }
+      />
+
+      <main className="px-6 md:px-10 py-6">
         {!list.length && !busy && (
-          <p className="text-[13px] text-ink-muted py-12 text-center">No exhibitions yet — build your first 3D walkthrough.</p>
+          <div className="py-20 text-center">
+            <p className="text-body text-ink-muted">No exhibitions yet — build your first 3D walkthrough.</p>
+            <button onClick={add} className="btn-primary mt-4">
+              <Plus size={14} strokeWidth={2.5} /> New exhibition
+            </button>
+          </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {list.map(ve => (
-            <article key={ve.id} className="border border-line p-4 flex gap-3 items-center">
-              <div className="w-20 h-20 bg-line/40 grid place-items-center text-[10px] uppercase tracking-[0.16em] text-ink-muted">
-                {ve.published ? 'Live' : 'Draft'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <Link href={`/admin/exhibitions/${ve.id}`} className="font-display truncate block">{ve.name}</Link>
-                <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">
-                  {ve.wallArtworks.length} works · {ve.roomTemplate}
-                </p>
-              </div>
-              {ve.published && ve.slug && (
-                <Link href={`/exhibition/${ve.slug}`} target="_blank" className="text-[11px] uppercase tracking-[0.14em] inline-flex items-center gap-1">
-                  <ExternalLink size={11} /> View
+            <article key={ve.id} className="bg-paper border border-line rounded-md overflow-hidden group hover:border-ink hover:shadow-card transition-all ease-snap">
+              <Link href={`/admin/exhibitions/${ve.id}`} className="block aspect-[16/10] bg-line/40 grid place-items-center relative">
+                <span className="text-meta uppercase tracking-[0.16em] text-ink-muted">
+                  {ve.roomTemplate || 'room'}
+                </span>
+                <span
+                  className={`absolute top-2 left-2 text-[9px] tracking-[0.16em] uppercase font-bold px-1.5 py-0.5 rounded-xs ${
+                    ve.published
+                      ? 'bg-accent-2 text-paper'
+                      : 'bg-paper/85 backdrop-blur text-ink-muted'
+                  }`}
+                >
+                  {ve.published ? 'Live' : 'Draft'}
+                </span>
+              </Link>
+              <div className="p-3 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <Link href={`/admin/exhibitions/${ve.id}`} className="font-bold text-[13px] truncate block">
+                    {ve.name}
+                  </Link>
+                  <p className="text-[11px] text-ink-muted mt-0.5">
+                    {ve.wallArtworks.length} works
+                  </p>
+                </div>
+                {ve.published && ve.slug && (
+                  <Link
+                    href={`/exhibition/${ve.slug}`}
+                    target="_blank"
+                    className="w-8 h-8 grid place-items-center text-ink-muted hover:text-ink"
+                    title="View live"
+                  >
+                    <ExternalLink size={14} />
+                  </Link>
+                )}
+                <Link
+                  href={`/admin/exhibitions/${ve.id}`}
+                  className="w-8 h-8 grid place-items-center text-ink-muted hover:text-ink"
+                  title="Edit"
+                >
+                  <Pencil size={14} />
                 </Link>
-              )}
-              <Link href={`/admin/exhibitions/${ve.id}`} className="text-[11px] uppercase tracking-[0.14em]">Edit</Link>
-              <button onClick={() => rm(ve.id)} className="text-red-600">
-                <Trash2 size={13} />
-              </button>
+                <button
+                  onClick={() => rm(ve.id)}
+                  className="w-8 h-8 grid place-items-center text-red-600"
+                  title="Delete"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </article>
           ))}
         </div>

@@ -11,6 +11,7 @@ import {
 import { DiscoverProfile } from '@/types'
 import { slugify } from '@/lib/db/collections'
 import LoginForm from './LoginForm'
+import AdminPageHeader from './ui/AdminPageHeader'
 
 const EMPTY: Omit<DiscoverProfile, 'ownerId'> = {
   slug: '',
@@ -88,36 +89,34 @@ export default function DiscoverProfileEditor() {
     p.slug && typeof window !== 'undefined' ? `${window.location.origin}/discover/${p.slug}` : ''
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-3 flex-wrap">
-          <div className="flex-1">
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Discover Profile</p>
-            <h1 className="font-display text-[22px] tracking-tight">
-              Public artist landing page
-            </h1>
-          </div>
-          {p.slug && p.published && (
-            <Link
-              href={`/discover/${p.slug}`}
-              target="_blank"
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line inline-flex items-center gap-2"
-            >
-              <Eye size={13} /> View public
-            </Link>
-          )}
-          <button
-            onClick={save}
-            disabled={busy}
-            className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper inline-flex items-center gap-2 disabled:opacity-40"
-          >
-            <Save size={13} /> {busy ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </header>
+    <div className="min-h-dvh bg-bg text-ink">
+      <AdminPageHeader
+        title="Discover Profile"
+        actions={
+          <>
+            {p.slug && p.published && (
+              <Link
+                href={`/discover/${p.slug}`}
+                target="_blank"
+                className="btn-outline"
+              >
+                <Eye size={13} /> View public
+              </Link>
+            )}
+            <button onClick={save} disabled={busy} className="btn-primary disabled:opacity-40">
+              <Save size={14} strokeWidth={2.5} /> {busy ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        }
+        subBar={
+          <span>
+            Status: <span className="text-ink font-bold">{p.published ? 'Live' : 'Draft'}</span>
+          </span>
+        }
+      />
 
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-        <section className="grid gap-4 text-[13px]">
+      <main className="px-6 md:px-10 py-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        <section className="grid gap-4 text-body bg-paper border border-line rounded-md p-5">
           <Field label="Display name *">
             <input value={p.displayName} onChange={e => setP(s => ({ ...s, displayName: e.target.value }))} className="input" />
           </Field>
@@ -194,7 +193,7 @@ export default function DiscoverProfileEditor() {
           {msg && <p className="text-[12px] text-emerald-700">{msg}</p>}
         </section>
 
-        <aside className="text-[13px] space-y-3">
+        <aside className="text-body space-y-3 bg-paper border border-line rounded-md p-5 lg:sticky lg:top-[124px] lg:self-start">
           <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted">Hero image</p>
           {p.heroImageUrl ? (
             <img src={p.heroImageUrl} alt="hero" className="w-full aspect-[3/2] object-cover border border-line" />
@@ -213,7 +212,7 @@ export default function DiscoverProfileEditor() {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="w-full px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line inline-flex items-center justify-center gap-2 disabled:opacity-40"
+            className="btn-outline w-full disabled:opacity-40"
           >
             <Upload size={13} /> {busy ? 'Uploading…' : 'Upload hero'}
           </button>

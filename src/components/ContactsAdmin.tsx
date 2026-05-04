@@ -12,6 +12,7 @@ import {
 } from '@/lib/db/contacts'
 import { Contact } from '@/types'
 import LoginForm from './LoginForm'
+import AdminPageHeader from './ui/AdminPageHeader'
 
 const CATEGORIES = ['Prospect', 'Lead', 'Client', 'Press', 'Other']
 
@@ -73,47 +74,60 @@ export default function ContactsAdmin() {
     )
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-3 flex-wrap">
-          <div className="flex-1">
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Contacts</p>
-            <h1 className="font-display text-[22px] tracking-tight">{list.length} total</h1>
-          </div>
-          {selected.size > 0 && (
+    <div className="min-h-dvh bg-bg text-ink">
+      <AdminPageHeader
+        title="Contacts"
+        actions={
+          <>
+            {selected.size > 0 && (
+              <button
+                onClick={bulkDelete}
+                className="btn-outline !text-red-600 !border-red-200 hover:!border-red-400"
+              >
+                Delete {selected.size}
+              </button>
+            )}
             <button
-              onClick={bulkDelete}
-              className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-red-600 border border-red-300"
+              onClick={() => downloadContactsCsv(list)}
+              disabled={!list.length}
+              className="btn-outline disabled:opacity-40"
             >
-              Delete {selected.size}
+              <Download size={13} /> CSV
             </button>
-          )}
-          <button
-            onClick={() => downloadContactsCsv(list)}
-            disabled={!list.length}
-            className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line inline-flex items-center gap-2 disabled:opacity-40"
-          >
-            <Download size={13} /> CSV
-          </button>
-          <button
-            onClick={() => setAdding(true)}
-            className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper inline-flex items-center gap-2"
-          >
-            <Plus size={13} /> Add contact
-          </button>
-        </div>
-      </header>
+            <button onClick={() => setAdding(true)} className="btn-primary">
+              <Plus size={14} strokeWidth={2.5} /> Add contact
+            </button>
+          </>
+        }
+        subBar={
+          <>
+            <span>
+              Total: <span className="text-ink font-bold">{list.length}</span>
+            </span>
+            {selected.size > 0 && (
+              <span className="text-ink-muted">· {selected.size} selected</span>
+            )}
+          </>
+        }
+      />
 
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8">
+      <main className="px-6 md:px-10 py-6">
         {!list.length && !busy && (
-          <p className="text-[13px] text-ink-muted py-12 text-center">
-            No contacts yet. Capture leads from your viewing rooms or add manually.
-          </p>
+          <div className="py-20 text-center">
+            <p className="text-body text-ink-muted">
+              No contacts yet. Capture leads from your viewing rooms or add manually.
+            </p>
+            <button onClick={() => setAdding(true)} className="btn-primary mt-4">
+              <Plus size={14} strokeWidth={2.5} /> Add contact
+            </button>
+          </div>
         )}
-        <table className="w-full text-[13px]">
-          <thead className="border-b border-line text-[10px] tracking-[0.16em] uppercase text-ink-muted">
+        {list.length > 0 && (
+        <div className="bg-paper border border-line rounded-md overflow-hidden">
+        <table className="w-full text-body">
+          <thead className="border-b border-line bg-bg text-meta uppercase tracking-[0.14em] text-ink-muted">
             <tr>
-              <th className="w-8 text-left py-2">
+              <th className="w-8 text-left py-2 px-3">
                 <input
                   type="checkbox"
                   checked={list.length > 0 && selected.size === list.length}
@@ -122,19 +136,19 @@ export default function ContactsAdmin() {
                   }
                 />
               </th>
-              <th className="text-left py-2">Name</th>
-              <th className="text-left py-2">Email</th>
-              <th className="text-left py-2">Country</th>
-              <th className="text-left py-2">Category</th>
-              <th className="text-left py-2">Source</th>
-              <th className="text-left py-2">Created</th>
-              <th className="text-right py-2"></th>
+              <th className="text-left py-2 px-3">Name</th>
+              <th className="text-left py-2 px-3">Email</th>
+              <th className="text-left py-2 px-3">Country</th>
+              <th className="text-left py-2 px-3">Category</th>
+              <th className="text-left py-2 px-3">Source</th>
+              <th className="text-left py-2 px-3">Created</th>
+              <th className="text-right py-2 px-3"></th>
             </tr>
           </thead>
           <tbody>
             {list.map(c => (
-              <tr key={c.id} className="border-b border-line/60 hover:bg-line/20">
-                <td className="py-2">
+              <tr key={c.id} className="border-b border-line/60 hover:bg-bg">
+                <td className="py-2 px-3">
                   <input
                     type="checkbox"
                     checked={selected.has(c.id)}
@@ -145,7 +159,7 @@ export default function ContactsAdmin() {
                     }}
                   />
                 </td>
-                <td className="py-2">{c.name || <span className="text-ink-muted">—</span>}</td>
+                <td className="py-2 px-3 font-bold">{c.name || <span className="text-ink-muted">—</span>}</td>
                 <td className="py-2 text-ink-muted">{c.email}</td>
                 <td className="py-2 text-ink-muted">{c.country || '—'}</td>
                 <td className="py-2">
@@ -157,19 +171,21 @@ export default function ContactsAdmin() {
                     {CATEGORIES.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </td>
-                <td className="py-2 text-ink-muted text-[11px] tracking-[0.12em] uppercase">{c.source}</td>
-                <td className="py-2 text-ink-muted text-[11px]">
+                <td className="py-2 px-3 text-ink-muted text-meta tracking-[0.12em] uppercase">{c.source}</td>
+                <td className="py-2 px-3 text-ink-muted text-[11px]">
                   {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''}
                 </td>
-                <td className="py-2 text-right">
-                  <button onClick={() => remove(c.id)} className="text-red-600">
-                    <Trash2 size={13} />
+                <td className="py-2 px-3 text-right">
+                  <button onClick={() => remove(c.id)} className="text-red-600 hover:text-red-700">
+                    <Trash2 size={14} />
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
+        )}
       </main>
 
       {adding && (

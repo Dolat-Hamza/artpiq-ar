@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2 } from 'lucide-react'
+import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createShow, deleteShow, listShows } from '@/lib/db/artShows'
 import { ArtShow } from '@/types'
 import LoginForm from './LoginForm'
+import AdminPageHeader from './ui/AdminPageHeader'
 
 export default function ArtShowsList() {
   const { user, loading } = useAuth()
@@ -42,44 +43,72 @@ export default function ArtShowsList() {
     refresh()
   }
 
-  if (loading) return <div className="p-8 text-[13px] text-ink-muted">Loading…</div>
+  if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
   if (!user) return <div className="min-h-dvh flex items-center justify-center p-6"><LoginForm /></div>
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-3">
-          <div className="flex-1">
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Art Show Planner</p>
-            <h1 className="font-display text-[22px] tracking-tight">{list.length} shows</h1>
-          </div>
-          <button onClick={add} className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper inline-flex items-center gap-2">
-            <Plus size={13} /> New show
+    <div className="min-h-dvh bg-bg text-ink">
+      <AdminPageHeader
+        title="Personal Spaces"
+        actions={
+          <button onClick={add} className="btn-primary">
+            <Plus size={14} strokeWidth={2.5} /> New space
           </button>
-        </div>
-      </header>
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8">
+        }
+        subBar={
+          <span>
+            Total: <span className="text-ink font-bold">{list.length} / 50</span>
+          </span>
+        }
+      />
+      <main className="px-6 md:px-10 py-6">
         {!list.length && !busy && (
-          <p className="text-[13px] text-ink-muted py-12 text-center">No shows yet — plan your first hang.</p>
+          <div className="py-20 text-center">
+            <p className="text-body text-ink-muted">No spaces yet — plan your first hang.</p>
+            <button onClick={add} className="btn-primary mt-4">
+              <Plus size={14} strokeWidth={2.5} /> New space
+            </button>
+          </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {list.map(s => (
-            <article key={s.id} className="border border-line p-4 flex gap-3 items-center">
-              {s.floorPlanUrl ? (
-                <img src={s.floorPlanUrl} alt="" className="w-20 h-20 object-cover" />
-              ) : (
-                <div className="w-20 h-20 bg-line/40 grid place-items-center text-[10px] text-ink-muted">no plan</div>
-              )}
-              <div className="flex-1 min-w-0">
-                <Link href={`/admin/shows/${s.id}`} className="font-display truncate block">{s.name}</Link>
-                <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">
-                  {s.venueName || '—'} · {s.wallSegments.length} walls · {s.placements.length} placements
-                </p>
+            <article
+              key={s.id}
+              className="bg-paper border border-line rounded-md overflow-hidden group hover:border-ink hover:shadow-card transition-all ease-snap"
+            >
+              <Link href={`/admin/shows/${s.id}`} className="block aspect-[16/10] bg-line/40">
+                {s.floorPlanUrl ? (
+                  <img src={s.floorPlanUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full grid place-items-center text-meta uppercase tracking-[0.16em] text-ink-muted">
+                    no floor plan
+                  </div>
+                )}
+              </Link>
+              <div className="p-3 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <Link href={`/admin/shows/${s.id}`} className="font-bold text-[13px] truncate block">
+                    {s.name}
+                  </Link>
+                  <p className="text-[11px] text-ink-muted mt-0.5 inline-flex items-center gap-1">
+                    <MapPin size={10} /> {s.venueName || '—'} · {s.wallSegments.length} walls
+                  </p>
+                </div>
+                <Link
+                  href={`/admin/shows/${s.id}`}
+                  className="w-8 h-8 grid place-items-center text-ink-muted hover:text-ink"
+                  title="Open"
+                >
+                  <Pencil size={14} />
+                </Link>
+                <button
+                  onClick={() => rm(s.id)}
+                  className="w-8 h-8 grid place-items-center text-red-600"
+                  title="Delete"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
-              <Link href={`/admin/shows/${s.id}`} className="text-[11px] uppercase tracking-[0.14em]">Open</Link>
-              <button onClick={() => rm(s.id)} className="text-red-600">
-                <Trash2 size={13} />
-              </button>
             </article>
           ))}
         </div>

@@ -21,21 +21,22 @@ export default function SiteNav({ showBack = true }: { showBack?: boolean }) {
   ]
 
   return (
-    <nav className="sticky top-0 z-40 bg-paper/90 backdrop-blur-sm border-b border-line">
-      <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 h-[56px] flex items-center gap-6">
+    <nav className="sticky top-0 z-40 bg-paper border-b border-line">
+      <div className="px-6 md:px-10 h-topbar flex items-center gap-4">
         {showBack && (
           <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-[12px] tracking-[0.14em] uppercase text-ink-muted hover:text-ink"
+            href="/admin"
+            className="inline-flex items-center gap-1.5 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={13} />
             <span className="hidden sm:inline">Back</span>
           </Link>
         )}
-        <Link href="/" className="font-display text-[20px] tracking-tight leading-none">
-          artpiq<span className="text-accent">.</span>
+        <Link href="/" className="font-display text-[16px] tracking-[0.04em] leading-none inline-flex items-center gap-2">
+          artpiq
+          <span className="w-2.5 h-2.5 bg-accent rounded-[2px] inline-block" />
         </Link>
-        <div className="ml-auto flex items-center gap-1 sm:gap-3 text-[13px]">
+        <div className="ml-auto flex items-center gap-1 text-body">
           {links.map(l => {
             const active =
               l.href === '/' ? pathname === '/' : pathname.startsWith(l.href)
@@ -44,11 +45,10 @@ export default function SiteNav({ showBack = true }: { showBack?: boolean }) {
               <Link
                 key={l.href}
                 href={l.href}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 transition-colors ${
-                  active ? 'text-ink' : 'text-ink-muted hover:text-ink'
-                }`}
+                data-active={active}
+                className="ap-nav !rounded-md"
               >
-                <Icon size={13} />
+                <Icon size={14} strokeWidth={1.6} />
                 <span className="hidden sm:inline">{l.label}</span>
               </Link>
             )

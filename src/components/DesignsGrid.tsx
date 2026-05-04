@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Trash2, FolderPlus, Folder } from 'lucide-react'
+import { Trash2, FolderPlus, Folder, MoreHorizontal, Plus, Download, FolderInput, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import {
   createFolder,
@@ -105,148 +105,200 @@ export default function DesignsGrid() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-4">
-          <div className="flex-1">
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">My Designs</p>
-            <h1 className="font-display text-[22px] tracking-tight">
-              {designs.length} saved · {folders.length} folder(s)
-            </h1>
-          </div>
+    <div className="min-h-dvh bg-bg text-ink">
+      {/* ArtPlacer header */}
+      <header className="bg-paper border-b border-line">
+        <div className="px-6 md:px-10 h-16 flex items-center gap-3">
+          <h1 className="font-display text-[14px] tracking-[0.18em] uppercase">My Designs</h1>
+          <Link href="/sample-room" className="ml-auto btn-primary">
+            <Plus size={14} strokeWidth={2.5} /> Create
+          </Link>
+        </div>
+        {/* Sub bar */}
+        <div className="px-6 md:px-10 h-11 border-t border-line bg-bg flex items-center gap-4 text-meta uppercase tracking-[0.12em] text-ink-muted">
+          <span>
+            Showing <span className="text-ink font-bold">{designs.length}</span>
+          </span>
+          <span className="text-ink-muted">·</span>
+          <span>{folders.length} folder(s)</span>
           <button
             onClick={newFolder}
-            className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line inline-flex items-center gap-2"
+            className="ml-auto inline-flex items-center gap-1.5 text-meta uppercase tracking-[0.12em] text-ink-muted hover:text-ink"
           >
-            <FolderPlus size={13} /> New folder
+            <FolderPlus size={12} /> New folder
           </button>
-          <Link
-            href="/sample-room"
-            className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper"
-          >
-            Compose new
-          </Link>
         </div>
       </header>
 
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8">
-        <aside className="text-[13px]">
-          <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-2">Folders</p>
-          <ul className="space-y-1">
-            <li>
-              <button
-                onClick={() => setActiveFolder('all')}
-                className={`block w-full text-left px-2 py-1 ${
-                  activeFolder === 'all' ? 'bg-ink text-paper' : ''
-                }`}
-              >
-                All
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => setActiveFolder('unfiled')}
-                className={`block w-full text-left px-2 py-1 ${
-                  activeFolder === 'unfiled' ? 'bg-ink text-paper' : ''
-                }`}
-              >
-                Unfiled
-              </button>
-            </li>
+      <main className="px-6 md:px-10 py-6 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+        {/* Folders sidebar */}
+        <aside className="text-body lg:sticky lg:top-[124px] lg:self-start">
+          <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold py-3 border-b border-line">
+            Folders
+          </p>
+          <ul className="py-2">
+            <FolderRow
+              active={activeFolder === 'all'}
+              onClick={() => setActiveFolder('all')}
+              label="All designs"
+            />
+            <FolderRow
+              active={activeFolder === 'unfiled'}
+              onClick={() => setActiveFolder('unfiled')}
+              label="Unfiled"
+            />
             {folders.map(f => (
               <li key={f.id} className="flex items-center group">
                 <button
                   onClick={() => setActiveFolder(f.id)}
-                  className={`flex-1 text-left px-2 py-1 inline-flex items-center gap-2 ${
-                    activeFolder === f.id ? 'bg-ink text-paper' : ''
-                  }`}
+                  data-active={activeFolder === f.id}
+                  className="ap-nav flex-1 !px-2"
                 >
-                  <Folder size={12} />
-                  {f.name}
+                  <Folder size={13} strokeWidth={1.6} />
+                  <span className="truncate">{f.name}</span>
                 </button>
                 <button
                   onClick={() => renameFolderPrompt(f)}
-                  className="opacity-0 group-hover:opacity-100 px-1 text-[10px] uppercase tracking-[0.14em] text-ink-muted"
+                  className="opacity-0 group-hover:opacity-100 px-1.5 text-[10px] uppercase tracking-[0.12em] text-ink-muted hover:text-ink"
+                  title="Rename"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => rmFolder(f)}
-                  className="opacity-0 group-hover:opacity-100 px-1 text-red-600"
+                  className="opacity-0 group-hover:opacity-100 px-1.5 text-red-600"
+                  title="Delete folder"
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={12} />
                 </button>
               </li>
             ))}
           </ul>
         </aside>
 
+        {/* Designs grid */}
         <section>
           {!designs.length && !busy && (
-            <p className="text-[13px] text-ink-muted py-12 text-center">
-              No designs here yet.
-            </p>
+            <div className="py-20 text-center">
+              <p className="text-body text-ink-muted">No designs here yet.</p>
+              <Link href="/sample-room" className="btn-primary mt-4 inline-flex">
+                <Plus size={14} strokeWidth={2.5} /> Create your first design
+              </Link>
+            </div>
           )}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
             {designs.map(d => (
-              <article key={d.id} className="border border-line">
-                <Link
-                  href={`/sample-room?design=${d.id}`}
-                  className="block aspect-[4/3] bg-line/40 overflow-hidden"
-                  title="Open in composer"
-                >
-                  {d.thumbUrl ? (
-                    <img
-                      src={d.thumbUrl}
-                      alt={d.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="grid place-items-center w-full h-full text-[10px] text-ink-muted">
-                      no thumbnail
-                    </span>
-                  )}
-                </Link>
-                <div className="p-3 text-[12px]">
-                  <p className="font-display truncate">{d.name}</p>
-                  <p className="text-ink-muted text-[10px] uppercase tracking-[0.14em] mt-0.5">
-                    {d.roomId || 'custom'}
-                  </p>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    <Link
-                      href={`/sample-room?design=${d.id}`}
-                      className="text-[10px] uppercase tracking-[0.14em]"
-                    >
-                      Open
-                    </Link>
-                    {d.thumbUrl && (
-                      <a
-                        href={d.thumbUrl}
-                        download={`${d.name}.jpg`}
-                        className="text-[10px] uppercase tracking-[0.14em]"
-                      >
-                        Download
-                      </a>
-                    )}
-                    <button
-                      onClick={() => moveDesign(d)}
-                      className="text-[10px] uppercase tracking-[0.14em]"
-                    >
-                      Move
-                    </button>
-                    <button
-                      onClick={() => rmDesign(d)}
-                      className="text-[10px] uppercase tracking-[0.14em] text-red-600"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </article>
+              <DesignCard
+                key={d.id}
+                d={d}
+                onMove={() => moveDesign(d)}
+                onDelete={() => rmDesign(d)}
+              />
             ))}
           </div>
         </section>
       </main>
     </div>
+  )
+}
+
+function FolderRow({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+}) {
+  return (
+    <li>
+      <button onClick={onClick} data-active={active} className="ap-nav w-full !px-2">
+        <span className="truncate">{label}</span>
+      </button>
+    </li>
+  )
+}
+
+function DesignCard({
+  d,
+  onMove,
+  onDelete,
+}: {
+  d: SavedDesign
+  onMove: () => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <article className="group">
+      <div className="aspect-[4/3] bg-paper border border-line/60 overflow-hidden relative">
+        <Link href={`/sample-room?design=${d.id}`} className="block w-full h-full" title="Open in composer">
+          {d.thumbUrl ? (
+            <img
+              src={d.thumbUrl}
+              alt={d.name}
+              className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
+            />
+          ) : (
+            <span className="grid place-items-center w-full h-full text-meta uppercase text-ink-muted">
+              no thumbnail
+            </span>
+          )}
+        </Link>
+        {/* SMART teal badge — placeholder for the AR-ready signal */}
+        <span className="absolute top-2 left-2 text-[9px] tracking-[0.16em] uppercase font-bold text-paper bg-accent-2 px-1.5 py-0.5 rounded-xs">
+          Smart
+        </span>
+        {/* Overflow menu */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => setOpen(o => !o)}
+            aria-label="More"
+            className="w-8 h-8 grid place-items-center bg-paper/90 backdrop-blur rounded-sm text-ink hover:bg-paper"
+          >
+            <MoreHorizontal size={14} />
+          </button>
+          {open && (
+            <div
+              onMouseLeave={() => setOpen(false)}
+              className="absolute right-0 mt-1 w-44 bg-paper border border-line shadow-pop rounded-sm py-1 text-[12px] z-10"
+            >
+              <Link
+                href={`/sample-room?design=${d.id}`}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-line/60"
+              >
+                <ChevronDown size={12} className="-rotate-90" /> Open
+              </Link>
+              {d.thumbUrl && (
+                <a
+                  href={d.thumbUrl}
+                  download={`${d.name}.jpg`}
+                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-line/60"
+                >
+                  <Download size={12} /> Download
+                </a>
+              )}
+              <button
+                onClick={() => { setOpen(false); onMove() }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-line/60 text-left"
+              >
+                <FolderInput size={12} /> Move to folder
+              </button>
+              <button
+                onClick={() => { setOpen(false); onDelete() }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-line/60 text-left text-red-600"
+              >
+                <Trash2 size={12} /> Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="text-center mt-3 text-[13px]">
+        <p className="font-bold truncate">{d.name}</p>
+        <p className="text-ink-muted text-[12px] mt-0.5">{d.roomId || 'Room Mockup'}</p>
+      </div>
+    </article>
   )
 }
