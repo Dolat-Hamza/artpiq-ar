@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
+  ArrowRight,
   Frame,
   Image as ImageIcon,
   LayoutGrid,
@@ -21,6 +22,7 @@ import { listExhibitions } from '@/lib/db/exhibitions'
 import { listContacts } from '@/lib/db/contacts'
 import { listSubscribers } from '@/lib/db/subscribers'
 import LoginForm from '@/components/LoginForm'
+import { SavedDesign } from '@/types'
 
 interface Counts {
   artworks: number
@@ -34,15 +36,8 @@ interface Counts {
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth()
-  const [counts, setCounts] = useState<Counts>({
-    artworks: 0,
-    collections: 0,
-    designs: 0,
-    shows: 0,
-    exhibitions: 0,
-    contacts: 0,
-    subscribers: 0,
-  })
+  const [counts, setCounts] = useState<Counts | null>(null)
+  const [recentDesigns, setRecentDesigns] = useState<SavedDesign[]>([])
 
   useEffect(() => {
     if (!user) return
@@ -64,10 +59,11 @@ export default function AdminDashboard() {
         contacts: ct.length,
         subscribers: sub.length,
       })
+      setRecentDesigns(d.slice(0, 6))
     })
   }, [user])
 
-  if (loading) return <div className="p-8 text-[13px] text-ink-muted">Loading…</div>
+  if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
   if (!user)
     return (
       <div className="min-h-dvh flex items-center justify-center p-6">
@@ -75,59 +71,159 @@ export default function AdminDashboard() {
       </div>
     )
 
-  const cards: Array<{
-    href: string
-    label: string
-    sub: string
-    icon: typeof Frame
-    count: number
-  }> = [
-    { href: '/admin/artworks', label: 'Artworks', sub: 'CRUD + collections + filters', icon: Frame, count: counts.artworks },
-    { href: '/admin/designs', label: 'Saved Designs', sub: 'Compositions + folders', icon: LayoutGrid, count: counts.designs },
-    { href: '/sample-room', label: 'Sample Room', sub: 'Multi-artwork composer', icon: ImageIcon, count: 0 },
-    { href: '/admin/rooms', label: 'Rooms Library', sub: '20 rooms · 4 filters', icon: Library, count: 20 },
-    { href: '/admin/exhibitions', label: 'Virtual Exhibitions', sub: '3D walkable galleries', icon: Star, count: counts.exhibitions },
-    { href: '/admin/shows', label: 'Art Show Planner', sub: 'Floor plan + walls', icon: MapPin, count: counts.shows },
-    { href: '/admin/profile', label: 'Discover Profile', sub: 'Public artist page', icon: Palette, count: 0 },
-    { href: '/admin/contacts', label: 'Contacts (CRM)', sub: 'Leads + categories', icon: Users, count: counts.contacts },
-    { href: '/admin/inbox', label: 'Newsletter Inbox', sub: 'Subscribers + Mailchimp CSV', icon: Mail, count: counts.subscribers },
-  ]
-
   return (
     <div className="min-h-dvh bg-paper">
       <header className="border-b border-line px-6 md:px-10 h-[56px] flex items-center">
         <div>
-          <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Dashboard</p>
+          <p className="text-meta uppercase text-ink-muted">Dashboard</p>
         </div>
-        <div className="ml-auto text-[12px] text-ink-muted">{user.email}</div>
+        <div className="ml-auto text-body text-ink-muted hidden sm:inline">{user.email}</div>
       </header>
-      <main className="px-6 md:px-10 py-8">
-        <h1 className="font-display text-[28px] tracking-tight">Welcome back</h1>
-        <p className="text-[13px] text-ink-muted mt-1">
-          {counts.artworks} works · {counts.collections} collections · {counts.designs} designs · {counts.contacts} contacts
-        </p>
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.map(c => {
-            const Icon = c.icon
-            return (
-              <Link
-                key={c.href}
-                href={c.href}
-                className="border border-line p-5 hover:border-ink transition-colors group"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <Icon size={18} className="text-ink-muted group-hover:text-ink" />
-                  <span className="text-[22px] font-display tabular-nums">{c.count}</span>
-                </div>
-                <p className="font-display text-[15px]">{c.label}</p>
-                <p className="text-[11px] tracking-[0.10em] uppercase text-ink-muted mt-1">
-                  {c.sub}
-                </p>
-              </Link>
-            )
-          })}
+
+      <main className="px-6 md:px-10 py-8 max-w-content mx-auto">
+        <h1 className="font-display text-h3 sm:text-[28px]">Welcome back</h1>
+        {counts ? (
+          <p className="text-body text-ink-muted mt-1">
+            {counts.artworks} works · {counts.collections} collections · {counts.designs} designs ·{' '}
+            {counts.contacts} contacts
+          </p>
+        ) : (
+          <div className="mt-2 h-4 w-72 skel-shimmer rounded-sm" />
+        )}
+
+        {/* Hero — two big primary CTAs */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <HeroCard
+            href="/sample-room"
+            title="Compose new"
+            sub="Place artwork at scale on a stock or uploaded room"
+            icon={ImageIcon}
+            tone="dark"
+          />
+          <HeroCard
+            href="/admin/rooms"
+            title="Browse Library"
+            sub="20 stock rooms, 4 filters, click to compose"
+            icon={Library}
+            tone="light"
+          />
         </div>
+
+        {/* Recent designs strip */}
+        {recentDesigns.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-baseline mb-3">
+              <p className="text-meta uppercase text-ink-muted">Recent designs</p>
+              <Link
+                href="/admin/designs"
+                className="ml-auto text-meta uppercase text-ink-muted hover:text-ink"
+              >
+                See all
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {recentDesigns.map(d => (
+                <Link
+                  key={d.id}
+                  href={`/sample-room?design=${d.id}`}
+                  className="block aspect-[4/3] bg-line/40 border border-line rounded-md overflow-hidden hover:border-ink hover:shadow-card transition-all ease-snap"
+                  title={d.name}
+                >
+                  {d.thumbUrl && <img src={d.thumbUrl} alt={d.name} className="w-full h-full object-cover" />}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Secondary tiles */}
+        <section className="mt-10">
+          <p className="text-meta uppercase text-ink-muted mb-3">Modules</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <ModuleCard href="/admin/artworks" label="Artworks" sub="CRUD + collections + filters" icon={Frame} count={counts?.artworks} />
+            <ModuleCard href="/admin/designs" label="Saved Designs" sub="Compositions + folders" icon={LayoutGrid} count={counts?.designs} />
+            <ModuleCard href="/admin/exhibitions" label="Virtual Exhibitions" sub="3D walkable galleries" icon={Star} count={counts?.exhibitions} />
+            <ModuleCard href="/admin/shows" label="Art Show Planner" sub="Floor plan + walls" icon={MapPin} count={counts?.shows} />
+            <ModuleCard href="/admin/profile" label="Discover Profile" sub="Public artist page" icon={Palette} />
+            <ModuleCard href="/admin/contacts" label="Contacts" sub="CRM + leads" icon={Users} count={counts?.contacts} />
+            <ModuleCard href="/admin/inbox" label="Newsletter" sub="Subscribers + CSV" icon={Mail} count={counts?.subscribers} />
+            <ModuleCard href="/admin/rooms" label="Rooms Library" sub="20 rooms · filters" icon={Library} count={20} />
+          </div>
+        </section>
       </main>
     </div>
+  )
+}
+
+function HeroCard({
+  href,
+  title,
+  sub,
+  icon: Icon,
+  tone,
+}: {
+  href: string
+  title: string
+  sub: string
+  icon: typeof ImageIcon
+  tone: 'dark' | 'light'
+}) {
+  const cls =
+    tone === 'dark'
+      ? 'bg-ink text-paper'
+      : 'bg-paper text-ink border border-line hover:border-ink'
+  return (
+    <Link
+      href={href}
+      className={`relative group flex flex-col justify-between p-6 rounded-md min-h-[160px] transition-all ease-snap hover:shadow-pop ${cls}`}
+    >
+      <Icon size={22} className={tone === 'dark' ? 'text-paper/60' : 'text-ink-muted'} />
+      <div>
+        <p className="font-display text-[20px] leading-tight">{title}</p>
+        <p className={`text-body mt-1 ${tone === 'dark' ? 'text-paper/70' : 'text-ink-muted'}`}>
+          {sub}
+        </p>
+        <div
+          className={`mt-3 inline-flex items-center gap-1 text-meta uppercase tracking-[0.18em] ${
+            tone === 'dark' ? 'text-paper' : 'text-ink'
+          }`}
+        >
+          Open
+          <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function ModuleCard({
+  href,
+  label,
+  sub,
+  icon: Icon,
+  count,
+}: {
+  href: string
+  label: string
+  sub: string
+  icon: typeof Frame
+  count?: number
+}) {
+  return (
+    <Link
+      href={href}
+      className="border border-line rounded-md p-4 hover:border-ink hover:shadow-card transition-all ease-snap group"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <Icon size={16} className="text-ink-muted group-hover:text-ink" />
+        {count !== undefined ? (
+          <span className="font-display text-[20px] tabular-nums">{count}</span>
+        ) : (
+          <span className="w-8 h-4 skel-shimmer rounded-sm" />
+        )}
+      </div>
+      <p className="font-display text-body">{label}</p>
+      <p className="text-[11px] tracking-[0.06em] text-ink-muted mt-0.5">{sub}</p>
+    </Link>
   )
 }
