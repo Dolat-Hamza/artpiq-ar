@@ -5,19 +5,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Semantic (used across components)
+        // ArtPlacer LAYOUT/SHAPE, our COLORS (white + indigo)
         paper: '#FFFFFF',
+        bg: '#FAFAFA',                // ArtPlacer body bg
         ink: '#1E293B',
-        'ink-muted': '#475569',          // bumped from #64748B for AA on small text
-        'ink-soft': '#94A3B8',
-        line: '#E2E8F0',
-        'line-strong': '#CBD5E1',
-        accent: '#2563EB',
+        'ink-soft': '#475569',
+        'ink-muted': '#64748B',
+        line: '#F2F2F2',              // ArtPlacer border
+        'line-strong': '#E5E5E5',
+        accent: '#2563EB',            // our indigo (kept)
         'accent-soft': '#DBEAFE',
         'accent-ink': '#FFFFFF',
-        surface: '#F8FAFC',
+        'accent-2': '#1EAC99',        // SMART badge teal
+        surface: '#F6F6F6',
 
-        // ArtPlacer-style surfaces
+        // Composer surfaces (kept for SampleRoom dock + stage)
         'surface-stage': '#EDEDEA',
         'surface-dock': '#141414',
         'on-dock': '#F4F4F0',
@@ -29,13 +31,12 @@ const config: Config = {
         'pill-reserved': '#F59E0B',
         'pill-rented': '#8B5CF6',
 
-        // Brand primitives (kept for legacy usage)
+        // Brand primitives (legacy — kept to avoid breakage)
         mist: '#FFFFFF',
         obsidian: '#F1F5F9',
         indigo: '#3B82F6',
         'indigo-light': '#93C5FD',
         cyan: '#BAE6FD',
-
         'slate-50':  '#F8FAFC',
         'slate-100': '#F1F5F9',
         'slate-200': '#E2E8F0',
@@ -45,20 +46,22 @@ const config: Config = {
         'slate-700': '#334155',
       },
       fontFamily: {
-        display: ['var(--font-sans)', 'Plus Jakarta Sans', 'sans-serif'],
-        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        // PT Sans matches ArtPlacer body type exactly
+        sans: ['var(--font-pt-sans)', 'PT Sans', '-apple-system', 'sans-serif'],
+        display: ['var(--font-pt-sans)', 'PT Sans', '-apple-system', 'sans-serif'],
       },
       fontSize: {
-        meta:  ['11px', { lineHeight: '14px', letterSpacing: '0.18em' }],
-        label: ['12px', { lineHeight: '16px', letterSpacing: '0.04em' }],
-        body:  ['14px', { lineHeight: '20px' }],
-        h3:    ['20px', { lineHeight: '24px', letterSpacing: '-0.01em' }],
+        meta:  ['10px', { lineHeight: '14px', letterSpacing: '0.10em' }],
+        label: ['11px', { lineHeight: '15px', letterSpacing: '0.04em' }],
+        body:  ['13px', { lineHeight: '18px' }],
+        h3:    ['20px', { lineHeight: '26px', letterSpacing: '0' }],
+        h2:    ['24px', { lineHeight: '30px', letterSpacing: '-0.005em' }],
       },
       boxShadow: {
-        card: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.06)',
-        pop:  '0 8px 24px rgba(15,23,42,0.18)',
+        card: '0 1px 2px rgba(0,0,0,0.04)',
+        pop:  '0 8px 24px rgba(0,0,0,0.10)',
         dock: '0 -8px 24px rgba(0,0,0,0.18)',
-        focus: '0 0 0 2px rgba(37,99,235,0.50)',
+        focus: '0 0 0 2px rgba(224,35,60,0.50)',
       },
       borderRadius: {
         xs: '2px',
@@ -68,6 +71,9 @@ const config: Config = {
       },
       spacing: {
         touch: '44px',
+        sidebar: '232px',
+        'sidebar-collapsed': '60px',
+        'topbar': '56px',
       },
       transitionTimingFunction: {
         snap: 'cubic-bezier(0.2, 0.8, 0.2, 1)',

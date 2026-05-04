@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans } from 'next/font/google'
+import { PT_Sans } from 'next/font/google'
 import './globals.css'
 
-const sans = Plus_Jakarta_Sans({
+const sans = PT_Sans({
   subsets: ['latin'],
-  variable: '--font-sans',
+  variable: '--font-pt-sans',
   display: 'swap',
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['400', '700'],
 })
 
 export const metadata: Metadata = {
