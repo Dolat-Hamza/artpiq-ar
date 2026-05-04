@@ -6,6 +6,7 @@ import Chip from '@/components/ui/Chip'
 import Toggle from '@/components/ui/Toggle'
 import Button from '@/components/ui/Button'
 import { STOCK_ROOMS, filterRooms } from '@/lib/rooms'
+import AdminPageHeader from '@/components/ui/AdminPageHeader'
 
 const CATS = ['all', 'living', 'bedroom', 'office', 'kitchen', 'gallery', 'plain'] as const
 const PERSPS = ['all', 'front', 'angled', 'corner'] as const
@@ -34,28 +35,21 @@ export default function RoomsLibraryPage() {
   const hasFilters = cat !== 'all' || persp !== 'all' || orient !== 'all' || size !== 'all' || smartOnly
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-4 flex-wrap">
-          <div className="flex-1">
-            <p className="text-meta uppercase text-ink-muted">Library</p>
-            <h1 className="font-display text-h3">
-              Room mockups · {list.length} of {STOCK_ROOMS.length}
-            </h1>
-          </div>
+    <div className="min-h-dvh bg-bg text-ink">
+      <AdminPageHeader
+        title="Room Mockups"
+        actions={
           <Link href="/sample-room">
             <Button variant="primary" size="md">
               Open composer
             </Button>
           </Link>
-        </div>
-        <div className="max-w-content mx-auto px-6 md:px-12 pb-5 space-y-3">
-          <FilterRow label="Category" options={CATS} value={cat} onChange={setCat} />
-          <FilterRow label="Perspective" options={PERSPS} value={persp} onChange={setPersp} />
-          <FilterRow label="Orientation" options={ORIENTS} value={orient} onChange={setOrient} />
-          <FilterRow label="Wall size" options={SIZES} value={size} onChange={setSize} />
-          <div className="flex items-center gap-4 pt-1">
-            <Toggle checked={smartOnly} onChange={setSmartOnly} label="Smart spaces only" />
+        }
+        subBar={
+          <>
+            <span>
+              Showing <span className="text-ink font-bold">{list.length}</span> of {STOCK_ROOMS.length}
+            </span>
             {hasFilters && (
               <button
                 onClick={() => {
@@ -65,15 +59,27 @@ export default function RoomsLibraryPage() {
                   setSize('all')
                   setSmartOnly(false)
                 }}
-                className="text-meta uppercase text-ink-muted underline ml-auto hover:text-ink"
+                className="ml-auto text-meta uppercase tracking-[0.14em] text-ink-muted underline hover:text-ink"
               >
                 Clear filters
               </button>
             )}
+          </>
+        }
+      />
+
+      <div className="bg-paper border-b border-line">
+        <div className="px-6 md:px-10 py-4 space-y-3 max-w-content mx-auto">
+          <FilterRow label="Category" options={CATS} value={cat} onChange={setCat} />
+          <FilterRow label="Perspective" options={PERSPS} value={persp} onChange={setPersp} />
+          <FilterRow label="Orientation" options={ORIENTS} value={orient} onChange={setOrient} />
+          <FilterRow label="Wall size" options={SIZES} value={size} onChange={setSize} />
+          <div className="flex items-center gap-4 pt-1">
+            <Toggle checked={smartOnly} onChange={setSmartOnly} label="Smart spaces only" />
           </div>
         </div>
-      </header>
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8">
+      </div>
+      <main className="px-6 md:px-10 py-6 max-w-content mx-auto">
         {!list.length && (
           <div className="py-20 text-center">
             <Library className="mx-auto text-ink-muted" size={32} />
@@ -106,7 +112,7 @@ export default function RoomsLibraryPage() {
                   className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.04]"
                 />
                 {r.smart && (
-                  <span className="absolute top-2 left-2 bg-accent text-paper text-[9px] px-1.5 py-0.5 tracking-[0.18em] uppercase rounded-xs">
+                  <span className="absolute top-2 left-2 bg-accent-2 text-paper text-[9px] font-bold px-1.5 py-0.5 tracking-[0.16em] uppercase rounded-xs">
                     Smart
                   </span>
                 )}

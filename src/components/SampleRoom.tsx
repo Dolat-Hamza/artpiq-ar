@@ -616,30 +616,25 @@ export default function SampleRoom() {
 
   return (
     <div className="min-h-dvh bg-paper text-ink flex flex-col">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">Sample room</p>
-            <h1 className="font-display text-[20px] tracking-tight">
-              Place at scale — drag to move · corner to resize · pick room from sidebar
-            </h1>
-          </div>
-          <div className="flex gap-2 items-center">
+      <header className="bg-paper border-b border-line">
+        <div className="px-6 md:px-10 h-16 flex items-center gap-3">
+          <h1 className="font-display text-[14px] tracking-[0.18em] uppercase">Sample Room</h1>
+          <span className="text-meta tracking-[0.12em] uppercase text-ink-muted hidden md:inline">
+            Drag · resize · choose room from sidebar
+          </span>
+          <div className="ml-auto flex gap-2 items-center">
             {sequence ? (
               <>
-                <span className="text-[11px] tracking-[0.16em] uppercase text-ink-muted">
+                <span className="text-meta tracking-[0.12em] uppercase text-ink-muted hidden md:inline">
                   Step {sequenceIdx + 1} / {sequence.length} · {room.name}
                 </span>
-                <button
-                  onClick={cancelSequence}
-                  className="px-3 py-2 text-[12px] tracking-[0.18em] uppercase border border-line"
-                >
+                <button onClick={cancelSequence} className="btn-outline">
                   Cancel
                 </button>
                 <button
                   onClick={confirmAndNext}
                   disabled={!placed.length || exporting}
-                  className="px-4 py-2 text-[12px] tracking-[0.18em] uppercase bg-ink text-paper disabled:opacity-40"
+                  className="btn-primary disabled:opacity-40"
                 >
                   {exporting
                     ? 'Saving…'
@@ -650,16 +645,13 @@ export default function SampleRoom() {
               </>
             ) : (
               <>
-                <a
-                  href="/admin/designs"
-                  className="hidden md:inline-block px-3 py-2 text-[12px] tracking-[0.18em] uppercase text-ink-muted hover:text-ink"
-                >
+                <a href="/admin/designs" className="hidden md:inline-flex btn-outline">
                   My Designs
                 </a>
                 <button
                   onClick={saveDesign}
                   disabled={!user || !placed.length || savingDesign}
-                  className="px-3 py-2 text-[12px] tracking-[0.18em] uppercase border border-line disabled:opacity-40"
+                  className="btn-outline disabled:opacity-40"
                   title={!user ? 'Sign in to save' : 'Save composition'}
                 >
                   {savingDesign ? 'Saving…' : 'Save design'}
@@ -669,14 +661,14 @@ export default function SampleRoom() {
                     setSequencePicks([])
                     setSequencePicker(true)
                   }}
-                  className="px-3 py-2 text-[12px] tracking-[0.18em] uppercase border border-line"
+                  className="btn-outline hidden lg:inline-flex"
                 >
-                  Create sequence
+                  Sequence
                 </button>
                 <button
                   onClick={exportPng}
                   disabled={!placed.length || exporting}
-                  className="px-4 py-2 text-[12px] tracking-[0.18em] uppercase bg-ink text-paper disabled:opacity-40"
+                  className="btn-primary disabled:opacity-40"
                 >
                   {exporting ? 'Saving…' : `Save image (${placed.length})`}
                 </button>

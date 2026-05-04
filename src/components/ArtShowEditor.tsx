@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Save, Upload, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Upload, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { getShow, updateShow, uploadFloorPlan } from '@/lib/db/artShows'
 import { listMyArtworks } from '@/lib/db/artworks'
@@ -134,48 +134,57 @@ export default function ArtShowEditor({ id }: { id: string }) {
   if (!show) return <div className="p-8 text-[13px] text-ink-muted">Loading show…</div>
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-5 flex items-center gap-3 flex-wrap">
-          <Link href="/admin/shows" className="text-[11px] tracking-[0.16em] uppercase text-ink-muted hover:text-ink">
-            ← All shows
+    <div className="min-h-dvh bg-bg text-ink">
+      <header className="bg-paper border-b border-line">
+        <div className="px-6 md:px-10 h-16 flex items-center gap-3">
+          <Link
+            href="/admin/shows"
+            className="inline-flex items-center gap-1.5 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink"
+          >
+            <ArrowLeft size={13} /> All
           </Link>
           <input
             value={show.name}
             onChange={e => persist({ name: e.target.value })}
-            className="font-display text-[22px] tracking-tight bg-transparent border-b border-transparent hover:border-line focus:border-ink outline-none"
+            className="font-display text-[14px] tracking-[0.04em] bg-transparent border-b border-transparent hover:border-line focus:border-ink outline-none px-1"
           />
           <input
             value={show.venueName || ''}
             onChange={e => persist({ venueName: e.target.value })}
             placeholder="Venue"
-            className="text-[12px] border-b border-transparent hover:border-line focus:border-ink outline-none px-1 py-0.5"
+            className="text-body border-b border-transparent hover:border-line focus:border-ink outline-none px-1"
           />
-          <div className="flex-1" />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={e => uploadPlan(e.target.files?.[0])}
-          />
-          <button onClick={() => fileRef.current?.click()} disabled={busy} className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line inline-flex items-center gap-2 disabled:opacity-40">
-            <Upload size={13} /> {show.floorPlanUrl ? 'Replace plan' : 'Upload plan'}
-          </button>
-          <button onClick={addWall} className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase border border-line inline-flex items-center gap-2">
-            <Plus size={13} /> Wall
-          </button>
-          <button onClick={() => setMsg('All changes auto-saved')} className="px-3 py-2 text-[11px] tracking-[0.18em] uppercase bg-ink text-paper inline-flex items-center gap-2">
-            <Save size={13} /> Saved
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => uploadPlan(e.target.files?.[0])}
+            />
+            <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn-outline disabled:opacity-40">
+              <Upload size={13} /> {show.floorPlanUrl ? 'Replace plan' : 'Upload plan'}
+            </button>
+            <button onClick={addWall} className="btn-outline">
+              <Plus size={13} /> Wall
+            </button>
+            <button onClick={() => setMsg('All changes auto-saved')} className="btn-primary">
+              <Save size={14} strokeWidth={2.5} /> Saved
+            </button>
+          </div>
         </div>
-        {msg && <p className="max-w-content mx-auto px-6 md:px-12 pb-2 text-[11px] text-emerald-700">{msg}</p>}
+        <div className="px-6 md:px-10 h-11 border-t border-line bg-bg flex items-center gap-4 text-meta uppercase tracking-[0.12em] text-ink-muted">
+          <span>Walls: <span className="text-ink font-bold">{show.wallSegments.length}</span></span>
+          <span className="text-ink-muted">·</span>
+          <span>Placements: <span className="text-ink font-bold">{show.placements.length}</span></span>
+          {msg && <span className="ml-auto text-emerald-700 normal-case tracking-normal">{msg}</span>}
+        </div>
       </header>
 
-      <main className="max-w-content mx-auto px-6 md:px-12 py-6 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+      <main className="px-6 md:px-10 py-6 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         <div
           ref={stageRef}
-          className="relative bg-line/30 aspect-[4/3] overflow-hidden border border-line touch-none"
+          className="relative bg-paper aspect-[4/3] overflow-hidden border border-line rounded-md touch-none"
           onPointerMove={onWallMove}
           onPointerUp={onWallUp}
           onPointerCancel={onWallUp}
@@ -244,27 +253,33 @@ export default function ArtShowEditor({ id }: { id: string }) {
           })}
         </div>
 
-        <aside className="text-[13px]">
+        <aside className="bg-paper border border-line rounded-md p-4 text-body lg:sticky lg:top-[124px] lg:self-start">
           {activeWallId ? (
             (() => {
               const w = show.wallSegments.find(x => x.id === activeWallId)
               if (!w) return null
               return (
-                <div className="space-y-2 mb-4">
-                  <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted">Selected wall</p>
-                  <label className="block text-[11px]">Length: {(w.length * 100).toFixed(0)}%
-                    <input type="range" min={0.05} max={1} step={0.01} value={w.length} onChange={e => updateWall(w.id, { length: Number(e.target.value) })} className="w-full" />
+                <div className="space-y-3 mb-4 pb-4 border-b border-line">
+                  <p className="text-meta tracking-[0.14em] uppercase text-ink-muted font-bold">Selected wall</p>
+                  <label className="block text-meta tracking-[0.12em] uppercase text-ink-muted">
+                    Length: <span className="text-ink font-bold normal-case tracking-normal">{(w.length * 100).toFixed(0)}%</span>
+                    <input type="range" min={0.05} max={1} step={0.01} value={w.length} onChange={e => updateWall(w.id, { length: Number(e.target.value) })} className="w-full mt-1" />
                   </label>
-                  <label className="block text-[11px]">Rotation: {w.rotation.toFixed(0)}°
-                    <input type="range" min={0} max={360} step={1} value={w.rotation} onChange={e => updateWall(w.id, { rotation: Number(e.target.value) })} className="w-full" />
+                  <label className="block text-meta tracking-[0.12em] uppercase text-ink-muted">
+                    Rotation: <span className="text-ink font-bold normal-case tracking-normal">{w.rotation.toFixed(0)}°</span>
+                    <input type="range" min={0} max={360} step={1} value={w.rotation} onChange={e => updateWall(w.id, { rotation: Number(e.target.value) })} className="w-full mt-1" />
                   </label>
                 </div>
               )
             })()
           ) : (
-            <p className="text-[12px] text-ink-muted mb-4">Click a wall to select. Tap an artwork below to place it on the selected wall.</p>
+            <p className="text-body text-ink-muted mb-4 pb-4 border-b border-line">
+              Click a wall to select. Tap an artwork below to place it on the selected wall.
+            </p>
           )}
-          <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-2">Artworks ({artworks.length})</p>
+          <p className="text-meta tracking-[0.14em] uppercase text-ink-muted font-bold mb-3">
+            Artworks · {artworks.length}
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {artworks.slice(0, 60).map(a => (
               <button
@@ -272,19 +287,16 @@ export default function ArtShowEditor({ id }: { id: string }) {
                 onClick={() => placeArtwork(a.id)}
                 disabled={!activeWallId}
                 title={`${a.title}${a.artist ? ' — ' + a.artist : ''}`}
-                className="border border-line hover:border-ink overflow-hidden disabled:opacity-40"
+                className="border border-line hover:border-ink overflow-hidden rounded-xs aspect-square bg-bg disabled:opacity-40 transition-colors"
               >
                 {a.thumb || a.image ? (
-                  <img src={a.thumb || a.image || ''} alt={a.title} className="w-full aspect-square object-cover" />
+                  <img src={a.thumb || a.image || ''} alt={a.title} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[10px] text-ink-muted">{a.title}</span>
+                  <span className="text-meta text-ink-muted truncate inline-block px-1">{a.title}</span>
                 )}
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[11px] tracking-[0.14em] uppercase text-ink-muted">
-            {show.placements.length} placements
-          </p>
         </aside>
       </main>
     </div>

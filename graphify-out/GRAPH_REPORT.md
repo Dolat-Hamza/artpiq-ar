@@ -1,11 +1,11 @@
 # Graph Report - /Users/dolathamza/Documents/GitHub/artpiq-ar  (2026-05-04)
 
 ## Corpus Check
-- 87 files · ~41,901 words
+- 88 files · ~42,596 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 323 nodes · 471 edges · 55 communities detected
+- 324 nodes · 469 edges · 57 communities detected
 - Extraction: 68% EXTRACTED · 32% INFERRED · 0% AMBIGUOUS · INFERRED: 149 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -65,6 +65,8 @@
 - [[_COMMUNITY_Community 52|Community 52]]
 - [[_COMMUNITY_Community 53|Community 53]]
 - [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 56|Community 56]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `supabase()` - 60 edges
@@ -79,30 +81,30 @@
 10. `refresh()` - 6 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `listSubscribers()` --calls--> `supabase()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
+- `deleteSubscriber()` --calls--> `supabase()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
 - `listFavorites()` --calls--> `supabase()`  [INFERRED]
   /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/favorites.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
 - `listArtworks()` --calls--> `supabase()`  [INFERRED]
   /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/artworks.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
 - `uploadImage()` --calls--> `supabase()`  [INFERRED]
   /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/artworks.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `supabase()` --calls--> `listPublicArtworksByOwner()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/discover.ts
-- `GET()` --calls--> `captureCurrentRoom()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/api/ar/painting/[id]/route.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SampleRoom.tsx
 
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.09
-Nodes (34): refresh(), updateShow(), listMyArtworks(), signInWithGoogle(), signInWithMagicLink(), signInWithPassword(), signOut(), signUpWithPassword() (+26 more)
+Cohesion: 0.1
+Nodes (34): refresh(), remove(), rename(), updateShow(), deleteArtwork(), listMyArtworks(), supabase(), addArtworkToCollection() (+26 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.14
-Nodes (21): buildPaintingMesh(), loadTexture(), add(), GET(), POST(), rateLimitOk(), addStandardLighting(), buildFramedPainting() (+13 more)
+Nodes (21): add(), buildPaintingMesh(), loadTexture(), GET(), POST(), rateLimitOk(), addStandardLighting(), buildFramedPainting() (+13 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.11
-Nodes (20): duplicate(), exportCsv(), importCsv(), openEditor(), openNewEditor(), remove(), save(), artworkToRow() (+12 more)
+Nodes (19): duplicate(), exportCsv(), importCsv(), openEditor(), openNewEditor(), save(), artworkToRow(), bulkUpsert() (+11 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.12
@@ -113,8 +115,8 @@ Cohesion: 0.14
 Nodes (6): share(), decodeBitmap(), exportImage(), normalizeToBlob(), onFile(), withTimeout()
 
 ### Community 5 - "Community 5"
-Cohesion: 0.19
-Nodes (13): persist(), placeArtwork(), removeAt(), updateAt(), createExhibition(), deleteExhibition(), getExhibition(), getExhibitionBySlug() (+5 more)
+Cohesion: 0.15
+Nodes (11): signInWithGoogle(), signInWithMagicLink(), signInWithPassword(), signOut(), signUpWithPassword(), useAuth(), hasSupabase(), ExhibitionsList() (+3 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.24
@@ -145,31 +147,31 @@ Cohesion: 0.27
 Nodes (8): getDiscoverProfileBySlug(), getMyDiscoverProfile(), listPublicArtworksByOwner(), rowToProfile(), uploadHero(), upsertDiscoverProfile(), onHeroFile(), save()
 
 ### Community 13 - "Community 13"
-Cohesion: 0.31
-Nodes (6): refresh(), rm(), deleteSubscriber(), downloadSubscribersCsv(), listSubscribers(), subscribersToCsv()
-
-### Community 14 - "Community 14"
 Cohesion: 0.22
 Nodes (1): ArtworkBoundary
 
-### Community 15 - "Community 15"
+### Community 14 - "Community 14"
 Cohesion: 0.33
 Nodes (0): 
 
+### Community 15 - "Community 15"
+Cohesion: 0.4
+Nodes (4): deleteSubscriber(), downloadSubscribersCsv(), listSubscribers(), subscribersToCsv()
+
 ### Community 16 - "Community 16"
+Cohesion: 0.7
+Nodes (4): persist(), placeArtwork(), removeAt(), updateAt()
+
+### Community 17 - "Community 17"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 17 - "Community 17"
+### Community 18 - "Community 18"
 Cohesion: 0.67
 Nodes (2): artworksToSqspCsv(), downloadSqspCsv()
 
-### Community 18 - "Community 18"
-Cohesion: 0.67
-Nodes (0): 
-
 ### Community 19 - "Community 19"
-Cohesion: 1.0
+Cohesion: 0.67
 Nodes (0): 
 
 ### Community 20 - "Community 20"
@@ -312,94 +314,104 @@ Nodes (0):
 Cohesion: 1.0
 Nodes (0): 
 
+### Community 55 - "Community 55"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 56 - "Community 56"
+Cohesion: 1.0
+Nodes (0): 
+
 ## Knowledge Gaps
-- **Thin community `Community 19`** (2 nodes): `EmbedPage()`, `page.tsx`
+- **Thin community `Community 20`** (2 nodes): `EmbedPage()`, `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 20`** (2 nodes): `AdminLayout()`, `layout.tsx`
+- **Thin community `Community 21`** (2 nodes): `AdminLayout()`, `layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 21`** (2 nodes): `PublicExhibitionPage()`, `page.tsx`
+- **Thin community `Community 22`** (2 nodes): `PublicExhibitionPage()`, `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 22`** (2 nodes): `submit()`, `page.tsx`
+- **Thin community `Community 23`** (2 nodes): `submit()`, `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 23`** (2 nodes): `NewsletterForm()`, `NewsletterForm.tsx`
+- **Thin community `Community 24`** (2 nodes): `NewsletterForm()`, `NewsletterForm.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 24`** (2 nodes): `AppShell()`, `AppShell.tsx`
+- **Thin community `Community 25`** (2 nodes): `AppShell()`, `AppShell.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 25`** (2 nodes): `handleClick()`, `ArtworkCard.tsx`
+- **Thin community `Community 26`** (2 nodes): `handleClick()`, `ArtworkCard.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 26`** (2 nodes): `Toast()`, `Toast.tsx`
+- **Thin community `Community 27`** (2 nodes): `Toast()`, `Toast.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 27`** (2 nodes): `StatusPill()`, `StatusPill.tsx`
+- **Thin community `Community 28`** (2 nodes): `StatusPill()`, `StatusPill.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 28`** (2 nodes): `onKey()`, `Dialog.tsx`
+- **Thin community `Community 29`** (2 nodes): `onKey()`, `Dialog.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 29`** (2 nodes): `fetchWikiImages()`, `artworks.ts`
+- **Thin community `Community 30`** (2 nodes): `fetchWikiImages()`, `artworks.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 30`** (2 nodes): `groupArtworks()`, `inventoryReport.tsx`
+- **Thin community `Community 31`** (2 nodes): `groupArtworks()`, `inventoryReport.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 31`** (2 nodes): `filterRooms()`, `rooms.ts`
+- **Thin community `Community 32`** (2 nodes): `filterRooms()`, `rooms.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 32`** (1 nodes): `postcss.config.mjs`
+- **Thin community `Community 33`** (1 nodes): `postcss.config.mjs`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (1 nodes): `next-env.d.ts`
+- **Thin community `Community 34`** (1 nodes): `next-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (1 nodes): `tailwind.config.ts`
+- **Thin community `Community 35`** (1 nodes): `tailwind.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (1 nodes): `next.config.ts`
+- **Thin community `Community 36`** (1 nodes): `next.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (1 nodes): `model-viewer.d.ts`
+- **Thin community `Community 37`** (1 nodes): `model-viewer.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (1 nodes): `index.ts`
+- **Thin community `Community 38`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (1 nodes): `layout.tsx`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (1 nodes): `page.tsx`
+- **Thin community `Community 39`** (1 nodes): `layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 40`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 41`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 42`** (1 nodes): `AdminShell.tsx`
+- **Thin community `Community 42`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (1 nodes): `QROverlay.tsx`
+- **Thin community `Community 43`** (1 nodes): `AdminShell.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (1 nodes): `Header.tsx`
+- **Thin community `Community 44`** (1 nodes): `QROverlay.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 45`** (1 nodes): `Catalogue.tsx`
+- **Thin community `Community 45`** (1 nodes): `Header.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 46`** (1 nodes): `SiteNav.tsx`
+- **Thin community `Community 46`** (1 nodes): `Catalogue.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 47`** (1 nodes): `Chip.tsx`
+- **Thin community `Community 47`** (1 nodes): `SiteNav.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 48`** (1 nodes): `IconButton.tsx`
+- **Thin community `Community 48`** (1 nodes): `AdminPageHeader.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 49`** (1 nodes): `Button.tsx`
+- **Thin community `Community 49`** (1 nodes): `Chip.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 50`** (1 nodes): `Toggle.tsx`
+- **Thin community `Community 50`** (1 nodes): `IconButton.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 51`** (1 nodes): `frames.ts`
+- **Thin community `Community 51`** (1 nodes): `Button.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 52`** (1 nodes): `artworkSheet.tsx`
+- **Thin community `Community 52`** (1 nodes): `Toggle.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 53`** (1 nodes): `types.ts`
+- **Thin community `Community 53`** (1 nodes): `frames.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 54`** (1 nodes): `index.ts`
+- **Thin community `Community 54`** (1 nodes): `artworkSheet.tsx`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 55`** (1 nodes): `types.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 56`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `supabase()` connect `Community 0` to `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 11`, `Community 12`, `Community 13`?**
-  _High betweenness centrality (0.343) - this node is a cross-community bridge._
+- **Why does `supabase()` connect `Community 0` to `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 7`, `Community 11`, `Community 12`, `Community 15`?**
+  _High betweenness centrality (0.334) - this node is a cross-community bridge._
+- **Why does `exportImage()` connect `Community 4` to `Community 0`, `Community 9`, `Community 2`, `Community 3`?**
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
 - **Why does `captureCurrentRoom()` connect `Community 3` to `Community 0`, `Community 9`, `Community 2`, `Community 1`?**
-  _High betweenness centrality (0.091) - this node is a cross-community bridge._
-- **Why does `exportImage()` connect `Community 4` to `Community 9`, `Community 2`, `Community 3`?**
-  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+  _High betweenness centrality (0.080) - this node is a cross-community bridge._
 - **Are the 59 inferred relationships involving `supabase()` (e.g. with `createDesign()` and `listDesigns()`) actually correct?**
   _`supabase()` has 59 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 13 inferred relationships involving `GET()` (e.g. with `rateLimitOk()` and `POST()`) actually correct?**
   _`GET()` has 13 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 3 inferred relationships involving `captureCurrentRoom()` (e.g. with `.getContext()` and `save()`) actually correct?**
   _`captureCurrentRoom()` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 8 inferred relationships involving `add()` (e.g. with `createExhibition()` and `toggleFavorite()`) actually correct?**
+- **Are the 8 inferred relationships involving `add()` (e.g. with `createCollection()` and `toggleFavorite()`) actually correct?**
   _`add()` has 8 INFERRED edges - model-reasoned connections that need verification._

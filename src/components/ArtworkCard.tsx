@@ -23,7 +23,7 @@ export default function ArtworkCard({ aw }: { aw: Artwork }) {
         disabled ? 'opacity-30' : ''
       }`}
     >
-      <div className="relative aspect-[3/4] bg-surface overflow-hidden">
+      <div className="relative aspect-[4/5] bg-paper border border-line/60 overflow-hidden">
         {aw.thumb ? (
           <>
             {!loaded && <div className="absolute inset-0 skel-shimmer" />}
@@ -59,11 +59,10 @@ export default function ArtworkCard({ aw }: { aw: Artwork }) {
         )}
       </div>
 
-      <div className="pt-4">
-        <h3 className="font-display text-[20px] leading-tight text-ink">{aw.title}</h3>
-        <p className="mt-1 text-[11px] tracking-[0.12em] uppercase text-ink-muted">
-          {aw.artist} — {aw.year}
-        </p>
+      <div className="text-center mt-3 text-[13px]">
+        <p className="font-bold truncate">{aw.title}</p>
+        <p className="text-ink-muted truncate">{aw.artist}</p>
+        <p className="text-ink-muted text-[12px] italic mt-0.5">{aw.year}</p>
       </div>
     </button>
   )

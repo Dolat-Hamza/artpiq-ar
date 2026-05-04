@@ -490,16 +490,16 @@ function EditorDrawer({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-[920px] bg-paper max-h-[92vh] overflow-y-auto shadow-xl"
+        className="w-full max-w-[920px] bg-paper max-h-[92vh] overflow-y-auto rounded-md shadow-pop"
         onClick={e => e.stopPropagation()}
       >
-        <header className="sticky top-0 bg-paper border-b border-line px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="font-display text-[18px]">Edit artwork</h2>
+        <header className="sticky top-0 bg-paper border-b border-line px-6 h-14 flex items-center justify-between z-10">
+          <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Edit artwork</h2>
           <div className="flex gap-2">
-            <button onClick={onCancel} className="px-3 py-2 text-[11px] tracking-[0.16em] uppercase border border-line">
+            <button onClick={onCancel} className="btn-outline">
               Cancel
             </button>
-            <button onClick={onSave} className="px-3 py-2 text-[11px] tracking-[0.16em] uppercase bg-ink text-paper">
+            <button onClick={onSave} className="btn-primary">
               Save
             </button>
           </div>

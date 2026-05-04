@@ -51,12 +51,14 @@ function LeadForm({ ownerId, collectionName }: { ownerId: string; collectionName
   }
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 max-w-md">
-      <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted">Get in touch</p>
+      <p className="text-meta tracking-[0.18em] uppercase text-ink-muted font-bold mb-1">
+        Get in touch
+      </p>
       <input
         value={name}
         onChange={e => setName(e.target.value)}
         placeholder="Your name"
-        className="border border-line px-2 py-1.5 text-[13px]"
+        className="input"
       />
       <input
         type="email"
@@ -64,14 +66,14 @@ function LeadForm({ ownerId, collectionName }: { ownerId: string; collectionName
         value={email}
         onChange={e => setEmail(e.target.value)}
         placeholder="Email"
-        className="border border-line px-2 py-1.5 text-[13px]"
+        className="input"
       />
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}
         placeholder="Message (which work, budget, etc.)"
         rows={3}
-        className="border border-line px-2 py-1.5 text-[13px]"
+        className="input"
       />
       <input
         tabIndex={-1}
@@ -82,14 +84,10 @@ function LeadForm({ ownerId, collectionName }: { ownerId: string; collectionName
         style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
         aria-hidden="true"
       />
-      <button
-        type="submit"
-        disabled={busy}
-        className="self-start px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase bg-ink text-paper disabled:opacity-40"
-      >
+      <button type="submit" disabled={busy} className="btn-primary self-start mt-1 disabled:opacity-40">
         {busy ? 'Sending…' : 'Send'}
       </button>
-      {err && <p className="text-[12px] text-red-600">{err}</p>}
+      {err && <p className="text-body text-red-600">{err}</p>}
     </form>
   )
 }
@@ -171,7 +169,7 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
 
   if (collection.viewingRoomPassword && !authed) {
     return (
-      <div className="min-h-dvh grid place-items-center bg-paper text-ink p-6">
+      <div className="min-h-dvh grid place-items-center bg-bg text-ink p-6">
         <form
           onSubmit={async e => {
             e.preventDefault()
@@ -184,24 +182,27 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
               setErr('wrong-pw')
             }
           }}
-          className="max-w-sm w-full space-y-3 text-center"
+          className="max-w-sm w-full p-8 bg-paper border border-line rounded-md shadow-card text-center"
         >
-          <p className="font-display text-[20px]">{collection.name}</p>
-          <p className="text-[12px] text-ink-muted">Password required</p>
+          <p className="text-meta tracking-[0.22em] uppercase text-ink-muted inline-flex items-center gap-2 mb-3 justify-center">
+            <span className="w-2 h-2 bg-accent rounded-[2px] inline-block" />
+            Viewing room
+          </p>
+          <p className="font-display text-h3 mb-4">{collection.name}</p>
           <input
             type="password"
             value={pwInput}
             onChange={e => setPwInput(e.target.value)}
             autoFocus
-            className="w-full border border-line px-3 py-2 text-[13px]"
+            placeholder="Password"
+            className="input mb-3"
           />
-          <button
-            type="submit"
-            className="w-full bg-ink text-paper py-2 text-[12px] tracking-[0.18em] uppercase"
-          >
+          <button type="submit" className="btn-primary w-full">
             Enter
           </button>
-          {err === 'wrong-pw' && <p className="text-[12px] text-red-600">Wrong password</p>}
+          {err === 'wrong-pw' && (
+            <p className="mt-3 text-body text-red-600">Wrong password</p>
+          )}
         </form>
       </div>
     )

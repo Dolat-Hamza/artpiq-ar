@@ -9,7 +9,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/postcss.config.mjs",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_postcss_config_mjs",
-      "community": 32,
+      "community": 33,
       "norm_label": "postcss.config.mjs"
     },
     {
@@ -18,7 +18,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/next-env.d.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_next_env_d_ts",
-      "community": 33,
+      "community": 34,
       "norm_label": "next-env.d.ts"
     },
     {
@@ -27,7 +27,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/tailwind.config.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_tailwind_config_ts",
-      "community": 34,
+      "community": 35,
       "norm_label": "tailwind.config.ts"
     },
     {
@@ -36,7 +36,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/next.config.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_next_config_ts",
-      "community": 35,
+      "community": 36,
       "norm_label": "next.config.ts"
     },
     {
@@ -45,7 +45,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/types/model-viewer.d.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_types_model_viewer_d_ts",
-      "community": 36,
+      "community": 37,
       "norm_label": "model-viewer.d.ts"
     },
     {
@@ -54,7 +54,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/types/index.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_types_index_ts",
-      "community": 37,
+      "community": 38,
       "norm_label": "index.ts"
     },
     {
@@ -63,7 +63,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/layout.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_layout_tsx",
-      "community": 38,
+      "community": 39,
       "norm_label": "layout.tsx"
     },
     {
@@ -99,7 +99,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/discover/[slug]/page.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_discover_slug_page_tsx",
-      "community": 39,
+      "community": 40,
       "norm_label": "page.tsx"
     },
     {
@@ -108,7 +108,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/embed/[mode]/page.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_embed_mode_page_tsx",
-      "community": 19,
+      "community": 20,
       "norm_label": "page.tsx"
     },
     {
@@ -117,7 +117,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/embed/[mode]/page.tsx",
       "source_location": "L16",
       "id": "page_embedpage",
-      "community": 19,
+      "community": 20,
       "norm_label": "embedpage()"
     },
     {
@@ -126,7 +126,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/admin/layout.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_admin_layout_tsx",
-      "community": 20,
+      "community": 21,
       "norm_label": "layout.tsx"
     },
     {
@@ -135,7 +135,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/admin/layout.tsx",
       "source_location": "L6",
       "id": "layout_adminlayout",
-      "community": 20,
+      "community": 21,
       "norm_label": "adminlayout()"
     },
     {
@@ -144,7 +144,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/admin/page.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_admin_page_tsx",
-      "community": 40,
+      "community": 41,
       "norm_label": "page.tsx"
     },
     {
@@ -207,7 +207,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/admin/rooms/page.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_admin_rooms_page_tsx",
-      "community": 41,
+      "community": 42,
       "norm_label": "page.tsx"
     },
     {
@@ -243,7 +243,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/exhibition/[slug]/page.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_exhibition_slug_page_tsx",
-      "community": 21,
+      "community": 22,
       "norm_label": "page.tsx"
     },
     {
@@ -252,7 +252,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/exhibition/[slug]/page.tsx",
       "source_location": "L13",
       "id": "page_publicexhibitionpage",
-      "community": 21,
+      "community": 22,
       "norm_label": "publicexhibitionpage()"
     },
     {
@@ -333,7 +333,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/v/[slug]/page.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_app_v_slug_page_tsx",
-      "community": 22,
+      "community": 23,
       "norm_label": "page.tsx"
     },
     {
@@ -342,7 +342,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/app/v/[slug]/page.tsx",
       "source_location": "L17",
       "id": "page_submit",
-      "community": 22,
+      "community": 23,
       "norm_label": "submit()"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminShell.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_adminshell_tsx",
-      "community": 42,
+      "community": 43,
       "norm_label": "adminshell.tsx"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/LoginForm.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_loginform_tsx",
-      "community": 0,
+      "community": 5,
       "norm_label": "loginform.tsx"
     },
     {
@@ -369,7 +369,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/LoginForm.tsx",
       "source_location": "L23",
       "id": "loginform_submit",
-      "community": 0,
+      "community": 5,
       "norm_label": "submit()"
     },
     {
@@ -378,7 +378,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/LoginForm.tsx",
       "source_location": "L50",
       "id": "loginform_google",
-      "community": 0,
+      "community": 5,
       "norm_label": "google()"
     },
     {
@@ -387,7 +387,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryBar.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_gallerybar_tsx",
-      "community": 18,
+      "community": 19,
       "norm_label": "gallerybar.tsx"
     },
     {
@@ -396,7 +396,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryBar.tsx",
       "source_location": "L16",
       "id": "gallerybar_tomywall",
-      "community": 18,
+      "community": 19,
       "norm_label": "tomywall()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryBar.tsx",
       "source_location": "L23",
       "id": "gallerybar_togalleryar",
-      "community": 18,
+      "community": 19,
       "norm_label": "togalleryar()"
     },
     {
@@ -421,7 +421,7 @@
       "label": "refresh()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L31",
+      "source_location": "L32",
       "id": "contactsadmin_refresh",
       "community": 6,
       "norm_label": "refresh()"
@@ -430,7 +430,7 @@
       "label": "add()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L42",
+      "source_location": "L43",
       "id": "contactsadmin_add",
       "community": 6,
       "norm_label": "add()"
@@ -439,7 +439,7 @@
       "label": "remove()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L49",
+      "source_location": "L50",
       "id": "contactsadmin_remove",
       "community": 6,
       "norm_label": "remove()"
@@ -448,7 +448,7 @@
       "label": "bulkDelete()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L55",
+      "source_location": "L56",
       "id": "contactsadmin_bulkdelete",
       "community": 6,
       "norm_label": "bulkdelete()"
@@ -457,7 +457,7 @@
       "label": "changeCategory()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L62",
+      "source_location": "L63",
       "id": "contactsadmin_changecategory",
       "community": 6,
       "norm_label": "changecategory()"
@@ -468,7 +468,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/NewsletterForm.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_newsletterform_tsx",
-      "community": 23,
+      "community": 24,
       "norm_label": "newsletterform.tsx"
     },
     {
@@ -477,7 +477,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/NewsletterForm.tsx",
       "source_location": "L4",
       "id": "newsletterform_newsletterform",
-      "community": 23,
+      "community": 24,
       "norm_label": "newsletterform()"
     },
     {
@@ -486,7 +486,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionEditor.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitioneditor_tsx",
-      "community": 5,
+      "community": 16,
       "norm_label": "exhibitioneditor.tsx"
     },
     {
@@ -495,7 +495,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionEditor.tsx",
       "source_location": "L29",
       "id": "exhibitioneditor_persist",
-      "community": 5,
+      "community": 16,
       "norm_label": "persist()"
     },
     {
@@ -504,7 +504,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionEditor.tsx",
       "source_location": "L39",
       "id": "exhibitioneditor_placeartwork",
-      "community": 5,
+      "community": 16,
       "norm_label": "placeartwork()"
     },
     {
@@ -513,7 +513,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionEditor.tsx",
       "source_location": "L51",
       "id": "exhibitioneditor_updateat",
-      "community": 5,
+      "community": 16,
       "norm_label": "updateat()"
     },
     {
@@ -522,7 +522,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionEditor.tsx",
       "source_location": "L57",
       "id": "exhibitioneditor_removeat",
-      "community": 5,
+      "community": 16,
       "norm_label": "removeat()"
     },
     {
@@ -549,7 +549,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AppShell.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_appshell_tsx",
-      "community": 24,
+      "community": 25,
       "norm_label": "appshell.tsx"
     },
     {
@@ -558,7 +558,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AppShell.tsx",
       "source_location": "L15",
       "id": "appshell_appshell",
-      "community": 24,
+      "community": 25,
       "norm_label": "appshell()"
     },
     {
@@ -718,7 +718,7 @@
       "label": "refresh()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "id": "artshowslist_refresh",
       "community": 11,
       "norm_label": "refresh()"
@@ -727,7 +727,7 @@
       "label": "add()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L31",
+      "source_location": "L32",
       "id": "artshowslist_add",
       "community": 11,
       "norm_label": "add()"
@@ -736,7 +736,7 @@
       "label": "rm()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L39",
+      "source_location": "L40",
       "id": "artshowslist_rm",
       "community": 11,
       "norm_label": "rm()"
@@ -747,7 +747,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/QROverlay.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_qroverlay_tsx",
-      "community": 43,
+      "community": 44,
       "norm_label": "qroverlay.tsx"
     },
     {
@@ -756,7 +756,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryAR.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_galleryar_tsx",
-      "community": 16,
+      "community": 17,
       "norm_label": "galleryar.tsx"
     },
     {
@@ -765,7 +765,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryAR.tsx",
       "source_location": "L10",
       "id": "galleryar_detectplatform",
-      "community": 16,
+      "community": 17,
       "norm_label": "detectplatform()"
     },
     {
@@ -774,7 +774,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryAR.tsx",
       "source_location": "L19",
       "id": "galleryar_galleryurl",
-      "community": 16,
+      "community": 17,
       "norm_label": "galleryurl()"
     },
     {
@@ -783,7 +783,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryAR.tsx",
       "source_location": "L24",
       "id": "galleryar_sceneviewerhref",
-      "community": 16,
+      "community": 17,
       "norm_label": "sceneviewerhref()"
     },
     {
@@ -792,7 +792,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/GalleryAR.tsx",
       "source_location": "L69",
       "id": "galleryar_launch",
-      "community": 16,
+      "community": 17,
       "norm_label": "launch()"
     },
     {
@@ -864,7 +864,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ARLauncher.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_arlauncher_tsx",
-      "community": 15,
+      "community": 14,
       "norm_label": "arlauncher.tsx"
     },
     {
@@ -873,7 +873,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ARLauncher.tsx",
       "source_location": "L10",
       "id": "arlauncher_detectplatform",
-      "community": 15,
+      "community": 14,
       "norm_label": "detectplatform()"
     },
     {
@@ -882,7 +882,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ARLauncher.tsx",
       "source_location": "L19",
       "id": "arlauncher_arurl",
-      "community": 15,
+      "community": 14,
       "norm_label": "arurl()"
     },
     {
@@ -891,7 +891,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ARLauncher.tsx",
       "source_location": "L24",
       "id": "arlauncher_sceneviewerhref",
-      "community": 15,
+      "community": 14,
       "norm_label": "sceneviewerhref()"
     },
     {
@@ -900,7 +900,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ARLauncher.tsx",
       "source_location": "L32",
       "id": "arlauncher_ensuremodelviewer",
-      "community": 15,
+      "community": 14,
       "norm_label": "ensuremodelviewer()"
     },
     {
@@ -909,7 +909,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ARLauncher.tsx",
       "source_location": "L70",
       "id": "arlauncher_launch",
-      "community": 15,
+      "community": 14,
       "norm_label": "launch()"
     },
     {
@@ -918,7 +918,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/Header.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_header_tsx",
-      "community": 44,
+      "community": 45,
       "norm_label": "header.tsx"
     },
     {
@@ -934,7 +934,7 @@
       "label": "save()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/DiscoverProfileEditor.tsx",
-      "source_location": "L55",
+      "source_location": "L56",
       "id": "discoverprofileeditor_save",
       "community": 12,
       "norm_label": "save()"
@@ -943,7 +943,7 @@
       "label": "onHeroFile()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/DiscoverProfileEditor.tsx",
-      "source_location": "L73",
+      "source_location": "L74",
       "id": "discoverprofileeditor_onherofile",
       "community": 12,
       "norm_label": "onherofile()"
@@ -954,7 +954,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/Catalogue.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_catalogue_tsx",
-      "community": 45,
+      "community": 46,
       "norm_label": "catalogue.tsx"
     },
     {
@@ -1071,7 +1071,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtworkCard.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_artworkcard_tsx",
-      "community": 25,
+      "community": 26,
       "norm_label": "artworkcard.tsx"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtworkCard.tsx",
       "source_location": "L11",
       "id": "artworkcard_handleclick",
-      "community": 25,
+      "community": 26,
       "norm_label": "handleclick()"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/Toast.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_toast_tsx",
-      "community": 26,
+      "community": 27,
       "norm_label": "toast.tsx"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/Toast.tsx",
       "source_location": "L5",
       "id": "toast_toast",
-      "community": 26,
+      "community": 27,
       "norm_label": "toast()"
     },
     {
@@ -1161,7 +1161,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
       "source_location": "L194",
       "id": "adminartworks_remove",
-      "community": 2,
+      "community": 0,
       "norm_label": "remove()"
     },
     {
@@ -1183,10 +1183,37 @@
       "norm_label": "exportcsv()"
     },
     {
+      "label": "add()",
+      "file_type": "code",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L999",
+      "id": "adminartworks_add",
+      "community": 1,
+      "norm_label": "add()"
+    },
+    {
+      "label": "rename()",
+      "file_type": "code",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1012",
+      "id": "adminartworks_rename",
+      "community": 0,
+      "norm_label": "rename()"
+    },
+    {
+      "label": "exportPdf()",
+      "file_type": "code",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1035",
+      "id": "adminartworks_exportpdf",
+      "community": 2,
+      "norm_label": "exportpdf()"
+    },
+    {
       "label": "onKey()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
-      "source_location": "L1013",
+      "source_location": "L1100",
       "id": "adminartworks_onkey",
       "community": 2,
       "norm_label": "onkey()"
@@ -1195,7 +1222,7 @@
       "label": "onClick()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
-      "source_location": "L1014",
+      "source_location": "L1101",
       "id": "adminartworks_onclick",
       "community": 2,
       "norm_label": "onclick()"
@@ -1210,31 +1237,13 @@
       "norm_label": "exhibitionslist.tsx"
     },
     {
-      "label": "refresh()",
+      "label": "ExhibitionsList()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L21",
-      "id": "exhibitionslist_refresh",
+      "source_location": "L11",
+      "id": "exhibitionslist_exhibitionslist",
       "community": 5,
-      "norm_label": "refresh()"
-    },
-    {
-      "label": "add()",
-      "file_type": "code",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L31",
-      "id": "exhibitionslist_add",
-      "community": 1,
-      "norm_label": "add()"
-    },
-    {
-      "label": "rm()",
-      "file_type": "code",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L39",
-      "id": "exhibitionslist_rm",
-      "community": 5,
-      "norm_label": "rm()"
+      "norm_label": "exhibitionslist()"
     },
     {
       "label": "SampleRoom.tsx",
@@ -1431,7 +1440,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SiteNav.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_sitenav_tsx",
-      "community": 46,
+      "community": 47,
       "norm_label": "sitenav.tsx"
     },
     {
@@ -1440,26 +1449,26 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_inboxadmin_tsx",
-      "community": 13,
+      "community": 5,
       "norm_label": "inboxadmin.tsx"
     },
     {
-      "label": "refresh()",
+      "label": "InboxAdmin()",
       "file_type": "code",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L25",
-      "id": "inboxadmin_refresh",
-      "community": 13,
-      "norm_label": "refresh()"
+      "source_location": "L14",
+      "id": "inboxadmin_inboxadmin",
+      "community": 5,
+      "norm_label": "inboxadmin()"
     },
     {
-      "label": "rm()",
+      "label": "AdminPageHeader.tsx",
       "file_type": "code",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L35",
-      "id": "inboxadmin_rm",
-      "community": 13,
-      "norm_label": "rm()"
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/AdminPageHeader.tsx",
+      "source_location": "L1",
+      "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_adminpageheader_tsx",
+      "community": 48,
+      "norm_label": "adminpageheader.tsx"
     },
     {
       "label": "StatusPill.tsx",
@@ -1467,7 +1476,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/StatusPill.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_statuspill_tsx",
-      "community": 27,
+      "community": 28,
       "norm_label": "statuspill.tsx"
     },
     {
@@ -1476,7 +1485,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/StatusPill.tsx",
       "source_location": "L24",
       "id": "statuspill_statuspill",
-      "community": 27,
+      "community": 28,
       "norm_label": "statuspill()"
     },
     {
@@ -1485,7 +1494,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/Chip.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_chip_tsx",
-      "community": 47,
+      "community": 49,
       "norm_label": "chip.tsx"
     },
     {
@@ -1494,7 +1503,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/Dialog.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_dialog_tsx",
-      "community": 28,
+      "community": 29,
       "norm_label": "dialog.tsx"
     },
     {
@@ -1503,7 +1512,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/Dialog.tsx",
       "source_location": "L29",
       "id": "dialog_onkey",
-      "community": 28,
+      "community": 29,
       "norm_label": "onkey()"
     },
     {
@@ -1512,7 +1521,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/IconButton.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_iconbutton_tsx",
-      "community": 48,
+      "community": 50,
       "norm_label": "iconbutton.tsx"
     },
     {
@@ -1521,7 +1530,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/Button.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_button_tsx",
-      "community": 49,
+      "community": 51,
       "norm_label": "button.tsx"
     },
     {
@@ -1530,7 +1539,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ui/Toggle.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_ui_toggle_tsx",
-      "community": 50,
+      "community": 52,
       "norm_label": "toggle.tsx"
     },
     {
@@ -1539,7 +1548,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_components_three_galleryscene_tsx",
-      "community": 14,
+      "community": 13,
       "norm_label": "galleryscene.tsx"
     },
     {
@@ -1548,7 +1557,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L10",
       "id": "galleryscene_artworkboundary",
-      "community": 14,
+      "community": 13,
       "norm_label": "artworkboundary"
     },
     {
@@ -1557,7 +1566,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L11",
       "id": "galleryscene_artworkboundary_constructor",
-      "community": 14,
+      "community": 13,
       "norm_label": ".constructor()"
     },
     {
@@ -1566,7 +1575,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L15",
       "id": "galleryscene_artworkboundary_getderivedstatefromerror",
-      "community": 14,
+      "community": 13,
       "norm_label": ".getderivedstatefromerror()"
     },
     {
@@ -1575,7 +1584,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L18",
       "id": "galleryscene_artworkboundary_componentdidcatch",
-      "community": 14,
+      "community": 13,
       "norm_label": ".componentdidcatch()"
     },
     {
@@ -1584,7 +1593,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L19",
       "id": "galleryscene_artworkboundary_render",
-      "community": 14,
+      "community": 13,
       "norm_label": ".render()"
     },
     {
@@ -1593,7 +1602,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L124",
       "id": "galleryscene_ondown",
-      "community": 14,
+      "community": 13,
       "norm_label": "ondown()"
     },
     {
@@ -1602,7 +1611,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L127",
       "id": "galleryscene_onup",
-      "community": 14,
+      "community": 13,
       "norm_label": "onup()"
     },
     {
@@ -1611,7 +1620,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/three/GalleryScene.tsx",
       "source_location": "L158",
       "id": "galleryscene_galleryscene",
-      "community": 14,
+      "community": 13,
       "norm_label": "galleryscene()"
     },
     {
@@ -1692,7 +1701,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/sqspExport.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_sqspexport_ts",
-      "community": 17,
+      "community": 18,
       "norm_label": "sqspexport.ts"
     },
     {
@@ -1701,7 +1710,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/sqspExport.ts",
       "source_location": "L34",
       "id": "sqspexport_esc",
-      "community": 17,
+      "community": 18,
       "norm_label": "esc()"
     },
     {
@@ -1710,7 +1719,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/sqspExport.ts",
       "source_location": "L41",
       "id": "sqspexport_artworkstosqspcsv",
-      "community": 17,
+      "community": 18,
       "norm_label": "artworkstosqspcsv()"
     },
     {
@@ -1719,7 +1728,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/sqspExport.ts",
       "source_location": "L84",
       "id": "sqspexport_downloadsqspcsv",
-      "community": 17,
+      "community": 18,
       "norm_label": "downloadsqspcsv()"
     },
     {
@@ -1728,7 +1737,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/frames.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_frames_ts",
-      "community": 51,
+      "community": 53,
       "norm_label": "frames.ts"
     },
     {
@@ -1737,7 +1746,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/artworks.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_artworks_ts",
-      "community": 29,
+      "community": 30,
       "norm_label": "artworks.ts"
     },
     {
@@ -1746,7 +1755,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/artworks.ts",
       "source_location": "L79",
       "id": "artworks_fetchwikiimages",
-      "community": 29,
+      "community": 30,
       "norm_label": "fetchwikiimages()"
     },
     {
@@ -1755,7 +1764,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/artworkSheet.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_artworksheet_tsx",
-      "community": 52,
+      "community": 54,
       "norm_label": "artworksheet.tsx"
     },
     {
@@ -1764,7 +1773,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/inventoryReport.tsx",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_inventoryreport_tsx",
-      "community": 30,
+      "community": 31,
       "norm_label": "inventoryreport.tsx"
     },
     {
@@ -1773,7 +1782,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/inventoryReport.tsx",
       "source_location": "L68",
       "id": "inventoryreport_groupartworks",
-      "community": 30,
+      "community": 31,
       "norm_label": "groupartworks()"
     },
     {
@@ -1782,7 +1791,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/rooms.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_rooms_ts",
-      "community": 31,
+      "community": 32,
       "norm_label": "rooms.ts"
     },
     {
@@ -1791,7 +1800,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/rooms.ts",
       "source_location": "L214",
       "id": "rooms_filterrooms",
-      "community": 31,
+      "community": 32,
       "norm_label": "filterrooms()"
     },
     {
@@ -2169,7 +2178,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_db_subscribers_ts",
-      "community": 13,
+      "community": 15,
       "norm_label": "subscribers.ts"
     },
     {
@@ -2178,7 +2187,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts",
       "source_location": "L7",
       "id": "subscribers_rowtosub",
-      "community": 13,
+      "community": 15,
       "norm_label": "rowtosub()"
     },
     {
@@ -2187,7 +2196,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts",
       "source_location": "L20",
       "id": "subscribers_listsubscribers",
-      "community": 13,
+      "community": 15,
       "norm_label": "listsubscribers()"
     },
     {
@@ -2196,7 +2205,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts",
       "source_location": "L30",
       "id": "subscribers_deletesubscriber",
-      "community": 13,
+      "community": 15,
       "norm_label": "deletesubscriber()"
     },
     {
@@ -2205,7 +2214,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts",
       "source_location": "L35",
       "id": "subscribers_subscriberstocsv",
-      "community": 13,
+      "community": 15,
       "norm_label": "subscriberstocsv()"
     },
     {
@@ -2214,7 +2223,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/subscribers.ts",
       "source_location": "L53",
       "id": "subscribers_downloadsubscriberscsv",
-      "community": 13,
+      "community": 15,
       "norm_label": "downloadsubscriberscsv()"
     },
     {
@@ -2430,7 +2439,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/collections.ts",
       "source_location": "L141",
       "id": "collections_setartworkcollections",
-      "community": 0,
+      "community": 2,
       "norm_label": "setartworkcollections()"
     },
     {
@@ -2511,7 +2520,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/artworks.ts",
       "source_location": "L117",
       "id": "artworks_deleteartwork",
-      "community": 2,
+      "community": 0,
       "norm_label": "deleteartwork()"
     },
     {
@@ -2538,7 +2547,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/types.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_db_types_ts",
-      "community": 53,
+      "community": 55,
       "norm_label": "types.ts"
     },
     {
@@ -2547,7 +2556,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_db_client_ts",
-      "community": 0,
+      "community": 5,
       "norm_label": "client.ts"
     },
     {
@@ -2565,7 +2574,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts",
       "source_location": "L27",
       "id": "client_hassupabase",
-      "community": 0,
+      "community": 5,
       "norm_label": "hassupabase()"
     },
     {
@@ -2637,7 +2646,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_db_exhibitions_ts",
-      "community": 5,
+      "community": 0,
       "norm_label": "exhibitions.ts"
     },
     {
@@ -2646,7 +2655,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L7",
       "id": "exhibitions_rowtove",
-      "community": 5,
+      "community": 0,
       "norm_label": "rowtove()"
     },
     {
@@ -2655,7 +2664,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L23",
       "id": "exhibitions_listexhibitions",
-      "community": 5,
+      "community": 0,
       "norm_label": "listexhibitions()"
     },
     {
@@ -2664,7 +2673,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L33",
       "id": "exhibitions_getexhibition",
-      "community": 5,
+      "community": 0,
       "norm_label": "getexhibition()"
     },
     {
@@ -2673,7 +2682,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L43",
       "id": "exhibitions_getexhibitionbyslug",
-      "community": 5,
+      "community": 0,
       "norm_label": "getexhibitionbyslug()"
     },
     {
@@ -2682,7 +2691,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L54",
       "id": "exhibitions_createexhibition",
-      "community": 5,
+      "community": 0,
       "norm_label": "createexhibition()"
     },
     {
@@ -2691,7 +2700,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L64",
       "id": "exhibitions_updateexhibition",
-      "community": 5,
+      "community": 0,
       "norm_label": "updateexhibition()"
     },
     {
@@ -2700,7 +2709,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/exhibitions.ts",
       "source_location": "L80",
       "id": "exhibitions_deleteexhibition",
-      "community": 5,
+      "community": 0,
       "norm_label": "deleteexhibition()"
     },
     {
@@ -2844,7 +2853,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_lib_db_auth_ts",
-      "community": 0,
+      "community": 5,
       "norm_label": "auth.ts"
     },
     {
@@ -2853,7 +2862,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L13",
       "id": "auth_useauth",
-      "community": 0,
+      "community": 5,
       "norm_label": "useauth()"
     },
     {
@@ -2862,7 +2871,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L49",
       "id": "auth_signinwithmagiclink",
-      "community": 0,
+      "community": 5,
       "norm_label": "signinwithmagiclink()"
     },
     {
@@ -2871,7 +2880,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L57",
       "id": "auth_signinwithpassword",
-      "community": 0,
+      "community": 5,
       "norm_label": "signinwithpassword()"
     },
     {
@@ -2880,7 +2889,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L62",
       "id": "auth_signupwithpassword",
-      "community": 0,
+      "community": 5,
       "norm_label": "signupwithpassword()"
     },
     {
@@ -2889,7 +2898,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L67",
       "id": "auth_signinwithgoogle",
-      "community": 0,
+      "community": 5,
       "norm_label": "signinwithgoogle()"
     },
     {
@@ -2898,7 +2907,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/auth.ts",
       "source_location": "L75",
       "id": "auth_signout",
-      "community": 0,
+      "community": 5,
       "norm_label": "signout()"
     },
     {
@@ -2907,7 +2916,7 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/store/index.ts",
       "source_location": "L1",
       "id": "users_dolathamza_documents_github_artpiq_ar_src_store_index_ts",
-      "community": 54,
+      "community": 56,
       "norm_label": "index.ts"
     }
   ],
@@ -3444,7 +3453,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_contactsadmin_tsx",
       "_tgt": "contactsadmin_refresh",
@@ -3456,7 +3465,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L42",
+      "source_location": "L43",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_contactsadmin_tsx",
       "_tgt": "contactsadmin_add",
@@ -3468,7 +3477,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L49",
+      "source_location": "L50",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_contactsadmin_tsx",
       "_tgt": "contactsadmin_remove",
@@ -3480,7 +3489,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L55",
+      "source_location": "L56",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_contactsadmin_tsx",
       "_tgt": "contactsadmin_bulkdelete",
@@ -3492,7 +3501,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L62",
+      "source_location": "L63",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_contactsadmin_tsx",
       "_tgt": "contactsadmin_changecategory",
@@ -3504,7 +3513,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L46",
+      "source_location": "L47",
       "weight": 1.0,
       "_src": "contactsadmin_add",
       "_tgt": "contactsadmin_refresh",
@@ -3516,7 +3525,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L52",
+      "source_location": "L53",
       "weight": 1.0,
       "_src": "contactsadmin_remove",
       "_tgt": "contactsadmin_refresh",
@@ -3528,7 +3537,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L59",
+      "source_location": "L60",
       "weight": 1.0,
       "_src": "contactsadmin_bulkdelete",
       "_tgt": "contactsadmin_refresh",
@@ -3540,7 +3549,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ContactsAdmin.tsx",
-      "source_location": "L64",
+      "source_location": "L65",
       "weight": 1.0,
       "_src": "contactsadmin_changecategory",
       "_tgt": "contactsadmin_refresh",
@@ -4044,7 +4053,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_artshowslist_tsx",
       "_tgt": "artshowslist_refresh",
@@ -4056,7 +4065,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_artshowslist_tsx",
       "_tgt": "artshowslist_add",
@@ -4068,7 +4077,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L39",
+      "source_location": "L40",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_artshowslist_tsx",
       "_tgt": "artshowslist_rm",
@@ -4080,7 +4089,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ArtShowsList.tsx",
-      "source_location": "L42",
+      "source_location": "L43",
       "weight": 1.0,
       "_src": "artshowslist_rm",
       "_tgt": "artshowslist_refresh",
@@ -4452,7 +4461,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/DiscoverProfileEditor.tsx",
-      "source_location": "L55",
+      "source_location": "L56",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_discoverprofileeditor_tsx",
       "_tgt": "discoverprofileeditor_save",
@@ -4464,7 +4473,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/DiscoverProfileEditor.tsx",
-      "source_location": "L73",
+      "source_location": "L74",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_discoverprofileeditor_tsx",
       "_tgt": "discoverprofileeditor_onherofile",
@@ -4848,7 +4857,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
-      "source_location": "L194",
+      "source_location": "L1024",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
       "_tgt": "adminartworks_remove",
@@ -4884,7 +4893,43 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
-      "source_location": "L1013",
+      "source_location": "L999",
+      "weight": 1.0,
+      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
+      "_tgt": "adminartworks_add",
+      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
+      "target": "adminartworks_add",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1012",
+      "weight": 1.0,
+      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
+      "_tgt": "adminartworks_rename",
+      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
+      "target": "adminartworks_rename",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1035",
+      "weight": 1.0,
+      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
+      "_tgt": "adminartworks_exportpdf",
+      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
+      "target": "adminartworks_exportpdf",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1100",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
       "_tgt": "adminartworks_onkey",
@@ -4896,7 +4941,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
-      "source_location": "L1014",
+      "source_location": "L1101",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_adminartworks_tsx",
       "_tgt": "adminartworks_onclick",
@@ -5089,6 +5134,18 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1028",
+      "weight": 1.0,
+      "_src": "adminartworks_remove",
+      "_tgt": "collections_deletecollection",
+      "source": "adminartworks_remove",
+      "target": "collections_deletecollection"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
       "source_location": "L210",
       "weight": 1.0,
       "_src": "adminartworks_importcsv",
@@ -5133,76 +5190,16 @@
       "target": "artworkstore_artworkstocsv"
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L21",
-      "weight": 1.0,
-      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
-      "_tgt": "exhibitionslist_refresh",
-      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
-      "target": "exhibitionslist_refresh",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L31",
-      "weight": 1.0,
-      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
-      "_tgt": "exhibitionslist_add",
-      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
-      "target": "exhibitionslist_add",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L39",
-      "weight": 1.0,
-      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
-      "_tgt": "exhibitionslist_rm",
-      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
-      "target": "exhibitionslist_rm",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L42",
-      "weight": 1.0,
-      "_src": "exhibitionslist_rm",
-      "_tgt": "exhibitionslist_refresh",
-      "source": "exhibitionslist_refresh",
-      "target": "exhibitionslist_rm",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L25",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1004",
       "weight": 1.0,
-      "_src": "exhibitionslist_refresh",
-      "_tgt": "exhibitions_listexhibitions",
-      "source": "exhibitionslist_refresh",
-      "target": "exhibitions_listexhibitions"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L35",
-      "weight": 1.0,
-      "_src": "exhibitionslist_add",
-      "_tgt": "exhibitions_createexhibition",
-      "source": "exhibitionslist_add",
-      "target": "exhibitions_createexhibition"
+      "_src": "adminartworks_add",
+      "_tgt": "collections_createcollection",
+      "source": "adminartworks_add",
+      "target": "collections_createcollection"
     },
     {
       "relation": "calls",
@@ -5211,9 +5208,9 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/SampleRoom.tsx",
       "source_location": "L285",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "sampleroom_togglefavorite",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "sampleroom_togglefavorite"
     },
     {
@@ -5223,9 +5220,9 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/ar/scene.ts",
       "source_location": "L43",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "scene_buildframedpainting",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "scene_buildframedpainting"
     },
     {
@@ -5235,9 +5232,9 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/ar/scene.ts",
       "source_location": "L128",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "scene_addstandardlighting",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "scene_addstandardlighting"
     },
     {
@@ -5247,9 +5244,9 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/ar/scene.ts",
       "source_location": "L157",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "scene_buildpaintingscene",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "scene_buildpaintingscene"
     },
     {
@@ -5259,9 +5256,9 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/ar/scene.ts",
       "source_location": "L194",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "scene_buildgalleryscene",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "scene_buildgalleryscene"
     },
     {
@@ -5271,9 +5268,9 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/ar/scene.ts",
       "source_location": "L237",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "scene_buildsculpturescene",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "scene_buildsculpturescene"
     },
     {
@@ -5283,22 +5280,46 @@
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/ar/client.ts",
       "source_location": "L66",
       "weight": 1.0,
-      "_src": "exhibitionslist_add",
+      "_src": "adminartworks_add",
       "_tgt": "client_buildpaintingmesh",
-      "source": "exhibitionslist_add",
+      "source": "adminartworks_add",
       "target": "client_buildpaintingmesh"
     },
     {
       "relation": "calls",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
-      "source_location": "L41",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx",
+      "source_location": "L1017",
       "weight": 1.0,
-      "_src": "exhibitionslist_rm",
-      "_tgt": "exhibitions_deleteexhibition",
-      "source": "exhibitionslist_rm",
-      "target": "exhibitions_deleteexhibition"
+      "_src": "adminartworks_rename",
+      "_tgt": "collections_updatecollection",
+      "source": "adminartworks_rename",
+      "target": "collections_updatecollection"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
+      "_tgt": "exhibitionslist_exhibitionslist",
+      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_exhibitionslist_tsx",
+      "target": "exhibitionslist_exhibitionslist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/ExhibitionsList.tsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_src": "exhibitionslist_exhibitionslist",
+      "_tgt": "auth_useauth",
+      "source": "exhibitionslist_exhibitionslist",
+      "target": "auth_useauth"
     },
     {
       "relation": "contains",
@@ -5772,36 +5793,12 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L25",
+      "source_location": "L14",
       "weight": 1.0,
       "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_inboxadmin_tsx",
-      "_tgt": "inboxadmin_refresh",
+      "_tgt": "inboxadmin_inboxadmin",
       "source": "users_dolathamza_documents_github_artpiq_ar_src_components_inboxadmin_tsx",
-      "target": "inboxadmin_refresh",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L35",
-      "weight": 1.0,
-      "_src": "users_dolathamza_documents_github_artpiq_ar_src_components_inboxadmin_tsx",
-      "_tgt": "inboxadmin_rm",
-      "source": "users_dolathamza_documents_github_artpiq_ar_src_components_inboxadmin_tsx",
-      "target": "inboxadmin_rm",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L38",
-      "weight": 1.0,
-      "_src": "inboxadmin_rm",
-      "_tgt": "inboxadmin_refresh",
-      "source": "inboxadmin_refresh",
-      "target": "inboxadmin_rm",
+      "target": "inboxadmin_inboxadmin",
       "confidence_score": 1.0
     },
     {
@@ -5809,24 +5806,12 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L29",
+      "source_location": "L15",
       "weight": 1.0,
-      "_src": "inboxadmin_refresh",
-      "_tgt": "subscribers_listsubscribers",
-      "source": "inboxadmin_refresh",
-      "target": "subscribers_listsubscribers"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "/Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/InboxAdmin.tsx",
-      "source_location": "L37",
-      "weight": 1.0,
-      "_src": "inboxadmin_rm",
-      "_tgt": "subscribers_deletesubscriber",
-      "source": "inboxadmin_rm",
-      "target": "subscribers_deletesubscriber"
+      "_src": "inboxadmin_inboxadmin",
+      "_tgt": "auth_useauth",
+      "source": "inboxadmin_inboxadmin",
+      "target": "auth_useauth"
     },
     {
       "relation": "contains",

@@ -13,57 +13,47 @@ export default function Header() {
   ]
 
   return (
-    <header className="sticky top-0 z-50 bg-paper/90 backdrop-blur-sm border-b border-line">
-      <div className="max-w-content mx-auto px-6 md:px-12 lg:px-20 h-[56px] flex items-center">
-        <div className="flex-1">
-          <span className="font-display text-[22px] tracking-tight leading-none">
-            artpiq<span className="text-accent">.</span>
-          </span>
-        </div>
+    <header className="sticky top-0 z-50 bg-paper border-b border-line">
+      <div className="px-6 md:px-10 h-topbar flex items-center max-w-content mx-auto">
+        <Link href="/" className="font-display text-[16px] tracking-[0.04em] leading-none inline-flex items-center gap-2">
+          artpiq
+          <span className="w-2.5 h-2.5 bg-accent rounded-[2px] inline-block" />
+        </Link>
 
-        <nav className="hidden md:flex items-center gap-8 text-[13px]">
+        <nav className="hidden md:flex items-center gap-1 ml-8 text-body">
           {tabs.map(t => (
             <button
               key={t.value}
               onClick={() => setFilter(t.value)}
-              className={`transition-colors ${
-                activeFilter === t.value ? 'text-ink' : 'text-ink-muted hover:text-ink'
-              }`}
+              data-active={activeFilter === t.value}
+              className="ap-nav !rounded-md"
             >
               {t.label}
             </button>
           ))}
-          <Link
-            href="/sample-room"
-            className="text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-1.5"
-          >
-            <ImageIcon size={13} />
-            Sample room
+          <Link href="/sample-room" className="ap-nav !rounded-md">
+            <ImageIcon size={14} strokeWidth={1.6} /> Sample room
           </Link>
-          <Link
-            href="/admin/artworks"
-            className="text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-1.5"
-          >
-            <Settings size={13} />
-            Admin
+          <Link href="/admin" className="ap-nav !rounded-md">
+            <Settings size={14} strokeWidth={1.6} /> Admin
           </Link>
         </nav>
 
-        <div className="flex-1 flex justify-end items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <button
             onClick={isSelectMode ? exitSelectMode : enterSelectMode}
-            className={`hidden sm:inline-flex items-center gap-2 h-9 px-3 text-[12px] border transition-colors ${
+            className={`hidden sm:inline-flex items-center gap-2 h-9 px-4 rounded-md text-[11px] font-bold tracking-[0.06em] uppercase transition-colors ${
               isSelectMode
-                ? 'bg-ink text-paper border-ink'
-                : 'bg-transparent text-ink border-line hover:border-ink'
+                ? 'bg-ink text-paper hover:bg-[#1a1a1a]'
+                : 'btn-outline'
             }`}
           >
-            <Frame size={14} />
+            <Frame size={14} strokeWidth={2} />
             {isSelectMode ? 'Done' : 'Curate wall'}
           </button>
           <button
             onClick={isSelectMode ? exitSelectMode : enterSelectMode}
-            className="sm:hidden h-9 w-9 flex items-center justify-center border border-line text-ink"
+            className="sm:hidden h-9 w-9 grid place-items-center rounded-md border border-line-strong text-ink"
             aria-label="Curate wall"
           >
             <LayoutGrid size={16} />
@@ -71,13 +61,13 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="md:hidden max-w-content mx-auto px-6 pb-3 flex gap-5 text-[12px] overflow-x-auto no-scrollbar">
+      <div className="md:hidden px-6 pb-3 flex gap-5 text-body overflow-x-auto no-scrollbar border-t border-line pt-3">
         {tabs.map(t => (
           <button
             key={t.value}
             onClick={() => setFilter(t.value)}
             className={`whitespace-nowrap transition-colors ${
-              activeFilter === t.value ? 'text-ink border-b border-ink pb-1' : 'text-ink-muted'
+              activeFilter === t.value ? 'text-ink font-bold border-b border-ink pb-1' : 'text-ink-muted'
             }`}
           >
             {t.label}
@@ -86,7 +76,7 @@ export default function Header() {
         <Link href="/sample-room" className="whitespace-nowrap text-ink-muted">
           Sample room
         </Link>
-        <Link href="/admin/artworks" className="whitespace-nowrap text-ink-muted">
+        <Link href="/admin" className="whitespace-nowrap text-ink-muted">
           Admin
         </Link>
       </div>

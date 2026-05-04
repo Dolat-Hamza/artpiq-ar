@@ -64,14 +64,13 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="mx-auto max-w-[400px] w-full px-6">
-      <Link href="/" className="inline-flex items-baseline mb-8">
-        <span className="font-display text-[28px] tracking-tight leading-none">
-          artpiq<span className="text-accent">.</span>
-        </span>
+    <div className="mx-auto max-w-[420px] w-full p-8 bg-paper border border-line rounded-md shadow-card">
+      <Link href="/" className="inline-flex items-center gap-2 mb-6">
+        <span className="font-display text-[18px] tracking-[0.04em] leading-none">artpiq</span>
+        <span className="w-2.5 h-2.5 bg-accent rounded-[2px] inline-block" />
       </Link>
       <h1 className="font-display text-h3 mb-1">Sign in</h1>
-      <p className="text-body text-ink-muted mb-8">
+      <p className="text-body text-ink-muted mb-6">
         Manage artworks, compose mockups, share viewing rooms.
       </p>
 
