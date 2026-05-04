@@ -1,7 +1,7 @@
 # Graph Report - /Users/dolathamza/Documents/GitHub/artpiq-ar  (2026-05-04)
 
 ## Corpus Check
-- 87 files · ~40,432 words
+- 87 files · ~40,645 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
