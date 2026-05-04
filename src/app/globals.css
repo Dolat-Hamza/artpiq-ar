@@ -187,3 +187,34 @@ input[type="range"]::-moz-range-thumb { height: 14px; width: 14px; border-radius
   border-radius: 50%;
   animation: sp 0.7s linear infinite;
 }
+
+/* On-dock overrides: invert legacy ink-muted text to dock-readable */
+.bg-surface-dock .text-ink-muted,
+.bg-surface-dock p.text-ink-muted,
+.bg-surface-dock span.text-ink-muted {
+  color: var(--on-dock-muted);
+}
+.bg-surface-dock .text-ink {
+  color: var(--on-dock);
+}
+.bg-surface-dock .border-line {
+  border-color: rgba(255,255,255,0.10);
+}
+.bg-surface-dock .border-ink {
+  border-color: var(--on-dock);
+}
+.bg-surface-dock .bg-paper {
+  background: rgba(255,255,255,0.06);
+  color: var(--on-dock);
+}
+.bg-surface-dock .bg-ink {
+  background: var(--on-dock);
+  color: var(--surface-dock);
+}
+/* Range track lighter on dock for visibility */
+.bg-surface-dock input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(255,255,255,0.18);
+}
+.bg-surface-dock input[type="range"]::-moz-range-track {
+  background: rgba(255,255,255,0.18);
+}

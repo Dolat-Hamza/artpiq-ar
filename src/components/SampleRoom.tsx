@@ -687,7 +687,7 @@ export default function SampleRoom() {
       </header>
 
       <main className="flex-1 flex flex-col w-full">
-        <section className="flex-1 flex items-center justify-center bg-line/10 px-6 py-6 min-h-0">
+        <section className="flex-1 flex items-center justify-center bg-surface-stage px-6 py-6 min-h-0">
           <div
             ref={stageRef}
             className="relative bg-line/40 overflow-hidden touch-none select-none inline-block"
@@ -764,7 +764,7 @@ export default function SampleRoom() {
                       setSelectedId(item.id)
                     }}
                     className={`absolute cursor-grab active:cursor-grabbing ${
-                      isSelected ? 'outline outline-2 outline-accent' : ''
+                      isSelected ? 'ring-1 ring-accent ring-offset-4 ring-offset-transparent' : ''
                     }`}
                     style={{
                       left: `${item.cx * 100}%`,
@@ -816,13 +816,13 @@ export default function SampleRoom() {
                         </button>
                         <div
                           onPointerDown={e => onPointerDown(e, item.id, 'resize')}
-                          className="absolute -right-2 -bottom-2 w-5 h-5 bg-ink border-2 border-paper cursor-nwse-resize"
+                          className="absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 rounded-full bg-accent ring-2 ring-paper cursor-nwse-resize shadow-pop"
                           style={{ touchAction: 'none' }}
                           aria-label="Resize"
                         />
                         <div
                           onPointerDown={e => onPointerDown(e, item.id, 'rotate')}
-                          className="absolute -left-2 -top-2 w-5 h-5 bg-paper border-2 border-ink rounded-full cursor-grab"
+                          className="absolute -left-1.5 -top-1.5 w-3.5 h-3.5 rounded-full bg-paper ring-2 ring-accent cursor-grab shadow-pop"
                           style={{ touchAction: 'none' }}
                           aria-label="Rotate"
                           title="Drag to rotate"
@@ -832,7 +832,7 @@ export default function SampleRoom() {
                     {/* Floating frame toolbar — sits directly beneath artwork when selected */}
                     {isSelected && (
                       <div
-                        className="absolute left-1/2 top-full mt-3 -translate-x-1/2 flex items-center gap-1 bg-paper border border-ink shadow-md px-1.5 py-1 z-20"
+                        className="absolute left-1/2 top-full mt-3 -translate-x-1/2 flex items-center gap-1 bg-paper rounded-md border border-line/60 shadow-pop px-2 py-1.5 z-20"
                         onPointerDown={e => e.stopPropagation()}
                         onClick={e => e.stopPropagation()}
                       >
@@ -841,21 +841,21 @@ export default function SampleRoom() {
                             key={s}
                             onClick={() => updateFrame(item.id, { style: s })}
                             title={FRAME_PRESETS[s].label}
-                            className={`w-6 h-6 border ${
+                            className={`w-6 h-6 rounded-sm transition-all ${
                               item.frame.style === s
-                                ? 'ring-2 ring-ink'
-                                : 'border-line'
+                                ? 'ring-2 ring-accent ring-offset-1 ring-offset-paper'
+                                : 'ring-1 ring-line hover:ring-ink-muted'
                             }`}
                             style={{
                               background:
                                 s === 'none'
-                                  ? '#ffffff'
+                                  ? 'repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%) 50% / 8px 8px'
                                   : FRAME_PRESETS[s].borderColor,
                             }}
                           />
                         ))}
-                        <span className="mx-1 h-5 w-px bg-line" />
-                        <span className="text-[11px] tracking-[0.14em] uppercase text-ink-muted px-1 tabular-nums">
+                        <span className="mx-2 h-5 w-px bg-line" />
+                        <span className="text-[10px] tracking-[0.14em] uppercase text-ink-muted px-0.5 tabular-nums">
                           {item.widthCm.toFixed(0)} × {(item.widthCm * (aw.heightCm / aw.widthCm)).toFixed(0)} cm
                         </span>
                       </div>
@@ -868,26 +868,23 @@ export default function SampleRoom() {
         </section>
 
         {/* Bottom dock — ArtPlacer-style tab dock */}
-        <div className="border-t border-line bg-paper flex-shrink-0">
-          <div className="flex items-center px-4 md:px-8 h-10 gap-1 border-b border-line">
+        <div className="bg-surface-dock text-on-dock shadow-dock flex-shrink-0">
+          <div className="flex items-center px-4 md:px-8 gap-0 border-b border-white/10">
             {(['artworks', 'lighting', 'customize', 'rooms', 'tools'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setDockTab(t)}
-                className={`px-3 h-full text-[11px] tracking-[0.18em] uppercase ${
-                  dockTab === t
-                    ? 'text-ink border-b-2 border-ink -mb-px'
-                    : 'text-ink-muted hover:text-ink'
-                }`}
+                data-active={dockTab === t}
+                className="dock-tab"
               >
-                {t === 'artworks' && `Artworks (${artworks.length})`}
+                {t === 'artworks' && `Artworks · ${artworks.length}`}
                 {t === 'lighting' && 'Lighting'}
                 {t === 'customize' && 'Customize'}
-                {t === 'rooms' && `Rooms (${STOCK_ROOMS.length})`}
-                {t === 'tools' && (selected ? 'Edit selected' : 'Tools')}
+                {t === 'rooms' && `Rooms · ${STOCK_ROOMS.length}`}
+                {t === 'tools' && (selected ? 'Selected' : 'Tools')}
               </button>
             ))}
-            <span className="ml-auto text-[11px] tracking-[0.14em] uppercase text-ink-muted">
+            <span className="ml-auto text-[10px] tracking-[0.18em] uppercase text-on-dock-muted hidden sm:inline">
               Wall ≈ {room.wallWidthCm} cm · {placed.length} placed
             </span>
             {placed.length > 0 && (
@@ -896,13 +893,13 @@ export default function SampleRoom() {
                   setPlaced([])
                   setSelectedId(null)
                 }}
-                className="ml-3 text-[11px] tracking-[0.14em] uppercase text-red-600"
+                className="ml-3 text-[10px] tracking-[0.18em] uppercase text-red-400 hover:text-red-300"
               >
-                Clear wall
+                Clear
               </button>
             )}
           </div>
-          <div className="px-4 md:px-8 py-3 max-h-[200px] overflow-y-auto">
+          <div className="px-4 md:px-8 py-4 max-h-[220px] overflow-y-auto bg-surface-dock text-on-dock">
             {dockTab === 'rooms' && (
               <div>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -963,7 +960,7 @@ export default function SampleRoom() {
             {dockTab === 'lighting' && (
               <div>
                 <div className="flex gap-1 mb-3">
-                  {(['room', 'artwork', 'shadow'] as LightingSubtab[]).map(sub => (
+                  {(['shadow', 'artwork', 'room'] as LightingSubtab[]).map(sub => (
                     <button
                       key={sub}
                       onClick={() => setLightingSub(sub)}
