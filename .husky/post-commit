@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Auto-update graphify knowledge graph after every commit.
+# Runs in background — never blocks the commit. No-op if graph not built yet.
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -z "$ROOT" ] && exit 0
+cd "$ROOT" || exit 0
+
+# Find graphify binary (prefer Python 3.14 framework install)
+GRAPHIFY=""
+for cand in \
+  /Library/Frameworks/Python.framework/Versions/3.14/bin/graphify \
+  "$HOME/.local/bin/graphify" \
+  "$(command -v graphify 2>/dev/null)"; do
+  if [ -x "$cand" ]; then GRAPHIFY="$cand"; break; fi
+done
+
+[ -z "$GRAPHIFY" ] && exit 0
+
+# Need an existing graph to incrementally update. If missing, skip silently.
+[ ! -f graphify-out/graph.json ] && exit 0
+
+# Background, detached, log to graphify-out/.update.log
+nohup "$GRAPHIFY" update . > graphify-out/.update.log 2>&1 &
+disown 2>/dev/null || true
+exit 0

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Auto-update graphify knowledge graph after every merge (incl. pulls into main).
+# Same logic as post-commit — runs in background, never blocks.
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -z "$ROOT" ] && exit 0
+cd "$ROOT" || exit 0
+
+GRAPHIFY=""
+for cand in \
+  /Library/Frameworks/Python.framework/Versions/3.14/bin/graphify \
+  "$HOME/.local/bin/graphify" \
+  "$(command -v graphify 2>/dev/null)"; do
+  if [ -x "$cand" ]; then GRAPHIFY="$cand"; break; fi
+done
+
+[ -z "$GRAPHIFY" ] && exit 0
+[ ! -f graphify-out/graph.json ] && exit 0
+
+nohup "$GRAPHIFY" update . > graphify-out/.update.log 2>&1 &
+disown 2>/dev/null || true
+exit 0

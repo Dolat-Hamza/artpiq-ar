@@ -1,0 +1,2 @@
+# pre-commit: intentionally empty.
+# Graphify auto-updates run in post-commit / post-merge / post-checkout (non-blocking).
