@@ -69,23 +69,26 @@ export default function PublicExhibitionPage({ params }: { params: Promise<{ slu
     return (
       <div className="min-h-dvh grid place-items-center bg-black text-white p-6 text-center">
         <div className="max-w-md">
-          <p className="text-[11px] tracking-[0.22em] uppercase opacity-60">Virtual exhibition</p>
-          <h1 className="font-display text-[36px] tracking-tight mt-2">{ve.name}</h1>
-          <p className="mt-4 text-[13px] opacity-70">
-            Click Enter to lock the cursor. Use <strong>WASD</strong> or arrow keys to walk, mouse to look.
+          <p className="text-meta tracking-[0.22em] uppercase opacity-60 inline-flex items-center gap-2 justify-center">
+            <span className="w-2 h-2 bg-accent rounded-[2px] inline-block" />
+            Virtual exhibition · artpiq
+          </p>
+          <h1 className="font-display text-[36px] tracking-tight mt-3">{ve.name}</h1>
+          <p className="mt-4 text-body opacity-70">
+            Click <strong>Enter</strong> to lock cursor. Use <strong>WASD</strong> or arrow keys to walk, mouse to look.
             Press <strong>Esc</strong> to release.
           </p>
           <button
             onClick={() => setEntered(true)}
-            className="mt-6 px-6 py-3 bg-white text-black text-[13px] tracking-[0.18em] uppercase"
+            className="mt-6 inline-flex items-center justify-center gap-2 h-11 px-6 bg-paper text-ink rounded-md text-[12px] font-bold tracking-[0.10em] uppercase hover:bg-accent hover:text-paper transition-colors"
           >
             Enter exhibition
           </button>
           <Link
             href="/"
-            className="block mt-3 text-[11px] tracking-[0.16em] uppercase opacity-60 hover:opacity-100"
+            className="block mt-4 text-meta tracking-[0.16em] uppercase opacity-60 hover:opacity-100"
           >
-            Back
+            Back to artpiq
           </Link>
         </div>
       </div>

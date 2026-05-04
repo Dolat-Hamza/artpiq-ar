@@ -115,24 +115,35 @@ export default function DiscoverPublicPage({ params }: { params: Promise<{ slug:
         </div>
       </header>
 
-      <main className="max-w-content mx-auto px-6 md:px-12 pb-12">
-        <p className="text-[11px] tracking-[0.18em] uppercase opacity-60 mb-3">
-          Works ({artworks.length})
+      <main className="max-w-content mx-auto px-6 md:px-12 pb-16">
+        <p className="text-[10px] tracking-[0.20em] uppercase opacity-60 mb-4">
+          Works · {artworks.length}
         </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10">
           {artworks.map(a => (
-            <article key={a.id} className="border" style={{ borderColor: accent + '20' }}>
-              <div className="aspect-[3/4] overflow-hidden bg-black/5">
+            <article key={a.id} className="group">
+              <div
+                className="aspect-[4/5] overflow-hidden"
+                style={{ background: accent + '08' }}
+              >
                 {a.image && (
-                  <img src={a.image} alt={a.title} className="w-full h-full object-cover" />
+                  <img
+                    src={a.image}
+                    alt={a.title}
+                    className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
+                  />
                 )}
               </div>
-              <div className="p-3 text-[12px]">
-                <p className="font-display truncate">{a.title}</p>
-                <p className="opacity-60 text-[10px] uppercase tracking-[0.14em] mt-0.5">
-                  {a.widthCm} × {a.heightCm} cm
-                  {a.price != null && ` · ${a.currency || ''} ${a.price.toLocaleString()}`}
+              <div className="text-center mt-3 text-[13px]">
+                <p className="font-bold truncate">{a.title}</p>
+                <p className="opacity-70 text-[12px] italic mt-0.5">
+                  Height: {a.heightCm} cm · Width: {a.widthCm} cm
                 </p>
+                {a.price != null && (
+                  <p className="opacity-60 text-[11px] tracking-[0.14em] uppercase mt-1">
+                    {a.currency || '€'} {a.price.toLocaleString()}
+                  </p>
+                )}
               </div>
             </article>
           ))}

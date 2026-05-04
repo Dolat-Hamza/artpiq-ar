@@ -208,57 +208,61 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
   }
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b border-line">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-6">
-          <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted">
+    <div className="min-h-dvh bg-bg text-ink">
+      <header className="bg-paper border-b border-line">
+        <div className="px-6 md:px-10 py-8 max-w-content mx-auto">
+          <p className="text-meta tracking-[0.22em] uppercase text-ink-muted inline-flex items-center gap-2">
+            <span className="w-2 h-2 bg-accent rounded-[2px] inline-block" />
             Viewing room · artpiq
           </p>
-          <h1 className="font-display text-[28px] tracking-tight mt-1">{collection.name}</h1>
+          <h1 className="font-display text-h2 mt-2">{collection.name}</h1>
           {collection.description && (
-            <p className="mt-2 text-[14px] text-ink-muted max-w-[640px]">
+            <p className="mt-3 text-body text-ink-muted max-w-[640px]">
               {collection.description}
             </p>
           )}
-          <p className="mt-3 text-[11px] tracking-[0.18em] uppercase text-ink-muted">
+          <p className="mt-4 text-meta tracking-[0.16em] uppercase text-ink-muted">
             {artworks.length} works
             {totalValue > 0 && ` · ${currency} ${totalValue.toLocaleString()} list value`}
           </p>
         </div>
       </header>
-      <main className="max-w-content mx-auto px-6 md:px-12 py-8">
+      <main className="px-6 md:px-10 py-10 max-w-content mx-auto">
         {!artworks.length && (
-          <p className="text-[13px] text-ink-muted text-center py-12">
+          <p className="text-body text-ink-muted text-center py-16">
             No artworks in this viewing room.
           </p>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10">
           {artworks.map(a => (
-            <article key={a.id} className="border border-line">
-              <div className="aspect-[3/4] bg-line/40 overflow-hidden">
+            <article key={a.id} className="group">
+              <div className="aspect-[4/5] bg-paper border border-line/60 overflow-hidden">
                 {a.image && (
-                  <img src={a.image} alt={a.title} className="w-full h-full object-cover" />
+                  <img
+                    src={a.image}
+                    alt={a.title}
+                    className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
+                  />
                 )}
               </div>
-              <div className="p-3 text-[12px]">
-                <p className="font-display truncate">{a.title}</p>
+              <div className="text-center mt-3 text-[13px]">
+                <p className="font-bold truncate">{a.title}</p>
                 {a.artist && <p className="text-ink-muted truncate">{a.artist}</p>}
-                <p className="text-ink-muted text-[10px] uppercase tracking-[0.14em] mt-1">
-                  {a.widthCm} × {a.heightCm} cm
-                  {a.price != null && (
-                    <>
-                      {' · '}
-                      {a.currency || ''} {a.price.toLocaleString()}
-                    </>
-                  )}
+                <p className="text-ink-muted text-[12px] italic mt-0.5">
+                  Height: {a.heightCm} cm · Width: {a.widthCm} cm
                 </p>
+                {a.price != null && (
+                  <p className="text-ink-muted text-meta tracking-[0.14em] uppercase mt-1">
+                    {a.currency || '€'} {a.price.toLocaleString()}
+                  </p>
+                )}
               </div>
             </article>
           ))}
         </div>
       </main>
-      <section className="border-t border-line bg-line/10">
-        <div className="max-w-content mx-auto px-6 md:px-12 py-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <section className="border-t border-line bg-paper">
+        <div className="max-w-content mx-auto px-6 md:px-10 py-10 grid grid-cols-1 md:grid-cols-2 gap-8">
           <LeadForm ownerId={collection.ownerId} collectionName={collection.name} />
           <NewsletterForm
             ownerId={collection.ownerId}
