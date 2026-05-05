@@ -1,4 +1,9 @@
 import { NextResponse } from 'next/server'
+import sharp from 'sharp'
+
+// sharp requires Node.js runtime, not edge
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 /**
  * Proxy route: fetches an image server-side (no CORS issues) and returns
@@ -45,11 +50,15 @@ export async function GET(request: Request) {
       if (!res2.ok) {
         return NextResponse.json({ error: `upstream ${res2.status}` }, { status: 502 })
       }
-      const ct2 = (res2.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
       const buf2 = await res2.arrayBuffer()
-      return new NextResponse(buf2, {
-        headers: { 'Content-Type': ct2, 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' },
-      })
+      try {
+        const jpeg = await sharp(Buffer.from(buf2)).jpeg({ quality: 85 }).toBuffer()
+        return new NextResponse(new Uint8Array(jpeg), {
+          headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' },
+        })
+      } catch {
+        return NextResponse.json({ error: 'retry conversion failed' }, { status: 500 })
+      }
     }
 
     if (!res.ok) {
@@ -77,12 +86,32 @@ export async function GET(request: Request) {
       }, { status: 415 })
     }
 
-    // Override mime type from magic bytes (more reliable than upstream Content-Type)
-    const realMime = isJpeg ? 'image/jpeg' : isPng ? 'image/png' : isWebp ? 'image/webp' : 'image/gif'
+    // react-pdf v4 doesn't support WebP. Convert to JPEG via sharp.
+    // Also re-encode anything to ensure clean format compatibility.
+    let outputBuffer: Buffer
+    let outputMime: string
+    if (isJpeg) {
+      outputBuffer = Buffer.from(buffer)
+      outputMime = 'image/jpeg'
+    } else if (isPng) {
+      outputBuffer = Buffer.from(buffer)
+      outputMime = 'image/png'
+    } else {
+      // WebP / GIF / unknown → re-encode as JPEG
+      try {
+        outputBuffer = await sharp(Buffer.from(buffer))
+          .jpeg({ quality: 85 })
+          .toBuffer()
+        outputMime = 'image/jpeg'
+      } catch (e) {
+        console.error('[image-proxy] sharp conversion failed:', e)
+        return NextResponse.json({ error: 'image conversion failed' }, { status: 500 })
+      }
+    }
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(outputBuffer), {
       headers: {
-        'Content-Type': realMime,
+        'Content-Type': outputMime,
         'Cache-Control': 'public, max-age=86400',
         'Access-Control-Allow-Origin': '*',
       },
