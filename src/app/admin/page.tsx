@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Bell,
+  Briefcase,
   Calendar,
+  CheckSquare,
   Frame,
   Gift,
   Image as ImageIcon,
@@ -11,7 +13,9 @@ import {
   Library,
   Mail,
   MapPin,
+  Megaphone,
   Palette,
+  PieChart,
   PlayCircle,
   Star,
   Users,
@@ -282,18 +286,38 @@ export default function AdminDashboard() {
         )}
 
         {/* Modules grid */}
+        {/* Presentations */}
         <section className="mt-6 bg-paper border border-line rounded-md p-5">
-          <p className="font-display text-[14px] mb-4">Modules</p>
+          <p className="font-display text-[14px] mb-4">Presentations</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard href="/admin/artworks" label="Artworks" icon={Frame} count={counts?.artworks} />
             <ModuleCard href="/admin/designs" label="My Designs" icon={LayoutGrid} count={counts?.designs} />
             <ModuleCard href="/sample-room" label="Sample Room" icon={ImageIcon} />
             <ModuleCard href="/admin/rooms" label="Room Mockups" icon={Library} count={20} />
+            <ModuleCard href="/admin/shows" label="Curated Spaces" icon={MapPin} count={counts?.shows} />
             <ModuleCard href="/admin/exhibitions" label="Virtual Exhibitions" icon={Star} count={counts?.exhibitions} />
-            <ModuleCard href="/admin/shows" label="Art Show Planner" icon={MapPin} count={counts?.shows} />
-            <ModuleCard href="/admin/profile" label="Discover Profile" icon={Palette} />
+          </div>
+        </section>
+
+        {/* CRM */}
+        <section className="mt-4 bg-paper border border-line rounded-md p-5">
+          <p className="font-display text-[14px] mb-4">CRM</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard href="/admin/contacts" label="Contacts" icon={Users} count={counts?.contacts} />
+            <ModuleCard href="/admin/organizations" label="Organizations" icon={Briefcase} />
+            <ModuleCard href="/admin/deals" label="Deals" icon={PieChart} />
+            <ModuleCard href="/admin/tasks" label="Tasks" icon={CheckSquare} />
+          </div>
+        </section>
+
+        {/* Marketing */}
+        <section className="mt-4 bg-paper border border-line rounded-md p-5">
+          <p className="font-display text-[14px] mb-4">Marketing</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <ModuleCard href="/admin/social" label="Social Calendar" icon={Calendar} />
+            <ModuleCard href="/admin/blog" label="Blog" icon={Megaphone} />
             <ModuleCard href="/admin/inbox" label="Newsletter" icon={Mail} count={counts?.subscribers} />
+            <ModuleCard href="/admin/profile" label="Discover Profile" icon={Palette} />
           </div>
         </section>
       </main>

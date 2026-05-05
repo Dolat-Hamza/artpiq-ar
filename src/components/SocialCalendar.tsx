@@ -9,18 +9,21 @@ import {
   FileText,
   Mail,
   Megaphone,
+  MessageSquare,
   Plus,
   Trash2,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import {
+  addComment,
   createContent,
   deleteContent,
+  listComments,
   listContent,
   updateContent,
 } from '@/lib/db/social'
-import type { ContentItem, ContentStatus, ContentType } from '@/types'
+import type { ContentComment, ContentItem, ContentStatus, ContentType } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 
@@ -521,8 +524,29 @@ function ComposerModal({
     existing ?? { type: initial?.type ?? 'post', status: 'draft', ...initial },
   )
   const [busy, setBusy] = useState(false)
+  const [comments, setComments] = useState<ContentComment[]>([])
+  const [commentText, setCommentText] = useState('')
+  const [commentBusy, setCommentBusy] = useState(false)
+  const [modalTab, setModalTab] = useState<'edit' | 'comments'>('edit')
   const set = <K extends keyof ContentItem>(k: K, v: ContentItem[K]) =>
     setItem(s => ({ ...s, [k]: v }))
+
+  useEffect(() => {
+    if (existing?.id) listComments(existing.id).then(setComments)
+  }, [existing?.id])
+
+  async function postComment() {
+    if (!commentText.trim() || !existing?.id) return
+    setCommentBusy(true)
+    try {
+      await addComment({ ownerId, contentId: existing.id, authorId: ownerId, body: commentText })
+      setCommentText('')
+      const updated = await listComments(existing.id)
+      setComments(updated)
+    } finally {
+      setCommentBusy(false)
+    }
+  }
 
   async function save() {
     setBusy(true)
@@ -561,6 +585,24 @@ function ComposerModal({
           >
             {STATUS_LABEL[(item.status ?? 'draft') as ContentStatus]}
           </span>
+          {existing && (
+            <div className="flex gap-1 ml-2">
+              {(['edit', 'comments'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setModalTab(t)}
+                  className={`ap-nav !rounded-md !py-1 !px-2.5 text-meta uppercase tracking-[0.12em] ${modalTab === t ? 'font-bold' : ''}`}
+                >
+                  {t === 'comments' ? (
+                    <span className="inline-flex items-center gap-1">
+                      <MessageSquare size={11} /> {comments.length > 0 ? comments.length : ''}
+                      {t}
+                    </span>
+                  ) : t}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="ml-auto flex gap-2">
             <button onClick={onClose} className="btn-outline">
               <X size={13} /> Close
@@ -570,6 +612,38 @@ function ComposerModal({
             </button>
           </div>
         </header>
+
+        {modalTab === 'comments' && existing ? (
+          <div className="px-6 py-5">
+            <div className="grid gap-3 mb-4">
+              {!comments.length && (
+                <p className="text-body text-ink-muted text-center py-6">No comments yet.</p>
+              )}
+              {comments.map(c => (
+                <div key={c.id} className={`rounded-md p-3 text-body ${c.resolved ? 'opacity-50 bg-bg border border-line' : 'bg-accent-soft border border-accent/20'}`}>
+                  <p className="whitespace-pre-line">{c.body}</p>
+                  <p className="text-meta text-ink-muted mt-1">{new Date(c.createdAt!).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-2">
+              <textarea
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                rows={3}
+                className="input"
+                placeholder="Leave a comment or review note…"
+              />
+              <button
+                onClick={postComment}
+                disabled={!commentText.trim() || commentBusy}
+                className="btn-primary self-end disabled:opacity-40"
+              >
+                {commentBusy ? 'Posting…' : 'Post comment'}
+              </button>
+            </div>
+          </div>
+        ) : (
 
         <div className="px-6 py-5 grid gap-4">
           {/* Type + status workflow */}
@@ -745,6 +819,7 @@ function ComposerModal({
             <img src={item.coverUrl} alt="cover" className="max-h-48 object-cover border border-line rounded-sm" />
           )}
         </div>
+        )}
       </div>
     </div>
   )

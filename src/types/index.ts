@@ -200,6 +200,10 @@ export interface Contact {
   source?: string | null
   notes?: string | null
   lastSeenAt?: string | null
+  // CRM extension
+  organizationId?: string | null
+  role?: string | null
+  lifecycleStage?: string | null
   createdAt?: string
   updatedAt?: string
 }

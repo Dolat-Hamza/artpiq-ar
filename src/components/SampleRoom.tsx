@@ -1116,7 +1116,94 @@ export default function SampleRoom() {
                 onAdd={addArtwork}
               />
             )}
-            {(dockTab === 'advanced' || dockTab === 'frames') && (
+            {dockTab === 'frames' && (
+              <div>
+                {!selected ? (
+                  <p className="text-[12px] tracking-[0.14em] uppercase text-on-dock-muted py-2">
+                    Select an artwork on the canvas to change its frame
+                  </p>
+                ) : (
+                  <div>
+                    <p className="text-[10px] tracking-[0.16em] uppercase text-on-dock-muted mb-3">
+                      Frame preset
+                    </p>
+                    <div className="flex gap-3 flex-wrap">
+                      {FRAME_STYLES.map(s => {
+                        const preset = FRAME_PRESETS[s]
+                        const isActive = selected.frame.style === s
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => updateFrame(selected.id, { style: s })}
+                            className={`flex flex-col items-center gap-1.5 p-2 rounded-md border transition-all ${
+                              isActive
+                                ? 'border-on-dock bg-white/10'
+                                : 'border-white/10 hover:border-white/30'
+                            }`}
+                          >
+                            <div
+                              className="w-14 h-16 rounded-xs relative overflow-hidden"
+                              style={{
+                                background: s === 'none'
+                                  ? 'repeating-conic-gradient(#4a4a46 0% 25%, #2a2a26 0% 50%) 50% / 12px 12px'
+                                  : preset.borderColor,
+                                padding: s === 'none' ? 0 : Math.max(4, preset.borderWidthPx / 2) + 'px',
+                              }}
+                            >
+                              <div
+                                className="w-full h-full"
+                                style={{ background: preset.matteColor, opacity: s === 'none' ? 1 : 0.9 }}
+                              />
+                            </div>
+                            <span className="text-[10px] tracking-[0.10em] uppercase text-on-dock-muted whitespace-nowrap">
+                              {preset.label}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="flex gap-6 mt-4 flex-wrap items-end">
+                      <div className="min-w-[180px]">
+                        <Slider
+                          label={`Frame width: ${selected.frame.widthMm} mm`}
+                          min={0}
+                          max={80}
+                          value={selected.frame.widthMm}
+                          onChange={v => updateFrame(selected.id, { widthMm: v })}
+                          disabled={selected.frame.style === 'none'}
+                        />
+                      </div>
+                      <div className="min-w-[180px]">
+                        <Slider
+                          label={`Matte: ${selected.frame.matteMm} mm`}
+                          min={0}
+                          max={120}
+                          value={selected.frame.matteMm}
+                          onChange={v => updateFrame(selected.id, { matteMm: v })}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[10px] tracking-[0.14em] uppercase text-on-dock-muted mb-1.5">Matte color</p>
+                        <div className="flex gap-1.5">
+                          {MATTE_PALETTE.map(m => (
+                            <button
+                              key={m.value}
+                              onClick={() => updatePlaced(selected.id, { matteColor: m.value })}
+                              className={`w-7 h-7 rounded-xs border-2 ${
+                                selected.matteColor === m.value ? 'border-on-dock' : 'border-white/20'
+                              }`}
+                              style={{ background: m.value }}
+                              title={m.label}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {dockTab === 'advanced' && (
               <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
                 {selected ? (
                   <>
