@@ -313,10 +313,7 @@ export default function PresentationsAdmin() {
               </div>
             )}
 
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Download button — pinned bottom */}
+            {/* Download button */}
             <div className="border-t border-line pt-4">
               <button
                 onClick={generate}
