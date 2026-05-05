@@ -10,19 +10,20 @@ import {
   pdf,
 } from '@react-pdf/renderer'
 
-/** Fetch an image URL and return a data: URI so @react-pdf/renderer can embed it. */
+/**
+ * Fetch an image URL via the server-side proxy (bypasses CORS) and return
+ * a data: URI so @react-pdf/renderer can embed it.
+ */
 async function toDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url) return null
+  // If already a data URI, use as-is
+  if (url.startsWith('data:')) return url
   try {
-    const res = await fetch(url)
+    const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`
+    const res = await fetch(proxyUrl)
     if (!res.ok) return null
-    const blob = await res.blob()
-    return new Promise(resolve => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(blob)
-    })
+    const text = await res.text()
+    return text.startsWith('data:') ? text : null
   } catch {
     return null
   }
