@@ -11,60 +11,38 @@ import {
 } from '@react-pdf/renderer'
 
 /**
- * Fetch an image URL via the server-side proxy (bypasses CORS) and return
- * a data: URI so @react-pdf/renderer can embed it.
+ * Rewrite an image URL to go through our server-side proxy.
+ * @react-pdf/renderer fetches this URL internally when rendering.
+ * The proxy bypasses CDN CORS restrictions.
  */
-async function toDataUrl(url: string | null | undefined): Promise<string | null> {
+function proxyUrl(url: string | null | undefined): string | null {
   if (!url) return null
   if (url.startsWith('data:')) return url
-  // 1) Try server-side proxy (bypasses CORS)
-  try {
-    const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`
-    const res = await fetch(proxyUrl)
-    if (res.ok) {
-      const text = await res.text()
-      if (text.startsWith('data:')) return text
-    }
-  } catch { /* fall through */ }
-  // 2) Fallback: direct fetch (works for truly public CORS-enabled CDNs)
-  try {
-    const res = await fetch(url, { mode: 'no-cors' })
-    if (res.type === 'opaque') return null // can't read opaque response
-    const blob = await res.blob()
-    return new Promise(resolve => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
-  }
+  // Build absolute URL so the PDF renderer (running in browser) can call it
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  return `${origin}/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
-/** Pre-fetch all artwork images in batches to avoid rate-limiting.
- *  Uses thumb_url (small) for most layouts, image for portfolio/press. */
-export async function hydrateImages(
+/**
+ * Rewrite artwork image fields to go through proxy.
+ * Returns artworks with image/thumb pointing to /api/image-proxy.
+ * No async fetching — let @react-pdf/renderer handle the requests.
+ */
+export function hydrateImages(
   artworks: Artwork[],
-  opts: { preferThumb?: boolean; concurrency?: number } = {},
-): Promise<(Artwork & { _dataUrl: string | null })[]> {
-  const { preferThumb = true, concurrency = 4 } = opts
-  const results: (Artwork & { _dataUrl: string | null })[] = []
-
-  for (let i = 0; i < artworks.length; i += concurrency) {
-    const batch = artworks.slice(i, i + concurrency)
-    const hydrated = await Promise.all(
-      batch.map(async a => {
-        // prefer thumb (faster) unless caller wants full image
-        const url = preferThumb
-          ? (a.thumb ?? a.image)
-          : (a.image ?? a.thumb)
-        return { ...a, _dataUrl: await toDataUrl(url) }
-      }),
-    )
-    results.push(...hydrated)
-  }
-  return results
+  opts: { preferThumb?: boolean } = {},
+): (Artwork & { _dataUrl: string | null })[] {
+  const { preferThumb = true } = opts
+  return artworks.map(a => {
+    const src = preferThumb ? (a.thumb ?? a.image) : (a.image ?? a.thumb)
+    const proxied = proxyUrl(src)
+    return {
+      ...a,
+      _dataUrl: proxied,
+      image: proxied ?? a.image,
+      thumb: proxied ?? a.thumb,
+    }
+  })
 }
 
 const styles = StyleSheet.create({
@@ -157,8 +135,7 @@ function ArtworkSheet({ artwork }: { artwork: Artwork }) {
 }
 
 export async function exportArtworkPdf(artwork: Artwork): Promise<void> {
-  const [hydrated] = await hydrateImages([artwork])
-  const hw = { ...hydrated, image: hydrated._dataUrl ?? hydrated.image }
+  const [hw] = hydrateImages([artwork], { preferThumb: false })
   const blob = await pdf(<ArtworkSheet artwork={hw} />).toBlob()
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -307,8 +284,7 @@ export async function exportCollectionPdf(
   collection: Collection,
   artworks: Artwork[],
 ): Promise<void> {
-  const hydrated = await hydrateImages(artworks)
-  const hw = hydrated.map(a => ({ ...a, image: a._dataUrl ?? a.image }))
+  const hw = hydrateImages(artworks)
   const blob = await pdf(
     <CollectionPdf collection={collection} artworks={hw} />,
   ).toBlob()
@@ -454,10 +430,8 @@ function PressKitPdf({ title, artworks }: { title: string; artworks: Artwork[] }
 
 export async function exportPresentation(options: PresentationOptions): Promise<void> {
   const { title, artworks, showPrice, layout } = options
-  // Hydrate images — portfolio/press-kit use full image; others use thumb (faster)
   const preferThumb = layout !== 'portfolio' && layout !== 'press-kit'
-  const hydrated = await hydrateImages(artworks, { preferThumb, concurrency: 4 })
-  const hw = hydrated.map(a => ({ ...a, image: a._dataUrl ?? a.image, thumb: a._dataUrl ?? a.thumb }))
+  const hw = hydrateImages(artworks, { preferThumb })
   let doc: React.ReactElement<Record<string, unknown>>
   if (layout === 'portfolio') {
     doc = <PortfolioPdf title={title} artworks={hw} showPrice={showPrice} />
