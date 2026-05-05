@@ -442,7 +442,7 @@ function ListView({
   if (!items.length) {
     return (
       <div className="py-20 text-center">
-        <p className="text-body text-ink-muted">No content yet. Hit "+ New" to start your calendar.</p>
+        <p className="text-body text-ink-muted">No content yet. Hit &ldquo;+ New&rdquo; to start your calendar.</p>
       </div>
     )
   }
