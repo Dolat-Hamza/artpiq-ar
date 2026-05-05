@@ -35,7 +35,7 @@ const TOP: { href: string; label: string; icon: typeof Home }[] = [
 
 const GROUPS: { label: string; items: { href: string; label: string; icon: typeof Home }[] }[] = [
   {
-    label: 'Presentations',
+    label: 'Visualisation',
     items: [
       { href: '/admin/designs', label: 'My Designs', icon: LayoutGrid },
       { href: '/sample-room', label: 'Sample Room', icon: ImageIcon },

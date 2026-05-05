@@ -67,6 +67,7 @@ export async function updateContactRow(
   if ('organizationId' in patch && patch.organizationId !== undefined) row.organization_id = patch.organizationId as string | null
   if ('lifecycleStage' in patch && patch.lifecycleStage !== undefined) row.lifecycle_stage = patch.lifecycleStage as string | null
   if ('role' in patch && patch.role !== undefined) row.role = patch.role as string | null
+  if ('interestedArtworkIds' in patch && patch.interestedArtworkIds !== undefined) (row as Record<string, unknown>).interested_artwork_ids = patch.interestedArtworkIds
   row.updated_at = new Date().toISOString()
   const { error } = await supabase().from('contacts').update(row).eq('id', id)
   if (error) throw error

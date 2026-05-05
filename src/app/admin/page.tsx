@@ -288,7 +288,7 @@ export default function AdminDashboard() {
         {/* Modules grid */}
         {/* Presentations */}
         <section className="mt-6 bg-paper border border-line rounded-md p-5">
-          <p className="font-display text-[14px] mb-4">Presentations</p>
+          <p className="font-display text-[14px] mb-4">Visualisation</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <ModuleCard href="/admin/artworks" label="Artworks" icon={Frame} count={counts?.artworks} />
             <ModuleCard href="/admin/designs" label="My Designs" icon={LayoutGrid} count={counts?.designs} />

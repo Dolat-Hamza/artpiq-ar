@@ -194,17 +194,6 @@ export default function ExhibitionEditor({ id }: { id: string }) {
               )
             })}
           </div>
-          <div className="mt-6 pt-4 border-t border-line flex items-center gap-3">
-            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
-              Wall color
-            </p>
-            <input
-              type="color"
-              value={ve.wallColor || '#f4f4f4'}
-              onChange={e => persist({ wallColor: e.target.value })}
-              className="w-10 h-8 border border-line rounded-xs"
-            />
-          </div>
         </section>
 
         <aside className="bg-paper border border-line rounded-md p-4 lg:sticky lg:top-[124px] lg:self-start">

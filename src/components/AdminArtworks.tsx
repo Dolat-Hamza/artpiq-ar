@@ -32,6 +32,12 @@ import { signOut, useAuth } from '@/lib/db/auth'
 import { exportArtworkPdf, exportCollectionPdf } from '@/lib/artworkSheet'
 import { exportInventoryPdf } from '@/lib/inventoryReport'
 import { downloadSqspCsv } from '@/lib/sqspExport'
+import {
+  addArtworkImage,
+  deleteArtworkImage,
+  listArtworkImages,
+} from '@/lib/db/artworkImages'
+import type { ArtworkImage } from '@/lib/db/artworkImages'
 import LoginForm from './LoginForm'
 import StatusPill from './ui/StatusPill'
 import { ChevronDown, Copy, FileDown, Pencil, Trash2 } from 'lucide-react'
@@ -474,17 +480,58 @@ function EditorDrawer({
 }) {
   const set = <K extends keyof Artwork>(k: K, v: Artwork[K]) => onChange({ ...aw, [k]: v })
   const [uploading, setUploading] = useState(false)
+  const [gallery, setGallery] = useState<ArtworkImage[]>([])
+  const galleryRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (aw.id && !aw.id.startsWith('_new_')) {
+      listArtworkImages(aw.id).then(setGallery).catch(() => {})
+    }
+  }, [aw.id])
 
   async function uploadThumb(f: File) {
     try {
       setUploading(true)
       const url = await uploadImage(f, ownerId)
       onChange({ ...aw, image: url, thumb: url })
+      // Also add to gallery as position-0 (primary)
+      if (aw.id && !aw.id.startsWith('_new_')) {
+        await addArtworkImage(aw.id, url, url)
+        const updated = await listArtworkImages(aw.id)
+        setGallery(updated)
+      }
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
+  }
+
+  async function uploadExtra(f: File) {
+    if (!aw.id || aw.id.startsWith('_new_')) return
+    try {
+      setUploading(true)
+      const url = await uploadImage(f, ownerId)
+      await addArtworkImage(aw.id, url, url)
+      const updated = await listArtworkImages(aw.id)
+      setGallery(updated)
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function removeGalleryImage(id: string) {
+    await deleteArtworkImage(id)
+    setGallery(g => g.filter(i => i.id !== id))
+  }
+
+  async function makePrimary(img: ArtworkImage) {
+    onChange({ ...aw, image: img.url, thumb: img.thumbUrl ?? img.url })
+    // reorder: put this one at position 0, push others up
+    const others = gallery.filter(i => i.id !== img.id)
+    setGallery([{ ...img, position: 0 }, ...others.map((i, n) => ({ ...i, position: n + 1 }))])
   }
 
   return (
@@ -694,27 +741,85 @@ function EditorDrawer({
               className="input"
             />
           </Field>
-          <Field label="Image">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => {
-                const f = e.target.files?.[0]
-                if (f) uploadThumb(f)
-              }}
-              className="block w-full text-[12px]"
-            />
-            {uploading && <p className="text-[11px] text-ink-muted mt-1">Uploading…</p>}
-            {aw.image && (
-              <div className="mt-2 flex items-center gap-3">
-                <img src={aw.image} alt="" className="w-16 h-16 object-cover" />
-                <span className="text-[11px] text-ink-muted truncate">{aw.image}</span>
+          {/* Image gallery */}
+          <div className="border border-line rounded-md p-4 grid gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
+                Images · {gallery.length > 0 ? gallery.length : (aw.image ? 1 : 0)} total
+              </span>
+              <span className="text-meta text-ink-muted">First = primary (used for AR)</span>
+            </div>
+            {/* Primary image */}
+            <Field label="Primary image — upload or paste URL">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadThumb(f) }}
+                className="block w-full text-body"
+              />
+              <input
+                value={aw.image ?? ''}
+                onChange={e => set('image', e.target.value || null)}
+                placeholder="https://… or upload above"
+                className="input mt-2"
+              />
+              {aw.image && (
+                <img src={aw.image} alt="" className="mt-2 h-24 w-auto object-contain border border-line rounded-xs" />
+              )}
+            </Field>
+            {/* Gallery */}
+            {gallery.length > 0 && (
+              <div>
+                <p className="text-meta uppercase tracking-[0.12em] text-ink-muted mb-2">Gallery</p>
+                <div className="flex flex-wrap gap-2">
+                  {gallery.map(img => (
+                    <div key={img.id} className="relative group w-20 h-20">
+                      <img src={img.thumbUrl ?? img.url} alt="" className="w-full h-full object-cover border border-line rounded-xs" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xs flex flex-col items-center justify-center gap-1">
+                        {img.url !== aw.image && (
+                          <button
+                            onClick={() => makePrimary(img)}
+                            className="text-paper text-[10px] uppercase tracking-[0.12em] underline"
+                            title="Set as primary"
+                          >
+                            Primary
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeGalleryImage(img.id)}
+                          className="text-red-400 text-[10px] uppercase tracking-[0.12em]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      {img.position === 0 && (
+                        <span className="absolute top-1 left-1 text-[9px] bg-accent text-paper px-1 rounded-xs">Primary</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </Field>
-          <Field label="Image URL (or paste)">
-            <input value={aw.image ?? ''} onChange={e => set('image', e.target.value || null)} className="input" />
-          </Field>
+            {/* Add extra image */}
+            {aw.id && !aw.id.startsWith('_new_') && (
+              <div>
+                <input
+                  ref={galleryRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadExtra(f); if (galleryRef.current) galleryRef.current.value = '' }}
+                />
+                <button
+                  onClick={() => galleryRef.current?.click()}
+                  disabled={uploading}
+                  className="btn-outline disabled:opacity-40"
+                >
+                  {uploading ? 'Uploading…' : '+ Add another image'}
+                </button>
+              </div>
+            )}
+          </div>
           <Field label="Purchase URL">
             <input value={aw.purchaseUrl ?? ''} onChange={e => set('purchaseUrl', e.target.value || undefined)} className="input" />
           </Field>

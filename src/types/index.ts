@@ -204,6 +204,7 @@ export interface Contact {
   organizationId?: string | null
   role?: string | null
   lifecycleStage?: string | null
+  interestedArtworkIds?: string[] | null   // artworks this contact has expressed interest in
   createdAt?: string
   updatedAt?: string
 }
@@ -242,6 +243,7 @@ export interface Deal {
   contactId?: string | null
   organizationId?: string | null
   artworkId?: string | null
+  artworkIds?: string[] | null      // multiple artworks in deal
   title: string
   stage: DealStage
   amount?: number | null

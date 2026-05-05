@@ -123,6 +123,7 @@ export async function updateDeal(id: string, patch: Partial<Deal>): Promise<void
   if (patch.contactId !== undefined) row.contact_id = patch.contactId
   if (patch.organizationId !== undefined) row.organization_id = patch.organizationId
   if (patch.artworkId !== undefined) row.artwork_id = patch.artworkId
+  if ('artworkIds' in patch && patch.artworkIds !== undefined) (row as Record<string, unknown>).artwork_ids = patch.artworkIds
   const { error } = await supabase().from('deals').update(row).eq('id', id)
   if (error) throw error
 }

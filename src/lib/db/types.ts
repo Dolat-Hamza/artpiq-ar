@@ -84,6 +84,36 @@ export type Database = {
         }
         Relationships: []
       }
+      artwork_images: {
+        Row: {
+          artwork_id: string
+          caption: string | null
+          created_at: string
+          id: string
+          position: number
+          thumb_url: string | null
+          url: string
+        }
+        Insert: {
+          artwork_id: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          position?: number
+          thumb_url?: string | null
+          url: string
+        }
+        Update: {
+          artwork_id?: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          position?: number
+          thumb_url?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       artwork_collections: {
         Row: {
           added_at: string
@@ -216,6 +246,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          interested_artwork_ids: string[] | null
           last_seen_at: string | null
           lifecycle_stage: string | null
           name: string | null
@@ -336,6 +367,7 @@ export type Database = {
         Row: {
           amount: number | null
           artwork_id: string | null
+          artwork_ids: string[] | null
           contact_id: string | null
           created_at: string
           currency: string | null
