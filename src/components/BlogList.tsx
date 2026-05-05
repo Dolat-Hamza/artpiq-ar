@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bold, Heading1, Heading2, Image as ImageIcon, Italic, Link2, List, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createContent, deleteContent, listContent, updateContent } from '@/lib/db/social'
 import type { ContentItem, ContentStatus } from '@/types'
@@ -130,6 +130,8 @@ export default function BlogList() {
 function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void }) {
   const [draft, setDraft] = useState<Partial<ContentItem>>(item)
   const [busy, setBusy] = useState(false)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+
   async function save() {
     setBusy(true)
     try {
@@ -137,6 +139,32 @@ function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void 
       onClose()
     } finally { setBusy(false) }
   }
+
+  function insertMd(prefix: string, suffix = '', placeholder = 'text') {
+    const ta = taRef.current
+    if (!ta) return
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const selected = ta.value.slice(start, end) || placeholder
+    const inserted = `${prefix}${selected}${suffix}`
+    const next = ta.value.slice(0, start) + inserted + ta.value.slice(end)
+    setDraft(s => ({ ...s, bodyMd: next }))
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(start + prefix.length, start + prefix.length + selected.length)
+    })
+  }
+
+  const toolbar = [
+    { icon: <Heading1 size={14} />, label: 'H1', action: () => insertMd('# ', '', 'Heading') },
+    { icon: <Heading2 size={14} />, label: 'H2', action: () => insertMd('## ', '', 'Heading') },
+    { icon: <Bold size={14} />, label: 'Bold', action: () => insertMd('**', '**', 'bold text') },
+    { icon: <Italic size={14} />, label: 'Italic', action: () => insertMd('_', '_', 'italic text') },
+    { icon: <Link2 size={14} />, label: 'Link', action: () => insertMd('[', '](https://)', 'link text') },
+    { icon: <List size={14} />, label: 'List', action: () => insertMd('\n- ', '', 'item') },
+    { icon: <ImageIcon size={14} />, label: 'Image', action: () => insertMd('![alt](', ')', 'https://') },
+  ]
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 md:p-8" onClick={onClose}>
       <div className="w-full max-w-[900px] max-h-[92vh] overflow-y-auto bg-paper rounded-md shadow-pop" onClick={e => e.stopPropagation()}>
@@ -171,12 +199,28 @@ function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void 
             placeholder="Purpose / angle"
             className="input"
           />
+          {/* Formatting toolbar */}
+          <div className="flex gap-1 flex-wrap border border-line rounded-sm bg-bg px-2 py-1.5">
+            {toolbar.map(btn => (
+              <button
+                key={btn.label}
+                onClick={btn.action}
+                title={btn.label}
+                type="button"
+                className="w-8 h-7 grid place-items-center text-ink-muted hover:text-ink hover:bg-paper rounded-xs transition-colors"
+              >
+                {btn.icon}
+              </button>
+            ))}
+            <span className="ml-auto text-meta text-ink-muted self-center">Markdown</span>
+          </div>
           <textarea
+            ref={taRef}
             value={draft.bodyMd ?? ''}
             onChange={e => setDraft(s => ({ ...s, bodyMd: e.target.value }))}
             rows={20}
             placeholder="Write your post (markdown)…"
-            className="input"
+            className="input font-mono text-[13px]"
           />
           <input
             value={draft.coverUrl ?? ''}

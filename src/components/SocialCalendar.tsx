@@ -21,6 +21,7 @@ import {
   deleteContent,
   listComments,
   listContent,
+  resolveComment,
   updateContent,
 } from '@/lib/db/social'
 import type { ContentComment, ContentItem, ContentStatus, ContentType } from '@/types'
@@ -98,6 +99,16 @@ export default function SocialCalendar() {
     }
   }
 
+  async function createEventPromoBundle(title: string, eventDate: string, location: string) {
+    if (!user) return
+    await Promise.all([
+      createContent({ ownerId: user.id, type: 'post', title: `[Post] ${title}`, purpose: 'Promote event', eventDate, eventLocation: location, status: 'draft' }),
+      createContent({ ownerId: user.id, type: 'blog', title: `[Blog] ${title}`, purpose: 'Promote event', eventDate, eventLocation: location, status: 'draft' }),
+      createContent({ ownerId: user.id, type: 'newsletter', title: `[Newsletter] ${title}`, purpose: 'Promote event', eventDate, eventLocation: location, status: 'draft' }),
+    ])
+    refresh()
+  }
+
   async function quickStatus(item: ContentItem, status: ContentStatus) {
     await updateContent(item.id, { status })
     refresh()
@@ -140,12 +151,29 @@ export default function SocialCalendar() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setComposing({ type: 'post' })}
-              className="btn-primary"
-            >
-              <Plus size={14} strokeWidth={2.5} /> New
-            </button>
+            <div className="relative group">
+              <button className="btn-primary">
+                <Plus size={14} strokeWidth={2.5} /> New
+              </button>
+              <div className="absolute right-0 top-full mt-1 w-52 bg-paper border border-line shadow-pop rounded-md py-1 z-20 hidden group-hover:block">
+                {(['post', 'reel', 'story', 'blog', 'newsletter'] as ContentType[]).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setComposing({ type: t })}
+                    className="block w-full text-left px-3 py-1.5 text-body hover:bg-bg"
+                  >
+                    {TYPE_LABEL[t]}
+                  </button>
+                ))}
+                <div className="border-t border-line my-1" />
+                <button
+                  onClick={() => setComposing({ type: 'event_promo' })}
+                  className="block w-full text-left px-3 py-1.5 text-body hover:bg-bg font-bold"
+                >
+                  Event promo bundle ✦
+                </button>
+              </div>
+            </div>
           </>
         }
         subBar={
@@ -553,6 +581,16 @@ function ComposerModal({
     try {
       if (existing) {
         await updateContent(existing.id, item)
+      } else if (item.type === 'event_promo' && !existing) {
+        // Create event_promo anchor + auto-bundle post+blog+newsletter
+        await createContent({ ownerId, type: 'event_promo', ...item })
+        if (item.title) {
+          await Promise.all([
+            createContent({ ownerId, type: 'post', title: `[Post] ${item.title}`, purpose: item.purpose ?? 'Promote event', eventDate: item.eventDate ?? null, eventLocation: item.eventLocation ?? null, status: 'draft' }),
+            createContent({ ownerId, type: 'blog', title: `[Blog] ${item.title}`, purpose: item.purpose ?? 'Promote event', eventDate: item.eventDate ?? null, eventLocation: item.eventLocation ?? null, status: 'draft' }),
+            createContent({ ownerId, type: 'newsletter', title: `[Newsletter] ${item.title}`, purpose: item.purpose ?? 'Promote event', eventDate: item.eventDate ?? null, eventLocation: item.eventLocation ?? null, status: 'draft' }),
+          ])
+        }
       } else {
         await createContent({ ownerId, type: item.type ?? 'post', ...item })
       }
@@ -622,7 +660,19 @@ function ComposerModal({
               {comments.map(c => (
                 <div key={c.id} className={`rounded-md p-3 text-body ${c.resolved ? 'opacity-50 bg-bg border border-line' : 'bg-accent-soft border border-accent/20'}`}>
                   <p className="whitespace-pre-line">{c.body}</p>
-                  <p className="text-meta text-ink-muted mt-1">{new Date(c.createdAt!).toLocaleString()}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-meta text-ink-muted">{new Date(c.createdAt!).toLocaleString()}</p>
+                    <button
+                      onClick={async () => {
+                        await resolveComment(c.id, !c.resolved)
+                        const updated = await listComments(existing!.id)
+                        setComments(updated)
+                      }}
+                      className="text-meta uppercase tracking-[0.12em] text-ink-muted underline hover:text-ink"
+                    >
+                      {c.resolved ? 'Reopen' : 'Resolve'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

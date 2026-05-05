@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Code2, Download, Trash2 } from 'lucide-react'
+import { Code2, Download, Send, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import {
   deleteSubscriber,
@@ -45,6 +45,25 @@ export default function InboxAdmin() {
   const embedSnippet = `<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/newsletter.js" data-owner="${user.id}"></script>`
   const active = list.filter(s => !s.optedOutAt).length
 
+  async function sendNewsletter() {
+    const contentId = prompt('Paste the newsletter content ID from Social Calendar → newsletter item')?.trim()
+    if (!contentId) return
+    const ok = confirm(`Send to ${active} active subscribers?`)
+    if (!ok) return
+    try {
+      const res = await fetch('/api/newsletter/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentId, ownerId: user?.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) alert(`Error: ${json.error}`)
+      else alert(`Sent ${json.sent} · Failed ${json.failed}`)
+    } catch (e) {
+      alert('Send failed: ' + String(e))
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-bg text-ink">
       <AdminPageHeader
@@ -56,6 +75,14 @@ export default function InboxAdmin() {
               className="btn-outline"
             >
               <Code2 size={13} /> {embedShown ? 'Hide embed' : 'Embed snippet'}
+            </button>
+            <button
+              onClick={sendNewsletter}
+              disabled={!active}
+              className="btn-outline disabled:opacity-40"
+              title="Send a newsletter campaign via Resend (requires RESEND_API_KEY)"
+            >
+              <Send size={13} /> Send campaign
             </button>
             <button
               onClick={() => downloadSubscribersCsv(list)}

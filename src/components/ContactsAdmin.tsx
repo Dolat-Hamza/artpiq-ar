@@ -9,6 +9,7 @@ import {
   Mail,
   Phone,
   Plus,
+  Sparkles,
   Trash2,
   User,
   X,
@@ -286,11 +287,33 @@ function ContactDetail({
   const [logBody, setLogBody] = useState('')
   const [logBusy, setLogBusy] = useState(false)
   const [tab, setTab] = useState<'details' | 'activity' | 'deals'>('details')
+  const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
   useEffect(() => {
     listDeals(userId).then(all => setDeals(all.filter(d => d.contactId === contact.id)))
     listActivities(userId, { contactId: contact.id }).then(setActivities)
+    setAiSummary(null)
   }, [contact.id, userId])
+
+  async function generateSummary() {
+    setAiLoading(true)
+    setAiSummary(null)
+    try {
+      const res = await fetch('/api/ai/summarise-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: contact.id, ownerId: userId }),
+      })
+      const json = await res.json()
+      if (res.ok) setAiSummary(json.summary)
+      else setAiSummary('Error: ' + json.error)
+    } catch {
+      setAiSummary('Failed to generate summary.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   async function addActivity() {
     if (!logBody.trim()) return
@@ -445,6 +468,26 @@ function ContactDetail({
         {/* Activity tab */}
         {tab === 'activity' && (
           <div className="p-4 flex flex-col gap-3">
+            {/* AI summary */}
+            <div className="bg-bg border border-line rounded-md p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold inline-flex items-center gap-1">
+                  <Sparkles size={11} /> AI Summary
+                </p>
+                <button
+                  onClick={generateSummary}
+                  disabled={aiLoading}
+                  className="text-meta uppercase tracking-[0.12em] text-accent underline disabled:opacity-40"
+                >
+                  {aiLoading ? 'Generating…' : 'Generate'}
+                </button>
+              </div>
+              {aiSummary ? (
+                <p className="text-body text-ink-soft leading-relaxed">{aiSummary}</p>
+              ) : (
+                <p className="text-body text-ink-muted italic">Click Generate for an AI summary of this contact.</p>
+              )}
+            </div>
             {/* Log form */}
             <div className="bg-bg border border-line rounded-md p-3 grid gap-2">
               <div className="flex gap-1 flex-wrap">

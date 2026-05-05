@@ -178,6 +178,11 @@ export async function listComments(contentId: string): Promise<ContentComment[]>
   return (data ?? []).map(commentRow)
 }
 
+export async function resolveComment(id: string, resolved: boolean): Promise<void> {
+  const { error } = await supabase().from('content_comments').update({ resolved }).eq('id', id)
+  if (error) throw error
+}
+
 export async function addComment(input: Omit<ContentComment, 'id' | 'createdAt' | 'resolved'>): Promise<ContentComment> {
   const { data, error } = await supabase()
     .from('content_comments')
