@@ -180,13 +180,17 @@ function InventoryReport({
   )
 }
 
+import { hydrateImages } from './artworkSheet'
+
 export async function exportInventoryPdf(
   artworks: Artwork[],
   opts: { groupBy?: GroupBy; ownerEmail?: string } = {},
 ): Promise<void> {
+  const hydrated = await hydrateImages(artworks)
+  const hw = hydrated.map(a => ({ ...a, image: a._dataUrl ?? a.image }))
   const blob = await pdf(
     <InventoryReport
-      artworks={artworks}
+      artworks={hw}
       groupBy={opts.groupBy ?? 'artist'}
       ownerEmail={opts.ownerEmail}
     />,

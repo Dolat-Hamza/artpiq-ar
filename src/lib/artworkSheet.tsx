@@ -10,6 +10,34 @@ import {
   pdf,
 } from '@react-pdf/renderer'
 
+/** Fetch an image URL and return a data: URI so @react-pdf/renderer can embed it. */
+async function toDataUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+/** Pre-fetch all artwork images and return artworks with data URIs. */
+export async function hydrateImages(artworks: Artwork[]): Promise<(Artwork & { _dataUrl: string | null })[]> {
+  return Promise.all(
+    artworks.map(async a => ({
+      ...a,
+      _dataUrl: await toDataUrl(a.image ?? a.thumb),
+    })),
+  )
+}
+
 const styles = StyleSheet.create({
   page: { padding: 48, fontSize: 11, fontFamily: 'Helvetica' },
   hero: { marginBottom: 24 },
@@ -100,7 +128,9 @@ function ArtworkSheet({ artwork }: { artwork: Artwork }) {
 }
 
 export async function exportArtworkPdf(artwork: Artwork): Promise<void> {
-  const blob = await pdf(<ArtworkSheet artwork={artwork} />).toBlob()
+  const [hydrated] = await hydrateImages([artwork])
+  const hw = { ...hydrated, image: hydrated._dataUrl ?? hydrated.image }
+  const blob = await pdf(<ArtworkSheet artwork={hw} />).toBlob()
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -248,8 +278,10 @@ export async function exportCollectionPdf(
   collection: Collection,
   artworks: Artwork[],
 ): Promise<void> {
+  const hydrated = await hydrateImages(artworks)
+  const hw = hydrated.map(a => ({ ...a, image: a._dataUrl ?? a.image }))
   const blob = await pdf(
-    <CollectionPdf collection={collection} artworks={artworks} />,
+    <CollectionPdf collection={collection} artworks={hw} />,
   ).toBlob()
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -393,18 +425,20 @@ function PressKitPdf({ title, artworks }: { title: string; artworks: Artwork[] }
 
 export async function exportPresentation(options: PresentationOptions): Promise<void> {
   const { title, artworks, showPrice, layout } = options
+  // Hydrate images to data URIs before passing to PDF renderer
+  const hydrated = await hydrateImages(artworks)
+  const hw = hydrated.map(a => ({ ...a, image: a._dataUrl ?? a.image, thumb: a._dataUrl ?? a.thumb }))
   let doc: React.ReactElement<Record<string, unknown>>
   if (layout === 'portfolio') {
-    doc = <PortfolioPdf title={title} artworks={artworks} showPrice={showPrice} />
+    doc = <PortfolioPdf title={title} artworks={hw} showPrice={showPrice} />
   } else if (layout === 'price-list') {
-    doc = <PriceListPdf title={title} artworks={artworks} />
+    doc = <PriceListPdf title={title} artworks={hw} />
   } else if (layout === 'press-kit') {
-    doc = <PressKitPdf title={title} artworks={artworks} />
+    doc = <PressKitPdf title={title} artworks={hw} />
   } else {
-    // catalogue — reuse CollectionPdf with a synthetic collection
     doc = <CollectionPdf
       collection={{ id: '', ownerId: '', name: title, description: '', privacy: 'private' } as Collection}
-      artworks={artworks}
+      artworks={hw}
     />
   }
   const blob = await pdf(doc).toBlob()
