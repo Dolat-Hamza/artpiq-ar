@@ -47,9 +47,8 @@ export async function GET(request: Request) {
       }
       const ct2 = (res2.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
       const buf2 = await res2.arrayBuffer()
-      const b642 = Buffer.from(buf2).toString('base64')
-      return new NextResponse(`data:${ct2};base64,${b642}`, {
-        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' },
+      return new NextResponse(buf2, {
+        headers: { 'Content-Type': ct2, 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' },
       })
     }
 
@@ -59,16 +58,15 @@ export async function GET(request: Request) {
     }
 
     const contentType = res.headers.get('content-type') ?? 'image/jpeg'
-    // Strip charset etc. from content-type
     const mimeType = contentType.split(';')[0].trim()
     const buffer = await res.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
-    const dataUrl = `data:${mimeType};base64,${base64}`
 
-    return new NextResponse(dataUrl, {
+    // Return raw binary — @react-pdf/renderer fetches this URL and expects image bytes
+    return new NextResponse(buffer, {
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': mimeType,
         'Cache-Control': 'public, max-age=86400',
+        'Access-Control-Allow-Origin': '*',
       },
     })
   } catch (e) {
