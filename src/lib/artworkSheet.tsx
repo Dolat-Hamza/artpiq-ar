@@ -42,14 +42,29 @@ async function toDataUrl(url: string | null | undefined): Promise<string | null>
   }
 }
 
-/** Pre-fetch all artwork images and return artworks with data URIs. */
-export async function hydrateImages(artworks: Artwork[]): Promise<(Artwork & { _dataUrl: string | null })[]> {
-  return Promise.all(
-    artworks.map(async a => ({
-      ...a,
-      _dataUrl: await toDataUrl(a.image ?? a.thumb),
-    })),
-  )
+/** Pre-fetch all artwork images in batches to avoid rate-limiting.
+ *  Uses thumb_url (small) for most layouts, image for portfolio/press. */
+export async function hydrateImages(
+  artworks: Artwork[],
+  opts: { preferThumb?: boolean; concurrency?: number } = {},
+): Promise<(Artwork & { _dataUrl: string | null })[]> {
+  const { preferThumb = true, concurrency = 4 } = opts
+  const results: (Artwork & { _dataUrl: string | null })[] = []
+
+  for (let i = 0; i < artworks.length; i += concurrency) {
+    const batch = artworks.slice(i, i + concurrency)
+    const hydrated = await Promise.all(
+      batch.map(async a => {
+        // prefer thumb (faster) unless caller wants full image
+        const url = preferThumb
+          ? (a.thumb ?? a.image)
+          : (a.image ?? a.thumb)
+        return { ...a, _dataUrl: await toDataUrl(url) }
+      }),
+    )
+    results.push(...hydrated)
+  }
+  return results
 }
 
 const styles = StyleSheet.create({
@@ -439,8 +454,9 @@ function PressKitPdf({ title, artworks }: { title: string; artworks: Artwork[] }
 
 export async function exportPresentation(options: PresentationOptions): Promise<void> {
   const { title, artworks, showPrice, layout } = options
-  // Hydrate images to data URIs before passing to PDF renderer
-  const hydrated = await hydrateImages(artworks)
+  // Hydrate images — portfolio/press-kit use full image; others use thumb (faster)
+  const preferThumb = layout !== 'portfolio' && layout !== 'press-kit'
+  const hydrated = await hydrateImages(artworks, { preferThumb, concurrency: 4 })
   const hw = hydrated.map(a => ({ ...a, image: a._dataUrl ?? a.image, thumb: a._dataUrl ?? a.thumb }))
   let doc: React.ReactElement<Record<string, unknown>>
   if (layout === 'portfolio') {

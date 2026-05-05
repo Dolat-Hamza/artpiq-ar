@@ -21,16 +21,37 @@ export async function GET(request: Request) {
 
   try {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 15_000)
+    const timer = setTimeout(() => controller.abort(), 20_000)
 
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; artpiq-pdf-renderer/1.0)',
-        'Accept': 'image/*,*/*;q=0.8',
+        'Accept': 'image/jpeg,image/png,image/webp,image/*,*/*;q=0.8',
+        'Referer': 'https://artpiq-ar.vercel.app/',
       },
     })
     clearTimeout(timer)
+
+    // Retry once on 429
+    if (res.status === 429) {
+      await new Promise(r => setTimeout(r, 1000))
+      const res2 = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; artpiq-pdf-renderer/1.0)',
+          'Accept': 'image/jpeg,image/png,image/webp,image/*,*/*;q=0.8',
+        },
+      })
+      if (!res2.ok) {
+        return NextResponse.json({ error: `upstream ${res2.status}` }, { status: 502 })
+      }
+      const ct2 = (res2.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
+      const buf2 = await res2.arrayBuffer()
+      const b642 = Buffer.from(buf2).toString('base64')
+      return new NextResponse(`data:${ct2};base64,${b642}`, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' },
+      })
+    }
 
     if (!res.ok) {
       console.error('[image-proxy] upstream status:', res.status)
