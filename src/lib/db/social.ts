@@ -1,0 +1,194 @@
+import { supabase } from './client'
+import type { Database } from './types'
+import type { ContentItem, ContentComment, SocialChannel } from '@/types'
+
+type CIIns = Database['public']['Tables']['content_items']['Insert']
+type CIUpd = Database['public']['Tables']['content_items']['Update']
+
+const channelRow = (r: Record<string, unknown>): SocialChannel => ({
+  id: r.id as string,
+  ownerId: r.owner_id as string,
+  platform: r.platform as SocialChannel['platform'],
+  handle: r.handle as string,
+  displayName: (r.display_name as string | null) ?? null,
+  avatarUrl: (r.avatar_url as string | null) ?? null,
+  active: (r.active as boolean) ?? true,
+  createdAt: r.created_at as string,
+})
+
+export async function listChannels(ownerId: string): Promise<SocialChannel[]> {
+  const { data, error } = await supabase()
+    .from('social_channels')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .order('platform')
+  if (error) throw error
+  return (data ?? []).map(channelRow)
+}
+
+export async function createChannel(input: Omit<SocialChannel, 'id' | 'createdAt'>): Promise<SocialChannel> {
+  const { data, error } = await supabase()
+    .from('social_channels')
+    .insert({
+      owner_id: input.ownerId,
+      platform: input.platform,
+      handle: input.handle,
+      display_name: input.displayName ?? null,
+      avatar_url: input.avatarUrl ?? null,
+      active: input.active,
+    })
+    .select('*')
+    .single()
+  if (error) throw error
+  return channelRow(data as Record<string, unknown>)
+}
+
+export async function deleteChannel(id: string): Promise<void> {
+  const { error } = await supabase().from('social_channels').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ----- Content items -----
+const contentRow = (r: Record<string, unknown>): ContentItem => ({
+  id: r.id as string,
+  ownerId: r.owner_id as string,
+  type: r.type as ContentItem['type'],
+  status: r.status as ContentItem['status'],
+  title: (r.title as string | null) ?? null,
+  copy: (r.copy as string | null) ?? null,
+  hashtags: (r.hashtags as string[] | null) ?? null,
+  purpose: (r.purpose as string | null) ?? null,
+  postType: (r.post_type as string | null) ?? null,
+  targetAudience: (r.target_audience as string | null) ?? null,
+  hook: (r.hook as string | null) ?? null,
+  cta: (r.cta as string | null) ?? null,
+  ctaUrl: (r.cta_url as string | null) ?? null,
+  scheduledAt: (r.scheduled_at as string | null) ?? null,
+  publishedAt: (r.published_at as string | null) ?? null,
+  channels: (r.channels as string[] | null) ?? null,
+  mediaUrls: (r.media_urls as string[] | null) ?? null,
+  coverUrl: (r.cover_url as string | null) ?? null,
+  artworkIds: (r.artwork_ids as string[] | null) ?? null,
+  eventDate: (r.event_date as string | null) ?? null,
+  eventLocation: (r.event_location as string | null) ?? null,
+  assigneeId: (r.assignee_id as string | null) ?? null,
+  reviewerId: (r.reviewer_id as string | null) ?? null,
+  approvedAt: (r.approved_at as string | null) ?? null,
+  approvedBy: (r.approved_by as string | null) ?? null,
+  bodyMd: (r.body_md as string | null) ?? null,
+  bodyHtml: (r.body_html as string | null) ?? null,
+  createdAt: r.created_at as string,
+  updatedAt: r.updated_at as string,
+})
+
+export async function listContent(ownerId: string, opts?: { type?: ContentItem['type']; status?: ContentItem['status'] }): Promise<ContentItem[]> {
+  let q = supabase().from('content_items').select('*').eq('owner_id', ownerId)
+  if (opts?.type) q = q.eq('type', opts.type)
+  if (opts?.status) q = q.eq('status', opts.status)
+  const { data, error } = await q.order('scheduled_at', { ascending: false, nullsFirst: false })
+  if (error) throw error
+  return (data ?? []).map(contentRow)
+}
+
+export async function getContent(id: string): Promise<ContentItem | null> {
+  const { data, error } = await supabase().from('content_items').select('*').eq('id', id).maybeSingle()
+  if (error) throw error
+  return data ? contentRow(data as Record<string, unknown>) : null
+}
+
+export async function createContent(input: Partial<ContentItem> & { ownerId: string; type: ContentItem['type'] }): Promise<ContentItem> {
+  const row: CIIns = {
+    owner_id: input.ownerId,
+    type: input.type,
+    status: input.status ?? 'draft',
+  }
+  if (input.title !== undefined) row.title = input.title
+  if (input.copy !== undefined) row.copy = input.copy
+  if (input.hashtags !== undefined) row.hashtags = input.hashtags
+  if (input.purpose !== undefined) row.purpose = input.purpose
+  if (input.postType !== undefined) row.post_type = input.postType
+  if (input.targetAudience !== undefined) row.target_audience = input.targetAudience
+  if (input.hook !== undefined) row.hook = input.hook
+  if (input.cta !== undefined) row.cta = input.cta
+  if (input.ctaUrl !== undefined) row.cta_url = input.ctaUrl
+  if (input.scheduledAt !== undefined) row.scheduled_at = input.scheduledAt
+  if (input.channels !== undefined) row.channels = input.channels
+  if (input.mediaUrls !== undefined) row.media_urls = input.mediaUrls
+  if (input.coverUrl !== undefined) row.cover_url = input.coverUrl
+  if (input.artworkIds !== undefined) row.artwork_ids = input.artworkIds
+  if (input.eventDate !== undefined) row.event_date = input.eventDate
+  if (input.eventLocation !== undefined) row.event_location = input.eventLocation
+  if (input.bodyMd !== undefined) row.body_md = input.bodyMd
+  if (input.bodyHtml !== undefined) row.body_html = input.bodyHtml
+  const { data, error } = await supabase().from('content_items').insert(row).select('*').single()
+  if (error) throw error
+  return contentRow(data as Record<string, unknown>)
+}
+
+export async function updateContent(id: string, patch: Partial<ContentItem>): Promise<void> {
+  const row: CIUpd = { updated_at: new Date().toISOString() }
+  if (patch.type !== undefined) row.type = patch.type
+  if (patch.status !== undefined) row.status = patch.status
+  if (patch.title !== undefined) row.title = patch.title
+  if (patch.copy !== undefined) row.copy = patch.copy
+  if (patch.hashtags !== undefined) row.hashtags = patch.hashtags
+  if (patch.purpose !== undefined) row.purpose = patch.purpose
+  if (patch.postType !== undefined) row.post_type = patch.postType
+  if (patch.targetAudience !== undefined) row.target_audience = patch.targetAudience
+  if (patch.hook !== undefined) row.hook = patch.hook
+  if (patch.cta !== undefined) row.cta = patch.cta
+  if (patch.ctaUrl !== undefined) row.cta_url = patch.ctaUrl
+  if (patch.scheduledAt !== undefined) row.scheduled_at = patch.scheduledAt
+  if (patch.channels !== undefined) row.channels = patch.channels
+  if (patch.mediaUrls !== undefined) row.media_urls = patch.mediaUrls
+  if (patch.coverUrl !== undefined) row.cover_url = patch.coverUrl
+  if (patch.artworkIds !== undefined) row.artwork_ids = patch.artworkIds
+  if (patch.eventDate !== undefined) row.event_date = patch.eventDate
+  if (patch.eventLocation !== undefined) row.event_location = patch.eventLocation
+  if (patch.bodyMd !== undefined) row.body_md = patch.bodyMd
+  if (patch.bodyHtml !== undefined) row.body_html = patch.bodyHtml
+  if (patch.publishedAt !== undefined) row.published_at = patch.publishedAt
+  const { error } = await supabase().from('content_items').update(row).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteContent(id: string): Promise<void> {
+  const { error } = await supabase().from('content_items').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ----- Comments -----
+const commentRow = (r: Record<string, unknown>): ContentComment => ({
+  id: r.id as string,
+  ownerId: r.owner_id as string,
+  contentId: r.content_id as string,
+  authorId: r.author_id as string,
+  body: r.body as string,
+  resolved: (r.resolved as boolean) ?? false,
+  createdAt: r.created_at as string,
+})
+
+export async function listComments(contentId: string): Promise<ContentComment[]> {
+  const { data, error } = await supabase()
+    .from('content_comments')
+    .select('*')
+    .eq('content_id', contentId)
+    .order('created_at')
+  if (error) throw error
+  return (data ?? []).map(commentRow)
+}
+
+export async function addComment(input: Omit<ContentComment, 'id' | 'createdAt' | 'resolved'>): Promise<ContentComment> {
+  const { data, error } = await supabase()
+    .from('content_comments')
+    .insert({
+      owner_id: input.ownerId,
+      content_id: input.contentId,
+      author_id: input.authorId,
+      body: input.body,
+    })
+    .select('*')
+    .single()
+  if (error) throw error
+  return commentRow(data as Record<string, unknown>)
+}

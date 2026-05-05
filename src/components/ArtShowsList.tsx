@@ -49,7 +49,7 @@ export default function ArtShowsList() {
   return (
     <div className="min-h-dvh bg-bg text-ink">
       <AdminPageHeader
-        title="Personal Spaces"
+        title="Curated Spaces"
         actions={
           <button onClick={add} className="btn-primary">
             <Plus size={14} strokeWidth={2.5} /> New space

@@ -138,7 +138,7 @@ export default function SampleRoom() {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
   const [stageW, setStageW] = useState(0)
-  const [dockTab, setDockTab] = useState<'artworks' | 'lighting' | 'customize' | 'rooms' | 'tools'>('artworks')
+  const [dockTab, setDockTab] = useState<'artworks' | 'rooms' | 'frames' | 'advanced'>('artworks')
   const [lighting, setLighting] = useState<LightingState>(NEUTRAL_LIGHTING)
   const [lightingSub, setLightingSub] = useState<LightingSubtab>('room')
   const [roomCat, setRoomCat] = useState<RoomCategory>('all')
@@ -262,7 +262,7 @@ export default function SampleRoom() {
 
   // Auto-switch dock to tools when something is selected
   useEffect(() => {
-    if (selected) setDockTab('tools')
+    if (selected) setDockTab('advanced')
   }, [selectedId])
 
   // Load room favorites for signed-in user
@@ -862,7 +862,7 @@ export default function SampleRoom() {
         {/* Bottom dock — ArtPlacer-style tab dock */}
         <div className="bg-surface-dock text-on-dock shadow-dock flex-shrink-0">
           <div className="flex items-center px-4 md:px-8 gap-0 border-b border-white/10">
-            {(['artworks', 'lighting', 'customize', 'rooms', 'tools'] as const).map(t => (
+            {(['artworks', 'rooms', 'frames', 'advanced'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setDockTab(t)}
@@ -870,10 +870,9 @@ export default function SampleRoom() {
                 className="dock-tab"
               >
                 {t === 'artworks' && `Artworks · ${artworks.length}`}
-                {t === 'lighting' && 'Lighting'}
-                {t === 'customize' && 'Customize'}
                 {t === 'rooms' && `Rooms · ${STOCK_ROOMS.length}`}
-                {t === 'tools' && (selected ? 'Selected' : 'Tools')}
+                {t === 'frames' && 'Frames'}
+                {t === 'advanced' && 'Advanced'}
               </button>
             ))}
             <span className="ml-auto text-[10px] tracking-[0.18em] uppercase text-on-dock-muted hidden sm:inline">
@@ -949,7 +948,7 @@ export default function SampleRoom() {
                 </div>
               </div>
             )}
-            {dockTab === 'lighting' && (
+            {dockTab === 'advanced' && (
               <div>
                 <div className="flex gap-1 mb-3">
                   {(['shadow', 'artwork', 'room'] as LightingSubtab[]).map(sub => (
@@ -1017,7 +1016,7 @@ export default function SampleRoom() {
                 )}
               </div>
             )}
-            {dockTab === 'customize' && (
+            {dockTab === 'advanced' && (
               <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
                 <div>
                   <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1">
@@ -1117,7 +1116,7 @@ export default function SampleRoom() {
                 onAdd={addArtwork}
               />
             )}
-            {dockTab === 'tools' && (
+            {(dockTab === 'advanced' || dockTab === 'frames') && (
               <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
                 {selected ? (
                   <>

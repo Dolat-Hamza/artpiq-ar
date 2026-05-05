@@ -3,6 +3,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
+  Briefcase,
+  Calendar,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
@@ -14,7 +17,9 @@ import {
   LogOut,
   Mail,
   MapPin,
+  Megaphone,
   Palette,
+  PieChart,
   Plus,
   Star,
   Users,
@@ -30,18 +35,28 @@ const TOP: { href: string; label: string; icon: typeof Home }[] = [
 
 const GROUPS: { label: string; items: { href: string; label: string; icon: typeof Home }[] }[] = [
   {
-    label: 'My Creations',
+    label: 'Presentations',
     items: [
       { href: '/admin/designs', label: 'My Designs', icon: LayoutGrid },
       { href: '/sample-room', label: 'Sample Room', icon: ImageIcon },
+      { href: '/admin/shows', label: 'Curated Spaces', icon: MapPin },
       { href: '/admin/exhibitions', label: 'Virtual Exhibitions', icon: Star },
-      { href: '/admin/shows', label: 'Art Show Planner', icon: MapPin },
     ],
   },
   {
-    label: 'Lead Generation',
+    label: 'CRM',
     items: [
       { href: '/admin/contacts', label: 'Contacts', icon: Users },
+      { href: '/admin/organizations', label: 'Organizations', icon: Briefcase },
+      { href: '/admin/deals', label: 'Deals', icon: PieChart },
+      { href: '/admin/tasks', label: 'Tasks', icon: CheckSquare },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { href: '/admin/social', label: 'Social Calendar', icon: Calendar },
+      { href: '/admin/blog', label: 'Blog', icon: Megaphone },
       { href: '/admin/inbox', label: 'Newsletter', icon: Mail },
       { href: '/admin/profile', label: 'Discover Profile', icon: Palette },
     ],

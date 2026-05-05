@@ -6,6 +6,25 @@ import { rowToArtwork } from '@/lib/db/artworks'
 import NewsletterForm from '@/components/NewsletterForm'
 import { Artwork, Collection } from '@/types'
 
+type PresentationRow = {
+  show_price?: boolean
+  sale_mode?: 'sale' | 'rent' | 'both' | 'hidden'
+  rent_12mo?: number | null
+  rent_24mo?: number | null
+  rent_36mo?: number | null
+}
+
+function splitRows(rows: unknown[]): { artworks: Parameters<typeof rowToArtwork>[0][]; pres: Record<string, PresentationRow> } {
+  const out: Record<string, PresentationRow> = {}
+  const arts = (rows as Array<{ _presentation?: PresentationRow; id: string }>).map(r => {
+    if (r._presentation) out[r.id] = r._presentation
+    const { _presentation: _drop, ...rest } = r as { _presentation?: PresentationRow; [k: string]: unknown }
+    void _drop
+    return rest as Parameters<typeof rowToArtwork>[0]
+  })
+  return { artworks: arts, pres: out }
+}
+
 function LeadForm({ ownerId, collectionName }: { ownerId: string; collectionName: string }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -96,6 +115,7 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
   const { slug } = use(params)
   const [collection, setCollection] = useState<Collection | null>(null)
   const [artworks, setArtworks] = useState<Artwork[]>([])
+  const [presentations, setPresentations] = useState<Record<string, PresentationRow>>({})
   const [loading, setLoading] = useState(true)
   const [authed, setAuthed] = useState(false)
   const [pwInput, setPwInput] = useState('')
@@ -116,12 +136,16 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
           if (sessionStorage.getItem(`vr-pw-${col.id}`) === col.viewingRoomPassword) {
             setAuthed(true)
             const rows = await listArtworksInLiveCollection(slug)
-            setArtworks(rows.map(r => rowToArtwork(r as Parameters<typeof rowToArtwork>[0])))
+            const { artworks: arts, pres } = splitRows(rows)
+            setArtworks(arts.map(r => rowToArtwork(r)))
+            setPresentations(pres)
           }
         } else {
           setAuthed(true)
           const rows = await listArtworksInLiveCollection(slug)
-          setArtworks(rows.map(r => rowToArtwork(r as Parameters<typeof rowToArtwork>[0])))
+          const { artworks: arts, pres } = splitRows(rows)
+          setArtworks(arts.map(r => rowToArtwork(r)))
+          setPresentations(pres)
         }
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : 'load failed')
@@ -177,7 +201,9 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
               sessionStorage.setItem(`vr-pw-${collection.id}`, pwInput)
               setAuthed(true)
               const rows = await listArtworksInLiveCollection(slug)
-              setArtworks(rows.map(r => rowToArtwork(r as Parameters<typeof rowToArtwork>[0])))
+              const { artworks: arts, pres } = splitRows(rows)
+              setArtworks(arts.map(r => rowToArtwork(r)))
+              setPresentations(pres)
             } else {
               setErr('wrong-pw')
             }
@@ -235,31 +261,56 @@ export default function ViewingRoomPage({ params }: { params: Promise<{ slug: st
           </p>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10">
-          {artworks.map(a => (
-            <article key={a.id} className="group">
-              <div className="aspect-[4/5] bg-paper border border-line/60 overflow-hidden">
-                {a.image && (
-                  <img
-                    src={a.image}
-                    alt={a.title}
-                    className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
-                  />
-                )}
-              </div>
-              <div className="text-center mt-3 text-[13px]">
-                <p className="font-bold truncate">{a.title}</p>
-                {a.artist && <p className="text-ink-muted truncate">{a.artist}</p>}
-                <p className="text-ink-muted text-[12px] italic mt-0.5">
-                  Height: {a.heightCm} cm · Width: {a.widthCm} cm
-                </p>
-                {a.price != null && (
-                  <p className="text-ink-muted text-meta tracking-[0.14em] uppercase mt-1">
-                    {a.currency || '€'} {a.price.toLocaleString()}
+          {artworks.map(a => {
+            const p = presentations[a.id]
+            const showPrice = p?.show_price !== false
+            const mode = p?.sale_mode ?? 'sale'
+            return (
+              <article key={a.id} className="group">
+                <div className="aspect-[4/5] bg-paper border border-line/60 overflow-hidden">
+                  {a.image && (
+                    <img
+                      src={a.image}
+                      alt={a.title}
+                      className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.02]"
+                    />
+                  )}
+                </div>
+                <div className="text-center mt-3 text-[13px]">
+                  <p className="font-bold truncate">{a.title}</p>
+                  {a.artist && <p className="text-ink-muted truncate">{a.artist}</p>}
+                  <p className="text-ink-muted text-[12px] italic mt-0.5">
+                    Height: {a.heightCm} cm · Width: {a.widthCm} cm
                   </p>
-                )}
-              </div>
-            </article>
-          ))}
+                  {showPrice && (mode === 'sale' || mode === 'both') && a.price != null && (
+                    <p className="text-meta tracking-[0.14em] uppercase mt-1">
+                      <span className="opacity-60">For sale ·</span>{' '}
+                      <span className="font-bold">{a.currency || '€'} {a.price.toLocaleString()}</span>
+                    </p>
+                  )}
+                  {showPrice && (mode === 'rent' || mode === 'both') && (p?.rent_12mo || p?.rent_24mo || p?.rent_36mo) && (
+                    <div className="text-meta tracking-[0.14em] uppercase mt-1 grid gap-0.5">
+                      <span className="opacity-60">For rent</span>
+                      {p?.rent_12mo != null && (
+                        <span><span className="opacity-60">12 mo ·</span> <span className="font-bold">{a.currency || '€'} {p.rent_12mo.toLocaleString()}/mo</span></span>
+                      )}
+                      {p?.rent_24mo != null && (
+                        <span><span className="opacity-60">24 mo ·</span> <span className="font-bold">{a.currency || '€'} {p.rent_24mo.toLocaleString()}/mo</span></span>
+                      )}
+                      {p?.rent_36mo != null && (
+                        <span><span className="opacity-60">36 mo ·</span> <span className="font-bold">{a.currency || '€'} {p.rent_36mo.toLocaleString()}/mo</span></span>
+                      )}
+                    </div>
+                  )}
+                  {(!showPrice || mode === 'hidden') && (
+                    <p className="text-meta tracking-[0.14em] uppercase mt-1 opacity-60">
+                      Price on enquiry
+                    </p>
+                  )}
+                </div>
+              </article>
+            )
+          })}
         </div>
       </main>
       <section className="border-t border-line bg-paper">

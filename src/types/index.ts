@@ -215,6 +215,144 @@ export interface Subscriber {
   createdAt?: string
 }
 
+// ============================================================
+// CRM (Artlogic-style)
+// ============================================================
+export type OrganizationType = 'gallery' | 'collector' | 'press' | 'institution' | 'vendor' | 'other'
+export interface Organization {
+  id: string
+  ownerId: string
+  name: string
+  type: OrganizationType
+  website?: string | null
+  country?: string | null
+  notes?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type DealStage = 'enquiry' | 'qualified' | 'proposal' | 'negotiation' | 'reserved' | 'won' | 'lost'
+export interface Deal {
+  id: string
+  ownerId: string
+  contactId?: string | null
+  organizationId?: string | null
+  artworkId?: string | null
+  title: string
+  stage: DealStage
+  amount?: number | null
+  currency?: string | null
+  expectedCloseDate?: string | null
+  probability?: number | null
+  notes?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type ActivityType = 'note' | 'call' | 'email' | 'meeting' | 'viewing' | 'offer' | 'file'
+export interface Activity {
+  id: string
+  ownerId: string
+  contactId?: string | null
+  dealId?: string | null
+  type: ActivityType
+  subject?: string | null
+  body?: string | null
+  occurredAt: string
+  createdAt?: string
+}
+
+export type TaskPriority = 'low' | 'medium' | 'high'
+export interface Task {
+  id: string
+  ownerId: string
+  contactId?: string | null
+  dealId?: string | null
+  title: string
+  dueAt?: string | null
+  doneAt?: string | null
+  priority: TaskPriority
+  createdAt?: string
+}
+
+// ============================================================
+// Social Media calendar (Loomly Brief + CoSchedule + Buffer)
+// ============================================================
+export type SocialPlatform = 'instagram' | 'x' | 'linkedin' | 'facebook' | 'tiktok' | 'youtube' | 'pinterest' | 'threads'
+export interface SocialChannel {
+  id: string
+  ownerId: string
+  platform: SocialPlatform
+  handle: string
+  displayName?: string | null
+  avatarUrl?: string | null
+  active: boolean
+  createdAt?: string
+}
+
+export type ContentType = 'post' | 'reel' | 'story' | 'blog' | 'newsletter' | 'event_promo'
+export type ContentStatus =
+  | 'draft' | 'in_progress' | 'submitted_for_review' | 'changes_requested'
+  | 'approved' | 'scheduled' | 'published' | 'failed' | 'archived'
+
+export interface ContentItem {
+  id: string
+  ownerId: string
+  type: ContentType
+  status: ContentStatus
+  title?: string | null
+  copy?: string | null
+  hashtags?: string[] | null
+  purpose?: string | null
+  postType?: string | null
+  targetAudience?: string | null
+  hook?: string | null
+  cta?: string | null
+  ctaUrl?: string | null
+  scheduledAt?: string | null
+  publishedAt?: string | null
+  channels?: string[] | null
+  mediaUrls?: string[] | null
+  coverUrl?: string | null
+  artworkIds?: string[] | null
+  eventDate?: string | null
+  eventLocation?: string | null
+  assigneeId?: string | null
+  reviewerId?: string | null
+  approvedAt?: string | null
+  approvedBy?: string | null
+  bodyMd?: string | null
+  bodyHtml?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ContentComment {
+  id: string
+  ownerId: string
+  contentId: string
+  authorId: string
+  body: string
+  resolved: boolean
+  createdAt?: string
+}
+
+// ============================================================
+// Viewing-room presentation (per-artwork pricing)
+// ============================================================
+export type SaleMode = 'sale' | 'rent' | 'both' | 'hidden'
+export interface CollectionMember {
+  artworkId: string
+  collectionId: string
+  position?: number
+  showPrice: boolean
+  saleMode: SaleMode
+  rent12mo?: number | null
+  rent24mo?: number | null
+  rent36mo?: number | null
+  notes?: string | null
+}
+
 export interface SavedDesign {
   id: string
   ownerId: string

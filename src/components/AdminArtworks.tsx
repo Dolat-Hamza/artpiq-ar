@@ -20,11 +20,14 @@ import {
   collectionsForArtwork,
   createCollection,
   deleteCollection,
+  listCollectionMembers,
   listMyCollections,
   setArtworkCollections,
   slugify,
   updateCollection,
+  updateCollectionMember,
 } from '@/lib/db/collections'
+import type { CollectionMember, SaleMode } from '@/types'
 import { signOut, useAuth } from '@/lib/db/auth'
 import { exportArtworkPdf, exportCollectionPdf } from '@/lib/artworkSheet'
 import { exportInventoryPdf } from '@/lib/inventoryReport'
@@ -1073,7 +1076,7 @@ function CollectionsPanel({
       <ul className="grid grid-cols-1 gap-2">
         {collections.map(c => {
           const count = (membership[c.id] ?? []).length
-          return <CollectionRow key={c.id} c={c} count={count} onChange={onChange}
+          return <CollectionRow key={c.id} c={c} count={count} artworks={artworks} onChange={onChange}
             onPdf={() => exportPdf(c)} onRename={() => rename(c)} onDelete={() => remove(c)} />
         })}
       </ul>
@@ -1154,6 +1157,7 @@ function MenuItem({
 function CollectionRow({
   c,
   count,
+  artworks,
   onChange,
   onPdf,
   onRename,
@@ -1161,12 +1165,14 @@ function CollectionRow({
 }: {
   c: Collection
   count: number
+  artworks: Artwork[]
   onChange: () => void
   onPdf: () => void
   onRename: () => void
   onDelete: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [presentationOpen, setPresentationOpen] = useState(false)
   const [slug, setSlug] = useState(c.slug ?? slugify(c.name))
   const [status, setStatus] = useState<'draft' | 'live'>(c.viewingRoomStatus ?? 'draft')
   const [pw, setPw] = useState(c.viewingRoomPassword ?? '')
@@ -1204,6 +1210,9 @@ function CollectionRow({
         </div>
         <button onClick={() => setOpen(o => !o)} className="text-[11px] uppercase tracking-[0.14em]">
           {open ? 'Close' : 'Viewing room'}
+        </button>
+        <button onClick={() => setPresentationOpen(true)} className="text-[11px] uppercase tracking-[0.14em]">
+          Presentation
         </button>
         <button onClick={onPdf} className="text-[11px] uppercase tracking-[0.14em]">PDF</button>
         <button onClick={onRename} className="text-[11px] uppercase tracking-[0.14em]">Rename</button>
@@ -1266,6 +1275,159 @@ function CollectionRow({
           )}
         </div>
       )}
+      {presentationOpen && (
+        <PresentationModal
+          collection={c}
+          artworks={artworks}
+          onClose={() => setPresentationOpen(false)}
+        />
+      )}
     </li>
+  )
+}
+
+// ============================================================
+// Per-artwork presentation overrides — price visibility,
+// sale/rent mode + 12/24/36-month rent tier pricing.
+// ============================================================
+function PresentationModal({
+  collection,
+  artworks,
+  onClose,
+}: {
+  collection: Collection
+  artworks: Artwork[]
+  onClose: () => void
+}) {
+  const [members, setMembers] = useState<CollectionMember[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    listCollectionMembers(collection.id).then(rows => {
+      setMembers(rows)
+      setLoading(false)
+    })
+  }, [collection.id])
+
+  async function patch(artworkId: string, p: Partial<CollectionMember>) {
+    setMembers(s => s.map(m => (m.artworkId === artworkId ? { ...m, ...p } : m)))
+    await updateCollectionMember(collection.id, artworkId, p)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 md:p-8" onClick={onClose}>
+      <div
+        className="w-full max-w-[920px] max-h-[92vh] overflow-y-auto bg-paper rounded-md shadow-pop"
+        onClick={e => e.stopPropagation()}
+      >
+        <header className="sticky top-0 z-10 bg-paper border-b border-line px-6 h-14 flex items-center gap-3">
+          <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">
+            Presentation · {collection.name}
+          </h2>
+          <button onClick={onClose} className="ml-auto btn-outline">
+            Close
+          </button>
+        </header>
+
+        <div className="px-6 py-5">
+          <p className="text-meta uppercase tracking-[0.14em] text-ink-muted mb-3">
+            Per-artwork overrides — applies to viewing room presentation only
+          </p>
+
+          {loading ? (
+            <p className="text-body text-ink-muted py-8 text-center">Loading…</p>
+          ) : !members.length ? (
+            <p className="text-body text-ink-muted py-8 text-center">
+              Collection is empty. Add artworks to it first.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {members.map(m => {
+                const a = artworks.find(x => x.id === m.artworkId)
+                if (!a) return null
+                return (
+                  <article key={m.artworkId} className="border border-line rounded-md p-3 grid grid-cols-1 md:grid-cols-[80px_1fr_1fr] gap-3">
+                    <div className="aspect-[4/5] bg-bg overflow-hidden border border-line/60 rounded-xs">
+                      {a.thumb && <img src={a.thumb} alt="" className="w-full h-full object-cover" />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-body truncate">{a.title}</p>
+                      <p className="text-meta tracking-[0.12em] uppercase text-ink-muted">
+                        {a.artist} · {a.widthCm}×{a.heightCm} cm
+                      </p>
+                      {a.price != null && (
+                        <p className="text-meta text-ink-muted mt-1">
+                          List price: {a.currency || '€'} {a.price.toLocaleString()}
+                        </p>
+                      )}
+                      <label className="inline-flex items-center gap-2 mt-3 text-body">
+                        <input
+                          type="checkbox"
+                          checked={m.showPrice}
+                          onChange={e => patch(m.artworkId, { showPrice: e.target.checked })}
+                          className="accent-accent w-4 h-4"
+                        />
+                        Show price publicly
+                      </label>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="block">
+                        <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Mode</span>
+                        <select
+                          value={m.saleMode}
+                          onChange={e => patch(m.artworkId, { saleMode: e.target.value as SaleMode })}
+                          className="input"
+                        >
+                          <option value="sale">For sale</option>
+                          <option value="rent">For rent</option>
+                          <option value="both">Sale or rent</option>
+                          <option value="hidden">Hidden / enquire</option>
+                        </select>
+                      </label>
+                      {(m.saleMode === 'rent' || m.saleMode === 'both') && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <RentTier
+                            label="12 mo"
+                            value={m.rent12mo}
+                            onChange={v => patch(m.artworkId, { rent12mo: v })}
+                          />
+                          <RentTier
+                            label="24 mo"
+                            value={m.rent24mo}
+                            onChange={v => patch(m.artworkId, { rent24mo: v })}
+                          />
+                          <RentTier
+                            label="36 mo"
+                            value={m.rent36mo}
+                            onChange={v => patch(m.artworkId, { rent36mo: v })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RentTier({
+  label, value, onChange,
+}: { label: string; value?: number | null; onChange: (v: number | null) => void }) {
+  return (
+    <label className="block">
+      <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">{label}</span>
+      <input
+        type="number"
+        value={value ?? ''}
+        onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+        placeholder="€/mo"
+        className="input"
+      />
+    </label>
   )
 }

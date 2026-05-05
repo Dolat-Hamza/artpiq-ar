@@ -52,13 +52,18 @@ export async function listArtworksInLiveCollection(slug: string) {
   if (!col) return []
   const { data: ac } = await sb
     .from('artwork_collections')
-    .select('artwork_id, position')
+    .select('artwork_id, position, show_price, sale_mode, rent_12mo, rent_24mo, rent_36mo, notes')
     .eq('collection_id', col.id)
     .order('position', { ascending: true })
   if (!ac || !ac.length) return []
   const ids = ac.map(r => r.artwork_id)
   const { data: arts } = await sb.from('artworks').select('*').in('id', ids)
-  return arts ?? []
+  // Stitch presentation overrides onto each artwork as `_presentation`
+  const byId = new Map((ac as Array<Record<string, unknown>>).map(r => [r.artwork_id as string, r]))
+  return (arts ?? []).map(a => ({
+    ...(a as Record<string, unknown>),
+    _presentation: byId.get((a as { id: string }).id) ?? null,
+  }))
 }
 
 export async function listMyCollections(ownerId: string): Promise<Collection[]> {
@@ -180,5 +185,50 @@ export async function removeArtworkFromCollection(
     .from('artwork_collections')
     .delete()
     .match({ artwork_id: artworkId, collection_id: collectionId })
+  if (error) throw error
+}
+
+// ----- Per-artwork presentation overrides (price toggle, sale/rent tiers) -----
+import type { CollectionMember, SaleMode } from '@/types'
+
+const memberRow = (r: Record<string, unknown>): CollectionMember => ({
+  artworkId: r.artwork_id as string,
+  collectionId: r.collection_id as string,
+  position: (r.position as number) ?? 0,
+  showPrice: (r.show_price as boolean) ?? true,
+  saleMode: (r.sale_mode as SaleMode) ?? 'sale',
+  rent12mo: (r.rent_12mo as number | null) ?? null,
+  rent24mo: (r.rent_24mo as number | null) ?? null,
+  rent36mo: (r.rent_36mo as number | null) ?? null,
+  notes: (r.notes as string | null) ?? null,
+})
+
+export async function listCollectionMembers(collectionId: string): Promise<CollectionMember[]> {
+  const { data, error } = await supabase()
+    .from('artwork_collections')
+    .select('artwork_id, collection_id, position, show_price, sale_mode, rent_12mo, rent_24mo, rent_36mo, notes')
+    .eq('collection_id', collectionId)
+    .order('position', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map(memberRow)
+}
+
+export async function updateCollectionMember(
+  collectionId: string,
+  artworkId: string,
+  patch: Partial<Omit<CollectionMember, 'artworkId' | 'collectionId'>>,
+): Promise<void> {
+  const row: Database['public']['Tables']['artwork_collections']['Update'] = {}
+  if (patch.position !== undefined) row.position = patch.position
+  if (patch.showPrice !== undefined) row.show_price = patch.showPrice
+  if (patch.saleMode !== undefined) row.sale_mode = patch.saleMode
+  if (patch.rent12mo !== undefined) row.rent_12mo = patch.rent12mo
+  if (patch.rent24mo !== undefined) row.rent_24mo = patch.rent24mo
+  if (patch.rent36mo !== undefined) row.rent_36mo = patch.rent36mo
+  if (patch.notes !== undefined) row.notes = patch.notes
+  const { error } = await supabase()
+    .from('artwork_collections')
+    .update(row)
+    .match({ collection_id: collectionId, artwork_id: artworkId })
   if (error) throw error
 }

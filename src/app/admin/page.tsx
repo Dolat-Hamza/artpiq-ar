@@ -204,7 +204,7 @@ export default function AdminDashboard() {
               accent="ring-accent"
             />
             <Stat label="Saved Designs" value={counts?.designs} quota={QUOTA.designs} />
-            <Stat label="Personal Spaces" value={counts?.shows} quota={QUOTA.shows} />
+            <Stat label="Curated Spaces" value={counts?.shows} quota={QUOTA.shows} />
           </div>
         </section>
 
