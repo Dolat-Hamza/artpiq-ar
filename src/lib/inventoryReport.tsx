@@ -186,7 +186,7 @@ export async function exportInventoryPdf(
   artworks: Artwork[],
   opts: { groupBy?: GroupBy; ownerEmail?: string } = {},
 ): Promise<void> {
-  const hw = hydrateImages(artworks)
+  const hw = await hydrateImages(artworks)
   const blob = await pdf(
     <InventoryReport
       artworks={hw}
