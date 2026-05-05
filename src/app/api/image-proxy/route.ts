@@ -58,13 +58,31 @@ export async function GET(request: Request) {
     }
 
     const contentType = res.headers.get('content-type') ?? 'image/jpeg'
-    const mimeType = contentType.split(';')[0].trim()
+    const mimeType = contentType.split(';')[0].trim().toLowerCase()
     const buffer = await res.arrayBuffer()
 
-    // Return raw binary — @react-pdf/renderer fetches this URL and expects image bytes
+    // Validate: must be a real image (check magic bytes + content-type)
+    const bytes = new Uint8Array(buffer.slice(0, 12))
+    const isJpeg = bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47
+    const isWebp = bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+    const isGif = bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46
+
+    if (!isJpeg && !isPng && !isWebp && !isGif) {
+      console.error('[image-proxy] not a valid image, ct=', mimeType, 'size=', buffer.byteLength)
+      return NextResponse.json({
+        error: 'upstream returned non-image content',
+        contentType: mimeType,
+        size: buffer.byteLength,
+      }, { status: 415 })
+    }
+
+    // Override mime type from magic bytes (more reliable than upstream Content-Type)
+    const realMime = isJpeg ? 'image/jpeg' : isPng ? 'image/png' : isWebp ? 'image/webp' : 'image/gif'
+
     return new NextResponse(buffer, {
       headers: {
-        'Content-Type': mimeType,
+        'Content-Type': realMime,
         'Cache-Control': 'public, max-age=86400',
         'Access-Control-Allow-Origin': '*',
       },

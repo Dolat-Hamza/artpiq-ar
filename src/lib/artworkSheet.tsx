@@ -23,13 +23,27 @@ async function fetchAsDataUri(url: string | null | undefined): Promise<string | 
       console.warn('[hydrate] proxy non-ok', res.status)
       return null
     }
+    const ct = res.headers.get('content-type') ?? ''
+    if (!ct.startsWith('image/')) {
+      console.warn('[hydrate] non-image content-type', ct)
+      return null
+    }
     const blob = await res.blob()
-    return await new Promise(resolve => {
+    if (blob.size < 100) {
+      console.warn('[hydrate] tiny blob', blob.size)
+      return null
+    }
+    const dataUri = await new Promise<string | null>(resolve => {
       const reader = new FileReader()
       reader.onloadend = () => resolve(reader.result as string)
       reader.onerror = () => resolve(null)
       reader.readAsDataURL(blob)
     })
+    if (!dataUri || !dataUri.startsWith('data:image/')) {
+      console.warn('[hydrate] bad data uri prefix', dataUri?.slice(0, 30))
+      return null
+    }
+    return dataUri
   } catch (e) {
     console.warn('[hydrate] fetch error', e)
     return null
