@@ -16,14 +16,27 @@ import {
  */
 async function toDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url) return null
-  // If already a data URI, use as-is
   if (url.startsWith('data:')) return url
+  // 1) Try server-side proxy (bypasses CORS)
   try {
     const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`
     const res = await fetch(proxyUrl)
-    if (!res.ok) return null
-    const text = await res.text()
-    return text.startsWith('data:') ? text : null
+    if (res.ok) {
+      const text = await res.text()
+      if (text.startsWith('data:')) return text
+    }
+  } catch { /* fall through */ }
+  // 2) Fallback: direct fetch (works for truly public CORS-enabled CDNs)
+  try {
+    const res = await fetch(url, { mode: 'no-cors' })
+    if (res.type === 'opaque') return null // can't read opaque response
+    const blob = await res.blob()
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
   } catch {
     return null
   }

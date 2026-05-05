@@ -1,11 +1,11 @@
 # Graph Report - /Users/dolathamza/Documents/GitHub/artpiq-ar  (2026-05-05)
 
 ## Corpus Check
-- 105 files · ~58,974 words
+- 106 files · ~59,145 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 416 nodes · 633 edges · 61 communities detected
+- 417 nodes · 634 edges · 61 communities detected
 - Extraction: 66% EXTRACTED · 34% INFERRED · 0% AMBIGUOUS · INFERRED: 215 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -74,7 +74,7 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `supabase()` - 91 edges
-2. `GET()` - 16 edges
+2. `GET()` - 17 edges
 3. `update()` - 15 edges
 4. `Page()` - 14 edges
 5. `add()` - 11 edges
@@ -87,64 +87,64 @@
 ## Surprising Connections (you probably didn't know these)
 - `toggleArtwork()` --calls--> `add()`  [INFERRED]
   /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/DealsAdmin.tsx → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/components/AdminArtworks.tsx
-- `listArtworksInLiveCollection()` --calls--> `supabase()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/collections.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `addArtworkToCollection()` --calls--> `supabase()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/collections.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `removeArtworkFromCollection()` --calls--> `supabase()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/collections.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
-- `listCollectionMembers()` --calls--> `supabase()`  [INFERRED]
-  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/collections.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts
+- `supabase()` --calls--> `listPublicArtworksByOwner()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/discover.ts
+- `supabase()` --calls--> `listDeals()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/crm.ts
+- `supabase()` --calls--> `deleteDeal()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/crm.ts
+- `supabase()` --calls--> `listChannels()`  [INFERRED]
+  /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/client.ts → /Users/dolathamza/Documents/GitHub/artpiq-ar/src/lib/db/social.ts
 
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.06
-Nodes (37): duplicate(), exportCsv(), importCsv(), openEditor(), openNewEditor(), patch(), refresh(), remove() (+29 more)
+Cohesion: 0.08
+Nodes (38): patch(), refresh(), remove(), addArtworkImage(), deleteArtworkImage(), listArtworkImages(), row(), updateImageCaption() (+30 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.09
-Nodes (31): addArtworkImage(), deleteArtworkImage(), listArtworkImages(), row(), updateImageCaption(), signInWithGoogle(), signInWithMagicLink(), signInWithPassword() (+23 more)
+Cohesion: 0.1
+Nodes (25): rename(), updateCollection(), updateOrganization(), createFolder(), deleteFolder(), listFolders(), renameFolder(), rowToFolder() (+17 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.13
 Nodes (20): add(), buildPaintingMesh(), loadTexture(), toggle(), GET(), addStandardLighting(), buildFramedPainting(), buildGalleryScene() (+12 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.1
-Nodes (26): addActivity(), activityRow(), createActivity(), createDeal(), createOrganization(), createTask(), dealRow(), deleteDeal() (+18 more)
-
-### Community 4 - "Community 4"
 Cohesion: 0.11
 Nodes (23): newPost(), refresh(), rm(), save(), addComment(), channelRow(), commentRow(), contentRow() (+15 more)
 
+### Community 4 - "Community 4"
+Cohesion: 0.11
+Nodes (26): addActivity(), activityRow(), createActivity(), createDeal(), createOrganization(), createTask(), dealRow(), deleteDeal() (+18 more)
+
 ### Community 5 - "Community 5"
-Cohesion: 0.16
-Nodes (18): createFolder(), deleteFolder(), listFolders(), renameFolder(), rowToFolder(), moveDesign(), newFolder(), refresh() (+10 more)
+Cohesion: 0.14
+Nodes (19): addWall(), onWallMove(), persist(), placeArtwork(), removePlacement(), removeWall(), uid(), updateWall() (+11 more)
 
 ### Community 6 - "Community 6"
+Cohesion: 0.13
+Nodes (14): duplicate(), exportCsv(), importCsv(), openEditor(), openNewEditor(), save(), bulkUpsert(), artworksToCsv() (+6 more)
+
+### Community 7 - "Community 7"
 Cohesion: 0.14
 Nodes (6): share(), decodeBitmap(), exportImage(), normalizeToBlob(), onFile(), withTimeout()
 
-### Community 7 - "Community 7"
+### Community 8 - "Community 8"
 Cohesion: 0.16
 Nodes (9): addArtwork(), bcsToFilter(), captureCurrentRoom(), confirmAndNext(), exportPng(), loadImg(), loadImgViaFetch(), quadWidthPx() (+1 more)
 
-### Community 8 - "Community 8"
-Cohesion: 0.18
-Nodes (14): bulkDeleteContacts(), contactsToCsv(), createContact(), deleteContact(), downloadContactsCsv(), listContacts(), rowToContact(), updateContactRow() (+6 more)
-
 ### Community 9 - "Community 9"
-Cohesion: 0.13
-Nodes (1): Page()
+Cohesion: 0.14
+Nodes (12): signInWithGoogle(), signInWithMagicLink(), signInWithPassword(), signOut(), signUpWithPassword(), useAuth(), hasSupabase(), DealsAdmin() (+4 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.18
-Nodes (10): updateShow(), persist(), placeArtwork(), removeAt(), updateAt(), updateExhibition(), POST(), rateLimitOk() (+2 more)
+Cohesion: 0.2
+Nodes (13): bulkDeleteContacts(), contactsToCsv(), createContact(), deleteContact(), downloadContactsCsv(), listContacts(), rowToContact(), updateContactRow() (+5 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.3
-Nodes (9): addWall(), onWallMove(), persist(), placeArtwork(), removePlacement(), removeWall(), uid(), updateWall() (+1 more)
+Cohesion: 0.13
+Nodes (1): Page()
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
@@ -152,7 +152,7 @@ Nodes (5): FakeCanvas, FakeHTMLImageElement, FakeImageData, install(), installCa
 
 ### Community 13 - "Community 13"
 Cohesion: 0.27
-Nodes (9): createShow(), deleteShow(), getShow(), listShows(), rowToShow(), uploadFloorPlan(), add(), refresh() (+1 more)
+Nodes (8): getDiscoverProfileBySlug(), getMyDiscoverProfile(), listPublicArtworksByOwner(), rowToProfile(), uploadHero(), upsertDiscoverProfile(), onHeroFile(), save()
 
 ### Community 14 - "Community 14"
 Cohesion: 0.27
@@ -163,12 +163,12 @@ Cohesion: 0.22
 Nodes (1): ArtworkBoundary
 
 ### Community 16 - "Community 16"
-Cohesion: 0.25
-Nodes (5): useAuth(), hasSupabase(), DealsAdmin(), toggleArtwork(), ExhibitionsList()
-
-### Community 17 - "Community 17"
 Cohesion: 0.33
 Nodes (0): 
+
+### Community 17 - "Community 17"
+Cohesion: 0.7
+Nodes (4): persist(), placeArtwork(), removeAt(), updateAt()
 
 ### Community 18 - "Community 18"
 Cohesion: 0.4
@@ -423,11 +423,11 @@ Nodes (0):
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `supabase()` connect `Community 1` to `Community 0`, `Community 3`, `Community 4`, `Community 5`, `Community 8`, `Community 10`, `Community 13`, `Community 14`, `Community 16`?**
-  _High betweenness centrality (0.410) - this node is a cross-community bridge._
-- **Why does `update()` connect `Community 10` to `Community 0`, `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 8`?**
-  _High betweenness centrality (0.084) - this node is a cross-community bridge._
-- **Why does `exportImage()` connect `Community 6` to `Community 0`, `Community 12`, `Community 7`?**
+- **Why does `supabase()` connect `Community 0` to `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 9`, `Community 10`, `Community 13`, `Community 14`?**
+  _High betweenness centrality (0.409) - this node is a cross-community bridge._
+- **Why does `update()` connect `Community 1` to `Community 0`, `Community 3`, `Community 4`, `Community 5`, `Community 8`, `Community 10`?**
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+- **Why does `exportImage()` connect `Community 7` to `Community 8`, `Community 0`, `Community 12`, `Community 6`?**
   _High betweenness centrality (0.073) - this node is a cross-community bridge._
 - **Are the 90 inferred relationships involving `supabase()` (e.g. with `createDesign()` and `listDesigns()`) actually correct?**
   _`supabase()` has 90 INFERRED edges - model-reasoned connections that need verification._

@@ -20,22 +20,38 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(url, { cache: 'force-cache' })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15_000)
+
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; artpiq-pdf-renderer/1.0)',
+        'Accept': 'image/*,*/*;q=0.8',
+      },
+    })
+    clearTimeout(timer)
+
     if (!res.ok) {
+      console.error('[image-proxy] upstream status:', res.status)
       return NextResponse.json({ error: `upstream ${res.status}` }, { status: 502 })
     }
+
     const contentType = res.headers.get('content-type') ?? 'image/jpeg'
+    // Strip charset etc. from content-type
+    const mimeType = contentType.split(';')[0].trim()
     const buffer = await res.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
-    const dataUrl = `data:${contentType};base64,${base64}`
+    const dataUrl = `data:${mimeType};base64,${base64}`
 
     return new NextResponse(dataUrl, {
       headers: {
-        'Content-Type': 'text/plain',
+        'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'public, max-age=86400',
       },
     })
   } catch (e) {
+    console.error('[image-proxy] fetch error:', e)
     return NextResponse.json({ error: String(e) }, { status: 502 })
   }
 }
