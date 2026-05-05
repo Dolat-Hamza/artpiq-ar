@@ -258,3 +258,160 @@ export async function exportCollectionPdf(
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// ============================================================
+// Presentation layouts (Thomas's request)
+// ============================================================
+
+export type PresentationLayout =
+  | 'portfolio'    // Large image, minimal text, no price — artist/gallery focus
+  | 'price-list'   // Compact table with price, dims, medium — sales tool
+  | 'press-kit'    // Full description + details, no price — press release
+  | 'catalogue'    // Grid cover + per-artwork pages with optional price
+
+export interface PresentationOptions {
+  title: string
+  showPrice: boolean
+  layout: PresentationLayout
+  artworks: Artwork[]
+}
+
+// Portfolio — full-page image, title/artist/dims only, clean white
+function PortfolioPdf({ title, artworks, showPrice }: { title: string; artworks: Artwork[]; showPrice: boolean }) {
+  return (
+    <Document>
+      {artworks.map(a => (
+        <Page key={a.id} size="A4" orientation="landscape" style={{ padding: 0, backgroundColor: '#FFFFFF' }}>
+          <View style={{ flexDirection: 'row', height: '100%' }}>
+            {/* Image — left 60% */}
+            <View style={{ width: '60%', backgroundColor: '#F5F5F3', justifyContent: 'center', alignItems: 'center' }}>
+              {a.image && (
+                <Image src={a.image} style={{ maxWidth: '90%', maxHeight: '85%', objectFit: 'contain' }} />
+              )}
+            </View>
+            {/* Info — right 40% */}
+            <View style={{ width: '40%', padding: 48, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 8, letterSpacing: 2, color: '#999', textTransform: 'uppercase', marginBottom: 20 }}>
+                {title}
+              </Text>
+              <Text style={{ fontSize: 28, fontFamily: 'Helvetica-Bold', lineHeight: 1.1, marginBottom: 8 }}>
+                {a.title}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#666', marginBottom: 24 }}>{a.artist || ''}</Text>
+              <View style={{ borderTopWidth: 1, borderColor: '#E5E5E5', paddingTop: 20 }}>
+                <Text style={{ fontSize: 10, color: '#999', marginBottom: 4 }}>{a.year || ''}</Text>
+                <Text style={{ fontSize: 10, color: '#999', marginBottom: 4 }}>{a.medium || ''}</Text>
+                <Text style={{ fontSize: 10, color: '#999' }}>{a.widthCm} × {a.heightCm}{a.depthCm ? ` × ${a.depthCm}` : ''} cm</Text>
+                {showPrice && a.price != null && (
+                  <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', marginTop: 16 }}>
+                    {a.currency || 'EUR'} {a.price.toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        </Page>
+      ))}
+    </Document>
+  )
+}
+
+// Price list — compact table, small thumbnails, price prominent
+function PriceListPdf({ title, artworks }: { title: string; artworks: Artwork[] }) {
+  return (
+    <Document>
+      <Page size="A4" style={{ ...styles.page, padding: 40 }}>
+        <Text style={{ fontSize: 8, letterSpacing: 2, color: '#999', textTransform: 'uppercase', marginBottom: 4 }}>{title}</Text>
+        <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>Price List</Text>
+        <Text style={{ fontSize: 8, color: '#999', marginBottom: 20 }}>{new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</Text>
+        <View style={{ borderBottomWidth: 1, borderColor: '#E5E5E5', marginBottom: 12 }} />
+        <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+          <Text style={{ width: 60, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase', color: '#999' }}>Image</Text>
+          <Text style={{ flex: 1, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase', color: '#999' }}>Title / Artist</Text>
+          <Text style={{ width: 110, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase', color: '#999' }}>Medium / Dims</Text>
+          <Text style={{ width: 70, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase', color: '#999', textAlign: 'right' }}>Price</Text>
+        </View>
+        {artworks.map(a => (
+          <View key={a.id} style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#F0F0F0', paddingVertical: 8, alignItems: 'center' }}>
+            <View style={{ width: 60 }}>
+              {a.image && <Image src={a.image} style={{ width: 44, height: 44, objectFit: 'contain', backgroundColor: '#F5F5F5' }} />}
+            </View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{a.title}</Text>
+              <Text style={{ fontSize: 9, color: '#666' }}>{a.artist || '—'}{a.year ? `  ·  ${a.year}` : ''}</Text>
+            </View>
+            <View style={{ width: 110 }}>
+              <Text style={{ fontSize: 8, color: '#666' }}>{a.medium || '—'}</Text>
+              <Text style={{ fontSize: 8, color: '#666' }}>{a.widthCm} × {a.heightCm} cm</Text>
+            </View>
+            <Text style={{ width: 70, fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>
+              {a.price != null ? `${a.currency || 'EUR'} ${a.price.toLocaleString()}` : 'POA'}
+            </Text>
+          </View>
+        ))}
+        <Text style={{ ...styles.footer, bottom: 24 }}>artpiq.com</Text>
+      </Page>
+    </Document>
+  )
+}
+
+// Press kit — full description + details, NO price
+function PressKitPdf({ title, artworks }: { title: string; artworks: Artwork[] }) {
+  return (
+    <Document>
+      {artworks.map(a => (
+        <Page key={a.id} size="A4" style={styles.page}>
+          <Text style={{ fontSize: 8, letterSpacing: 2, color: '#999', textTransform: 'uppercase', marginBottom: 16 }}>{title} · Press</Text>
+          {a.image && <Image src={a.image} style={{ width: '100%', height: 300, objectFit: 'contain', backgroundColor: '#F5F5F5', marginBottom: 20 }} />}
+          <Text style={{ fontSize: 24, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>{a.title}</Text>
+          <Text style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>{a.artist || 'Unknown artist'}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
+            {[
+              ['Year', a.year],
+              ['Medium', a.medium],
+              ['Dimensions', `${a.widthCm} × ${a.heightCm}${a.depthCm ? ` × ${a.depthCm}` : ''} cm`],
+              ['Material', a.material],
+            ].filter(([, v]) => v).map(([k, v]) => (
+              <View key={k as string} style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase', color: '#999', marginBottom: 2 }}>{k}</Text>
+                <Text style={{ fontSize: 10 }}>{v}</Text>
+              </View>
+            ))}
+          </View>
+          {a.description && (
+            <>
+              <View style={{ borderTopWidth: 1, borderColor: '#E5E5E5', marginBottom: 12 }} />
+              <Text style={{ fontSize: 10, lineHeight: 1.6, color: '#333' }}>{a.description}</Text>
+            </>
+          )}
+          <Text style={styles.footer}>artpiq.com · Press enquiries: {a.contactEmail || ''}</Text>
+        </Page>
+      ))}
+    </Document>
+  )
+}
+
+export async function exportPresentation(options: PresentationOptions): Promise<void> {
+  const { title, artworks, showPrice, layout } = options
+  let doc: React.ReactElement<Record<string, unknown>>
+  if (layout === 'portfolio') {
+    doc = <PortfolioPdf title={title} artworks={artworks} showPrice={showPrice} />
+  } else if (layout === 'price-list') {
+    doc = <PriceListPdf title={title} artworks={artworks} />
+  } else if (layout === 'press-kit') {
+    doc = <PressKitPdf title={title} artworks={artworks} />
+  } else {
+    // catalogue — reuse CollectionPdf with a synthetic collection
+    doc = <CollectionPdf
+      collection={{ id: '', ownerId: '', name: title, description: '', privacy: 'private' } as Collection}
+      artworks={artworks}
+    />
+  }
+  const blob = await pdf(doc).toBlob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${layout}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}

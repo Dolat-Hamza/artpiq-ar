@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
+  FileText,
   Frame,
   Home,
   Image as ImageIcon,
@@ -37,6 +38,7 @@ const GROUPS: { label: string; items: { href: string; label: string; icon: typeo
   {
     label: 'Visualisation',
     items: [
+      { href: '/admin/presentations', label: 'Presentations', icon: FileText },
       { href: '/admin/designs', label: 'My Designs', icon: LayoutGrid },
       { href: '/sample-room', label: 'Sample Room', icon: ImageIcon },
       { href: '/admin/shows', label: 'Curated Spaces', icon: MapPin },
