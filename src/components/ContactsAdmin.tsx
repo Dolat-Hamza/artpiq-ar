@@ -45,6 +45,8 @@ import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
 import { useToast } from './ui/toast'
 import { trackView } from '@/lib/recentlyViewed'
+import { createCrmView, deleteCrmView, listCrmViews, type CrmView } from '@/lib/db/crmViews'
+import { Bookmark } from 'lucide-react'
 
 const CATEGORIES = ['Prospect', 'Lead', 'Client', 'Press', 'Collector', 'Gallery', 'Institution', 'Other']
 const LIFECYCLE = ['lead', 'prospect', 'qualified', 'client', 'lost'] as const
@@ -75,6 +77,9 @@ export default function ContactsAdmin() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const confirm = useConfirm()
   const toast = useToast()
+  // Saved views
+  const [savedViews, setSavedViews] = useState<CrmView[]>([])
+  const [activeViewId, setActiveViewId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -86,16 +91,56 @@ export default function ContactsAdmin() {
     if (!user) return
     setBusy(true)
     try {
-      const [contacts, organizations] = await Promise.all([
+      const [contacts, organizations, views] = await Promise.all([
         listContacts(user.id),
         listOrganizations(user.id),
+        listCrmViews(user.id).catch(() => []),
       ])
       setList(contacts)
       setOrgs(organizations)
+      setSavedViews(views)
       setSelected(new Set())
     } finally {
       setBusy(false)
     }
+  }
+
+  async function saveCurrentView() {
+    if (!user) return
+    const name = window.prompt('Name this view (e.g. "Hot leads in EU")')
+    if (!name?.trim()) return
+    const view = await createCrmView({
+      ownerId: user.id,
+      name: name.trim(),
+      filters: { filterLifecycle, filterCategory, filterOrg, search },
+      sortBy: sortKey,
+      sortDir,
+      visibleColumns: null,
+      isDefault: false,
+    })
+    setSavedViews(v => [view, ...v])
+    setActiveViewId(view.id)
+    toast.success('View saved')
+  }
+
+  function loadView(v: CrmView) {
+    const f = v.filters as Record<string, string | undefined>
+    setFilterLifecycle(f.filterLifecycle ?? 'all')
+    setFilterCategory(f.filterCategory ?? 'all')
+    setFilterOrg(f.filterOrg ?? 'all')
+    setSearch(f.search ?? '')
+    if (v.sortBy) setSortKey(v.sortBy as 'name' | 'email' | 'created' | 'lifecycle')
+    if (v.sortDir) setSortDir(v.sortDir as 'asc' | 'desc')
+    setActiveViewId(v.id)
+  }
+
+  async function removeView(id: string) {
+    const ok = await confirm({ title: 'Delete this view?', destructive: true, confirmLabel: 'Delete' })
+    if (!ok) return
+    await deleteCrmView(id)
+    setSavedViews(v => v.filter(x => x.id !== id))
+    if (activeViewId === id) setActiveViewId(null)
+    toast.success('View deleted')
   }
 
   async function add(input: Omit<Contact, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>) {
@@ -271,6 +316,37 @@ export default function ContactsAdmin() {
             )}
             <span className="ml-auto text-meta text-ink-muted">{sorted.length} of {list.length}</span>
           </div>
+          {/* Saved views */}
+          {(savedViews.length > 0 || true) && (
+            <div className="px-6 md:px-10 py-2 border-b border-line bg-paper flex gap-1 flex-wrap items-center text-meta">
+              <span className="text-meta uppercase tracking-[0.14em] text-ink-muted mr-1 inline-flex items-center gap-1">
+                <Bookmark size={11} /> Views:
+              </span>
+              {savedViews.map(v => (
+                <span
+                  key={v.id}
+                  className={`inline-flex items-center gap-1 rounded-xs border ${
+                    activeViewId === v.id
+                      ? 'bg-accent text-paper border-accent'
+                      : 'border-line text-ink-muted hover:text-ink hover:border-ink'
+                  }`}
+                >
+                  <button onClick={() => loadView(v)} className="px-2 py-0.5">
+                    {v.name}
+                  </button>
+                  <button onClick={() => removeView(v.id)} className="px-1 opacity-60 hover:opacity-100" aria-label="Delete view">
+                    ×
+                  </button>
+                </span>
+              ))}
+              <button
+                onClick={saveCurrentView}
+                className="text-meta tracking-[0.14em] uppercase text-accent underline hover:text-accent/80 ml-1"
+              >
+                + Save current as view
+              </button>
+            </div>
+          )}
           {/* Lifecycle quick segments */}
           <div className="px-6 md:px-10 py-2 border-b border-line bg-paper flex gap-1 flex-wrap text-meta">
             <SegmentPill label={`All · ${list.length}`} active={filterLifecycle === 'all'} onClick={() => setFilterLifecycle('all')} />
