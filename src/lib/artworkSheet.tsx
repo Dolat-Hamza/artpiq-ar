@@ -341,16 +341,19 @@ export async function exportCollectionPdf(
 // ============================================================
 
 export type PresentationLayout =
-  | 'portfolio'    // Large image, minimal text, no price — artist/gallery focus
-  | 'price-list'   // Compact table with price, dims, medium — sales tool
-  | 'press-kit'    // Full description + details, no price — press release
-  | 'catalogue'    // Grid cover + per-artwork pages with optional price
+  | 'portfolio'         // Large image, minimal text, no price — artist/gallery focus
+  | 'price-list'        // Compact table with price, dims, medium — sales tool
+  | 'rental-proposal'   // Table with 12/24/36-month rental tier pricing
+  | 'press-kit'         // Full description + details, no price — press release
+  | 'catalogue'         // Grid cover + per-artwork pages with optional price
 
 export interface PresentationOptions {
   title: string
   showPrice: boolean
   layout: PresentationLayout
   artworks: Artwork[]
+  // Optional rental proposal: per-artwork rent prices keyed by artwork id
+  rentalTiers?: Record<string, { rent12?: number | null; rent24?: number | null; rent36?: number | null }>
 }
 
 // Portfolio — full-page image, title/artist/dims only, clean white
@@ -432,6 +435,65 @@ function PriceListPdf({ title, artworks }: { title: string; artworks: Artwork[] 
   )
 }
 
+// Rental proposal — table with 3 tier columns (12mo / 24mo / 36mo per month)
+function RentalProposalPdf({
+  title,
+  artworks,
+  rentalTiers,
+}: {
+  title: string
+  artworks: Artwork[]
+  rentalTiers: Record<string, { rent12?: number | null; rent24?: number | null; rent36?: number | null }>
+}) {
+  return (
+    <Document>
+      <Page size="A4" style={{ ...styles.page, padding: 36 }}>
+        <Text style={{ fontSize: 8, letterSpacing: 2, color: '#999', textTransform: 'uppercase', marginBottom: 4 }}>{title}</Text>
+        <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>Rental Proposal</Text>
+        <Text style={{ fontSize: 8, color: '#999', marginBottom: 16 }}>{new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</Text>
+        <View style={{ borderBottomWidth: 1, borderColor: '#E5E5E5', marginBottom: 10 }} />
+        {/* Column headers */}
+        <View style={{ flexDirection: 'row', marginBottom: 6, alignItems: 'flex-end' }}>
+          <Text style={{ width: 50, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Image</Text>
+          <Text style={{ flex: 1, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Title / Artist</Text>
+          <Text style={{ width: 80, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Dimensions</Text>
+          <Text style={{ width: 60, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999', textAlign: 'right' }}>12 mo</Text>
+          <Text style={{ width: 60, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999', textAlign: 'right' }}>24 mo</Text>
+          <Text style={{ width: 60, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999', textAlign: 'right' }}>36 mo</Text>
+        </View>
+        {/* Rows */}
+        {artworks.map(a => {
+          const tiers = rentalTiers[a.id] ?? {}
+          const cur = a.currency || 'EUR'
+          const fmt = (n?: number | null) => n != null ? `${cur} ${n.toLocaleString()}` : '—'
+          return (
+            <View key={a.id} style={{ flexDirection: 'row', borderBottomWidth: 0.6, borderColor: '#F0F0F0', paddingVertical: 6, alignItems: 'center' }}>
+              <View style={{ width: 50 }}>
+                {a.image && <Image src={a.image} style={{ width: 40, height: 40, objectFit: 'contain', backgroundColor: '#F5F5F5' }} />}
+              </View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={{ fontSize: 9.5, fontFamily: 'Helvetica-Bold' }}>{a.title}</Text>
+                <Text style={{ fontSize: 8.5, color: '#666' }}>{a.artist || '—'}</Text>
+              </View>
+              <Text style={{ width: 80, fontSize: 8, color: '#666' }}>
+                {a.widthCm} × {a.heightCm} cm
+              </Text>
+              <Text style={{ width: 60, fontSize: 9, textAlign: 'right' }}>{fmt(tiers.rent12)}</Text>
+              <Text style={{ width: 60, fontSize: 9, textAlign: 'right' }}>{fmt(tiers.rent24)}</Text>
+              <Text style={{ width: 60, fontSize: 9, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>{fmt(tiers.rent36)}</Text>
+            </View>
+          )
+        })}
+        <Text style={{ fontSize: 7, color: '#999', marginTop: 16, lineHeight: 1.5 }}>
+          Rental prices shown are per calendar month. Longer rental terms typically reduce the monthly rate.
+          All rentals include condition reports, insurance during transit, and installation guidance.
+        </Text>
+        <Text style={{ ...styles.footer, bottom: 18 }}>artpiq.com</Text>
+      </Page>
+    </Document>
+  )
+}
+
 // Press kit — full description + details, NO price
 function PressKitPdf({ title, artworks }: { title: string; artworks: Artwork[] }) {
   return (
@@ -469,7 +531,7 @@ function PressKitPdf({ title, artworks }: { title: string; artworks: Artwork[] }
 }
 
 export async function exportPresentation(options: PresentationOptions): Promise<void> {
-  const { title, artworks, showPrice, layout } = options
+  const { title, artworks, showPrice, layout, rentalTiers } = options
   const preferThumb = layout !== 'portfolio' && layout !== 'press-kit'
   const hw = await hydrateImages(artworks, { preferThumb })
   let doc: React.ReactElement<Record<string, unknown>>
@@ -477,6 +539,8 @@ export async function exportPresentation(options: PresentationOptions): Promise<
     doc = <PortfolioPdf title={title} artworks={hw} showPrice={showPrice} />
   } else if (layout === 'price-list') {
     doc = <PriceListPdf title={title} artworks={hw} />
+  } else if (layout === 'rental-proposal') {
+    doc = <RentalProposalPdf title={title} artworks={hw} rentalTiers={rentalTiers ?? {}} />
   } else if (layout === 'press-kit') {
     doc = <PressKitPdf title={title} artworks={hw} />
   } else {
