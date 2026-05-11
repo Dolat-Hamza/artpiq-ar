@@ -205,6 +205,8 @@ export interface Contact {
   role?: string | null
   lifecycleStage?: string | null
   interestedArtworkIds?: string[] | null   // artworks this contact has expressed interest in
+  isArtist?: boolean                       // true if this contact represents an artist
+  artistContactIds?: string[] | null       // contact ids of artists this contact follows / is linked to
   createdAt?: string
   updatedAt?: string
 }
@@ -331,6 +333,30 @@ export interface ContentItem {
   bodyHtml?: string | null
   createdAt?: string
   updatedAt?: string
+}
+
+// Saved presentation record
+export interface SavedPresentation {
+  id: string
+  ownerId: string
+  title: string
+  layout: string
+  artworkIds: string[]
+  showPrice: boolean
+  rentalTiers?: Record<string, { rent12?: number | null; rent24?: number | null; rent36?: number | null }>
+  pdfUrl?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Junction: which presentations have been sent to which contacts
+export interface ContactPresentation {
+  id: string
+  contactId: string
+  presentationId: string
+  sentAt?: string | null
+  notes?: string | null
+  createdAt?: string
 }
 
 export interface ContentComment {

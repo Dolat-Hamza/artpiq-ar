@@ -5,10 +5,13 @@ import {
   Calendar,
   ChevronRight,
   Download,
+  FileText,
+  Frame,
   Link2,
   Mail,
   Phone,
   Plus,
+  Search,
   Sparkles,
   Trash2,
   User,
@@ -29,7 +32,14 @@ import {
   listDeals,
 } from '@/lib/db/crm'
 import { listOrganizations } from '@/lib/db/crm'
-import type { Activity, Contact, Deal, Organization } from '@/types'
+import {
+  attachPresentationToContact,
+  detachPresentationFromContact,
+  listPresentations,
+  listPresentationsForContact,
+} from '@/lib/db/presentations'
+import { listMyArtworks } from '@/lib/db/artworks'
+import type { Activity, Artwork, Contact, ContactPresentation, Deal, Organization, SavedPresentation } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 
@@ -54,6 +64,12 @@ export default function ContactsAdmin() {
   const [active, setActive] = useState<Contact | null>(null)
   const [busy, setBusy] = useState(false)
   const [search, setSearch] = useState('')
+  // HubSpot-style filters + sort
+  const [filterLifecycle, setFilterLifecycle] = useState<string>('all')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterOrg, setFilterOrg] = useState<string>('all')
+  const [sortKey, setSortKey] = useState<'name' | 'email' | 'created' | 'lifecycle'>('created')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   useEffect(() => {
     if (!user) return
@@ -112,11 +128,41 @@ export default function ContactsAdmin() {
       </div>
     )
 
-  const filtered = search.trim()
-    ? list.filter(c =>
-        [c.name, c.email, c.country, c.category].join(' ').toLowerCase().includes(search.toLowerCase())
-      )
-    : list
+  const filtered = list.filter(c => {
+    if (search.trim()) {
+      const hay = [c.name, c.email, c.country, c.category].join(' ').toLowerCase()
+      if (!hay.includes(search.toLowerCase())) return false
+    }
+    if (filterLifecycle !== 'all' && c.lifecycleStage !== filterLifecycle) return false
+    if (filterCategory !== 'all' && c.category !== filterCategory) return false
+    if (filterOrg !== 'all' && c.organizationId !== filterOrg) return false
+    return true
+  })
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    let av: string | number = ''
+    let bv: string | number = ''
+    if (sortKey === 'name') { av = a.name ?? ''; bv = b.name ?? '' }
+    else if (sortKey === 'email') { av = a.email ?? ''; bv = b.email ?? '' }
+    else if (sortKey === 'created') { av = a.createdAt ?? ''; bv = b.createdAt ?? '' }
+    else if (sortKey === 'lifecycle') { av = a.lifecycleStage ?? ''; bv = b.lifecycleStage ?? '' }
+    const cmp = String(av).localeCompare(String(bv))
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  function toggleSort(k: typeof sortKey) {
+    if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(k); setSortDir('asc') }
+  }
+
+  const stageCounts = {
+    lead: list.filter(c => c.lifecycleStage === 'lead').length,
+    prospect: list.filter(c => c.lifecycleStage === 'prospect').length,
+    qualified: list.filter(c => c.lifecycleStage === 'qualified').length,
+    client: list.filter(c => c.lifecycleStage === 'client').length,
+    lost: list.filter(c => c.lifecycleStage === 'lost').length,
+  }
 
   return (
     <div className="min-h-dvh bg-bg text-ink flex flex-col">
@@ -156,13 +202,64 @@ export default function ContactsAdmin() {
       <div className="flex flex-1 min-h-0">
         {/* Contact list */}
         <section className={`flex-1 min-w-0 flex flex-col ${active ? 'hidden lg:flex' : ''}`}>
-          <div className="px-6 md:px-10 py-3 border-b border-line bg-paper">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search name, email, country…"
-              className="input max-w-sm"
-            />
+          <div className="px-6 md:px-10 py-3 border-b border-line bg-paper flex items-center gap-2 flex-wrap">
+            <div className="relative w-64">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, email, country…"
+                className="input !pl-9"
+              />
+            </div>
+            <select
+              value={filterLifecycle}
+              onChange={e => setFilterLifecycle(e.target.value)}
+              className="input !w-auto"
+            >
+              <option value="all">All stages</option>
+              <option value="lead">Lead</option>
+              <option value="prospect">Prospect</option>
+              <option value="qualified">Qualified</option>
+              <option value="client">Client</option>
+              <option value="lost">Lost</option>
+            </select>
+            <select
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+              className="input !w-auto"
+            >
+              <option value="all">All categories</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {orgs.length > 0 && (
+              <select
+                value={filterOrg}
+                onChange={e => setFilterOrg(e.target.value)}
+                className="input !w-auto max-w-[160px]"
+              >
+                <option value="all">All organisations</option>
+                {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            )}
+            {(filterLifecycle !== 'all' || filterCategory !== 'all' || filterOrg !== 'all') && (
+              <button
+                onClick={() => { setFilterLifecycle('all'); setFilterCategory('all'); setFilterOrg('all') }}
+                className="text-meta uppercase tracking-[0.14em] text-ink-muted underline hover:text-ink"
+              >
+                Clear filters
+              </button>
+            )}
+            <span className="ml-auto text-meta text-ink-muted">{sorted.length} of {list.length}</span>
+          </div>
+          {/* Lifecycle quick segments */}
+          <div className="px-6 md:px-10 py-2 border-b border-line bg-paper flex gap-1 flex-wrap text-meta">
+            <SegmentPill label={`All · ${list.length}`} active={filterLifecycle === 'all'} onClick={() => setFilterLifecycle('all')} />
+            <SegmentPill label={`Leads · ${stageCounts.lead}`} active={filterLifecycle === 'lead'} onClick={() => setFilterLifecycle('lead')} />
+            <SegmentPill label={`Prospects · ${stageCounts.prospect}`} active={filterLifecycle === 'prospect'} onClick={() => setFilterLifecycle('prospect')} />
+            <SegmentPill label={`Qualified · ${stageCounts.qualified}`} active={filterLifecycle === 'qualified'} onClick={() => setFilterLifecycle('qualified')} />
+            <SegmentPill label={`Clients · ${stageCounts.client}`} active={filterLifecycle === 'client'} onClick={() => setFilterLifecycle('client')} />
+            <SegmentPill label={`Lost · ${stageCounts.lost}`} active={filterLifecycle === 'lost'} onClick={() => setFilterLifecycle('lost')} />
           </div>
           <div className="flex-1 overflow-y-auto">
             {!list.length && !busy && (
@@ -185,16 +282,22 @@ export default function ContactsAdmin() {
                           onChange={e => setSelected(e.target.checked ? new Set(list.map(c => c.id)) : new Set())}
                         />
                       </th>
-                      <th className="text-left py-2 px-3">Name</th>
-                      <th className="text-left py-2 px-3 hidden md:table-cell">Email</th>
-                      <th className="text-left py-2 px-3 hidden lg:table-cell">Stage</th>
+                      <th className="text-left py-2 px-3 cursor-pointer hover:text-ink" onClick={() => toggleSort('name')}>
+                        Name{sortKey === 'name' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
+                      </th>
+                      <th className="text-left py-2 px-3 hidden md:table-cell cursor-pointer hover:text-ink" onClick={() => toggleSort('email')}>
+                        Email{sortKey === 'email' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
+                      </th>
+                      <th className="text-left py-2 px-3 hidden lg:table-cell cursor-pointer hover:text-ink" onClick={() => toggleSort('lifecycle')}>
+                        Stage{sortKey === 'lifecycle' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
+                      </th>
                       <th className="text-left py-2 px-3 hidden lg:table-cell">Category</th>
                       <th className="text-left py-2 px-3 hidden xl:table-cell">Source</th>
                       <th className="text-right py-2 px-3"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map(c => (
+                    {sorted.map(c => (
                       <tr
                         key={c.id}
                         className={`border-b border-line/60 hover:bg-bg cursor-pointer ${active?.id === c.id ? 'bg-accent-soft' : ''}`}
@@ -286,15 +389,47 @@ function ContactDetail({
   const [logType, setLogType] = useState<Activity['type']>('note')
   const [logBody, setLogBody] = useState('')
   const [logBusy, setLogBusy] = useState(false)
-  const [tab, setTab] = useState<'details' | 'activity' | 'deals'>('details')
+  const [tab, setTab] = useState<'details' | 'activity' | 'deals' | 'artworks' | 'presentations'>('details')
   const [aiSummary, setAiSummary] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  // Artworks attached (via interested_artwork_ids)
+  const [allArtworks, setAllArtworks] = useState<Artwork[]>([])
+  const [artworkSearch, setArtworkSearch] = useState('')
+  // Presentations
+  const [allPresentations, setAllPresentations] = useState<SavedPresentation[]>([])
+  const [contactPres, setContactPres] = useState<ContactPresentation[]>([])
 
   useEffect(() => {
     listDeals(userId).then(all => setDeals(all.filter(d => d.contactId === contact.id)))
     listActivities(userId, { contactId: contact.id }).then(setActivities)
+    listMyArtworks(userId).then(setAllArtworks).catch(() => {})
+    listPresentations(userId).then(setAllPresentations).catch(() => {})
+    listPresentationsForContact(contact.id).then(setContactPres).catch(() => {})
     setAiSummary(null)
   }, [contact.id, userId])
+
+  function toggleInterest(awId: string) {
+    const ids = new Set(contact.interestedArtworkIds ?? [])
+    if (ids.has(awId)) ids.delete(awId); else ids.add(awId)
+    onChange({ interestedArtworkIds: [...ids] })
+  }
+
+  async function attachPres(presentationId: string) {
+    try {
+      const cp = await attachPresentationToContact(contact.id, presentationId, { sentAt: new Date().toISOString() })
+      setContactPres(prev => [cp, ...prev])
+    } catch {}
+  }
+
+  async function detachPres(id: string) {
+    await detachPresentationFromContact(id)
+    setContactPres(prev => prev.filter(p => p.id !== id))
+  }
+
+  const interestedArtworks = allArtworks.filter(a => (contact.interestedArtworkIds ?? []).includes(a.id))
+  const filteredArtworkPicker = artworkSearch.trim()
+    ? allArtworks.filter(a => [a.title, a.artist].join(' ').toLowerCase().includes(artworkSearch.toLowerCase()))
+    : allArtworks
 
   async function generateSummary() {
     setAiLoading(true)
@@ -353,23 +488,27 @@ function ContactDetail({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-line shrink-0">
-        {(['details', 'activity', 'deals'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            data-active={tab === t}
-            className="dock-tab !text-ink-muted data-[active=true]:!text-ink data-[active=true]:after:!bg-ink !h-10 flex-1 !text-[11px]"
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-            {t === 'activity' && activities.length > 0 && (
-              <span className="ml-1 text-meta text-ink-muted">· {activities.length}</span>
-            )}
-            {t === 'deals' && deals.length > 0 && (
-              <span className="ml-1 text-meta text-ink-muted">· {deals.length}</span>
-            )}
-          </button>
-        ))}
+      <div className="flex border-b border-line shrink-0 overflow-x-auto no-scrollbar">
+        {(['details', 'activity', 'deals', 'artworks', 'presentations'] as const).map(t => {
+          const count = t === 'activity' ? activities.length
+            : t === 'deals' ? deals.length
+            : t === 'artworks' ? (contact.interestedArtworkIds?.length ?? 0)
+            : t === 'presentations' ? contactPres.length
+            : 0
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              data-active={tab === t}
+              className="dock-tab !text-ink-muted data-[active=true]:!text-ink data-[active=true]:after:!bg-ink !h-10 flex-1 !text-[11px] whitespace-nowrap"
+            >
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {count > 0 && (
+                <span className="ml-1 text-meta text-ink-muted">· {count}</span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -567,6 +706,134 @@ function ContactDetail({
             )}
           </div>
         )}
+
+        {/* Artworks tab — interested artworks */}
+        {tab === 'artworks' && (
+          <div className="p-4 grid gap-3">
+            {interestedArtworks.length > 0 && (
+              <div>
+                <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
+                  Interested in · {interestedArtworks.length}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {interestedArtworks.map(a => (
+                    <div key={a.id} className="relative group">
+                      <div className="aspect-[4/5] bg-bg border border-line/60 overflow-hidden">
+                        {a.thumb && <img src={a.thumb} alt={a.title} className="w-full h-full object-cover" />}
+                      </div>
+                      <p className="text-meta font-bold truncate mt-1">{a.title}</p>
+                      <p className="text-meta text-ink-muted truncate">{a.artist}</p>
+                      <button
+                        onClick={() => toggleInterest(a.id)}
+                        className="absolute top-1 right-1 w-5 h-5 grid place-items-center bg-paper/90 backdrop-blur rounded-full text-red-600 opacity-0 group-hover:opacity-100"
+                        title="Remove"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="border-t border-line pt-3">
+              <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
+                Attach artworks
+              </p>
+              <div className="relative mb-2">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+                <input
+                  value={artworkSearch}
+                  onChange={e => setArtworkSearch(e.target.value)}
+                  placeholder="Search artworks…"
+                  className="input !pl-8"
+                />
+              </div>
+              <div className="max-h-[260px] overflow-y-auto border border-line rounded-sm divide-y divide-line">
+                {filteredArtworkPicker.slice(0, 30).map(a => {
+                  const linked = (contact.interestedArtworkIds ?? []).includes(a.id)
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleInterest(a.id)}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 text-left hover:bg-bg ${linked ? 'bg-accent-soft' : ''}`}
+                    >
+                      {a.thumb && <img src={a.thumb} alt="" className="w-8 h-8 object-cover rounded-xs shrink-0" />}
+                      <span className="flex-1 min-w-0">
+                        <span className="text-body font-bold truncate block">{a.title}</span>
+                        <span className="text-meta text-ink-muted truncate block">{a.artist}</span>
+                      </span>
+                      {linked && <span className="text-accent text-meta">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Presentations tab — sent PDFs */}
+        {tab === 'presentations' && (
+          <div className="p-4 grid gap-3">
+            {contactPres.length > 0 ? (
+              <div>
+                <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
+                  Sent · {contactPres.length}
+                </p>
+                <ul className="grid gap-2">
+                  {contactPres.map(cp => {
+                    const p = allPresentations.find(x => x.id === cp.presentationId)
+                    return (
+                      <li key={cp.id} className="border border-line rounded-md p-3 flex items-start gap-2">
+                        <FileText size={14} className="text-ink-muted shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-body truncate">{p?.title ?? 'Unknown'}</p>
+                          <p className="text-meta text-ink-muted">
+                            {p?.layout} · {p?.artworkIds.length ?? 0} artworks
+                            {cp.sentAt && <> · sent {new Date(cp.sentAt).toLocaleDateString()}</>}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => detachPres(cp.id)}
+                          className="text-red-600 hover:text-red-700 shrink-0"
+                          title="Remove"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-body text-ink-muted text-center py-4">No presentations sent yet.</p>
+            )}
+            <div className="border-t border-line pt-3">
+              <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
+                Attach a saved presentation
+              </p>
+              {allPresentations.length === 0 ? (
+                <p className="text-meta text-ink-muted">
+                  No saved presentations yet. Generate one from <span className="underline">Presentations</span> page.
+                </p>
+              ) : (
+                <div className="grid gap-1.5 max-h-[260px] overflow-y-auto">
+                  {allPresentations
+                    .filter(p => !contactPres.some(cp => cp.presentationId === p.id))
+                    .map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => attachPres(p.id)}
+                        className="border border-line rounded-sm px-2 py-1.5 text-left hover:border-ink"
+                      >
+                        <p className="text-body font-bold truncate">{p.title}</p>
+                        <p className="text-meta text-ink-muted">{p.layout} · {p.artworkIds.length} artworks</p>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )
@@ -649,5 +916,18 @@ function AddContactModal({
         </div>
       </div>
     </div>
+  )
+}
+
+function SegmentPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2 py-0.5 rounded-xs tracking-[0.12em] uppercase transition-colors ${
+        active ? 'bg-ink text-paper' : 'text-ink-muted hover:text-ink border border-line hover:border-ink'
+      }`}
+    >
+      {label}
+    </button>
   )
 }

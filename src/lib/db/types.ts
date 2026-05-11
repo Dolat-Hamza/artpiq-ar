@@ -241,12 +241,14 @@ export type Database = {
       }
       contacts: {
         Row: {
+          artist_contact_ids: string[] | null
           category: string | null
           country: string | null
           created_at: string
           email: string | null
           id: string
           interested_artwork_ids: string[] | null
+          is_artist: boolean | null
           last_seen_at: string | null
           lifecycle_stage: string | null
           name: string | null
@@ -482,6 +484,52 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
+        Relationships: []
+      }
+      presentations: {
+        Row: {
+          id: string
+          owner_id: string
+          title: string
+          layout: string
+          artwork_ids: string[] | null
+          show_price: boolean | null
+          rental_tiers: Json
+          pdf_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["presentations"]["Row"]> & { owner_id: string; title: string; layout: string }
+        Update: Partial<Database["public"]["Tables"]["presentations"]["Row"]>
+        Relationships: []
+      }
+      contact_presentations: {
+        Row: {
+          id: string
+          contact_id: string
+          presentation_id: string
+          sent_at: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["contact_presentations"]["Row"]> & { contact_id: string; presentation_id: string }
+        Update: Partial<Database["public"]["Tables"]["contact_presentations"]["Row"]>
+        Relationships: []
+      }
+      crm_views: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          filters: Json
+          sort_by: string | null
+          sort_dir: string | null
+          visible_columns: string[] | null
+          is_default: boolean | null
+          created_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["crm_views"]["Row"]> & { owner_id: string; name: string }
+        Update: Partial<Database["public"]["Tables"]["crm_views"]["Row"]>
         Relationships: []
       }
       room_favorites: {

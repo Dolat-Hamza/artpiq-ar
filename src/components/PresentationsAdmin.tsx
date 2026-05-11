@@ -4,6 +4,7 @@ import { Check, Download, FileText, LayoutGrid, List, Loader, Search } from 'luc
 import { useAuth } from '@/lib/db/auth'
 import { listMyArtworks } from '@/lib/db/artworks'
 import { exportPresentation, type PresentationLayout } from '@/lib/artworkSheet'
+import { createPresentation } from '@/lib/db/presentations'
 import type { Artwork } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
@@ -131,10 +132,19 @@ export default function PresentationsAdmin() {
   }
 
   async function generate() {
-    if (!selected.size || exporting) return
+    if (!selected.size || exporting || !user) return
     setExporting(true)
     try {
       await exportPresentation({ title, artworks: selectedArtworks, showPrice, layout, rentalTiers })
+      // Save record so user can re-download / attach to contacts later
+      await createPresentation({
+        ownerId: user.id,
+        title,
+        layout,
+        artworkIds: [...selected],
+        showPrice,
+        rentalTiers: layout === 'rental-proposal' ? rentalTiers : undefined,
+      }).catch(() => {})
     } finally {
       setExporting(false)
     }
