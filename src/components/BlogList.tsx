@@ -130,7 +130,26 @@ export default function BlogList() {
 function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void }) {
   const [draft, setDraft] = useState<Partial<ContentItem>>(item)
   const [busy, setBusy] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
+
+  async function generateAI() {
+    setAiBusy(true)
+    try {
+      const res = await fetch('/api/ai/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'blog',
+          brief: { title: draft.title, purpose: draft.purpose },
+        }),
+      })
+      const json = await res.json()
+      if (json.content) setDraft(s => ({ ...s, bodyMd: json.content }))
+    } finally {
+      setAiBusy(false)
+    }
+  }
 
   async function save() {
     setBusy(true)
@@ -199,7 +218,7 @@ function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void 
             placeholder="Purpose / angle"
             className="input"
           />
-          {/* Formatting toolbar */}
+          {/* Formatting toolbar + AI */}
           <div className="flex gap-1 flex-wrap border border-line rounded-sm bg-bg px-2 py-1.5">
             {toolbar.map(btn => (
               <button
@@ -212,7 +231,15 @@ function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void 
                 {btn.icon}
               </button>
             ))}
-            <span className="ml-auto text-meta text-ink-muted self-center">Markdown</span>
+            <button
+              onClick={generateAI}
+              disabled={aiBusy}
+              type="button"
+              className="ml-auto text-meta tracking-[0.12em] uppercase text-accent underline hover:text-accent/80 disabled:opacity-40"
+              title="Generate first draft with AI"
+            >
+              {aiBusy ? 'Generating…' : '✦ Generate AI draft'}
+            </button>
           </div>
           <textarea
             ref={taRef}

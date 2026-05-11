@@ -613,7 +613,23 @@ export default function SampleRoom() {
       a.download = `${name}.jpg`
       a.click()
       URL.revokeObjectURL(url)
-      showToast('Image saved')
+
+      // Also offer to attach this image to the artwork's gallery
+      if (user && first && confirm(`Save and attach this image to "${first.title}"?`)) {
+        try {
+          const file = new File([blob], `${name}.jpg`, { type: 'image/jpeg' })
+          const { uploadImage } = await import('@/lib/db/artworks')
+          const { addArtworkImage } = await import('@/lib/db/artworkImages')
+          const remoteUrl = await uploadImage(file, user.id)
+          await addArtworkImage(first.id, remoteUrl, remoteUrl, `${room.name} mockup`)
+          showToast('Attached to artwork gallery')
+        } catch (e) {
+          console.error(e)
+          showToast('Attach failed (still downloaded)')
+        }
+      } else {
+        showToast('Image saved')
+      }
     } catch (e) {
       console.error(e)
       showToast('Export failed')

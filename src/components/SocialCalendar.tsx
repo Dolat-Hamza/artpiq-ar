@@ -556,6 +556,46 @@ function ComposerModal({
   const [commentText, setCommentText] = useState('')
   const [commentBusy, setCommentBusy] = useState(false)
   const [modalTab, setModalTab] = useState<'edit' | 'comments'>('edit')
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+
+  async function generateWithAI() {
+    setAiBusy(true)
+    setAiError(null)
+    try {
+      const res = await fetch('/api/ai/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: item.type ?? 'post',
+          brief: {
+            title: item.title,
+            purpose: item.purpose,
+            postType: item.postType,
+            targetAudience: item.targetAudience,
+            hook: item.hook,
+            cta: item.cta,
+            ctaUrl: item.ctaUrl,
+            eventDate: item.eventDate,
+            eventLocation: item.eventLocation,
+          },
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.content) {
+        setAiError(json.error || 'Failed to generate.')
+        return
+      }
+      const generated = json.content as string
+      const isLongForm = item.type === 'blog' || item.type === 'newsletter'
+      if (isLongForm) setItem(s => ({ ...s, bodyMd: generated }))
+      else setItem(s => ({ ...s, copy: generated }))
+    } catch (e) {
+      setAiError(String(e))
+    } finally {
+      setAiBusy(false)
+    }
+  }
   const set = <K extends keyof ContentItem>(k: K, v: ContentItem[K]) =>
     setItem(s => ({ ...s, [k]: v }))
 
@@ -797,8 +837,21 @@ function ComposerModal({
             </Field>
           </fieldset>
 
-          {/* Copy / body */}
-          <Field label={item.type === 'blog' || item.type === 'newsletter' ? 'Body (markdown)' : 'Caption / copy'}>
+          {/* Copy / body — with AI generator */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted">
+                {item.type === 'blog' || item.type === 'newsletter' ? 'Body (markdown)' : 'Caption / copy'}
+              </label>
+              <button
+                type="button"
+                onClick={generateWithAI}
+                disabled={aiBusy}
+                className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80 disabled:opacity-40 inline-flex items-center gap-1"
+              >
+                {aiBusy ? 'Generating…' : '✦ Generate with AI'}
+              </button>
+            </div>
             <textarea
               value={(item.type === 'blog' || item.type === 'newsletter' ? item.bodyMd : item.copy) ?? ''}
               onChange={e =>
@@ -806,11 +859,12 @@ function ComposerModal({
                   ? set('bodyMd', e.target.value)
                   : set('copy', e.target.value)
               }
-              rows={6}
+              rows={item.type === 'blog' || item.type === 'newsletter' ? 12 : 6}
               className="input"
               placeholder={item.type === 'blog' ? 'Full blog body…' : 'Caption…'}
             />
-          </Field>
+            {aiError && <p className="text-meta text-red-600 mt-1">{aiError}</p>}
+          </div>
 
           {/* Hashtags */}
           {(item.type === 'post' || item.type === 'reel' || item.type === 'story') && (
