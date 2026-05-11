@@ -82,34 +82,34 @@ export async function hydrateImages(
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 48, fontSize: 11, fontFamily: 'Helvetica' },
-  hero: { marginBottom: 24 },
+  page: { padding: 36, fontSize: 10, fontFamily: 'Helvetica' },
+  hero: { marginBottom: 8 },
   image: {
     width: '100%',
-    maxHeight: 360,
+    height: 340,
     objectFit: 'contain',
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  title: { fontSize: 22, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
-  artist: { fontSize: 12, color: '#555', marginBottom: 12 },
-  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginBottom: 16 },
-  metaCell: { width: '50%', marginBottom: 8 },
+  title: { fontSize: 18, fontFamily: 'Helvetica-Bold', marginBottom: 2 },
+  artist: { fontSize: 11, color: '#555', marginBottom: 8 },
+  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginBottom: 8 },
+  metaCell: { width: '25%', marginBottom: 6 },
   label: {
-    fontSize: 9,
-    letterSpacing: 1.5,
+    fontSize: 8,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: '#888',
-    marginBottom: 2,
+    marginBottom: 1,
   },
-  value: { fontSize: 11 },
-  description: { marginTop: 16, lineHeight: 1.5 },
-  divider: { borderBottomWidth: 1, borderColor: '#ddd', marginVertical: 12 },
+  value: { fontSize: 10 },
+  description: { marginTop: 6, lineHeight: 1.35, fontSize: 9.5 },
+  divider: { borderBottomWidth: 0.6, borderColor: '#ddd', marginVertical: 8 },
   footer: {
     position: 'absolute',
-    bottom: 24,
-    left: 48,
-    right: 48,
-    fontSize: 9,
+    bottom: 18,
+    left: 36,
+    right: 36,
+    fontSize: 8,
     color: '#888',
     textAlign: 'center',
   },
@@ -159,7 +159,11 @@ function ArtworkSheet({ artwork }: { artwork: Artwork }) {
           <>
             <View style={styles.divider} />
             <Text style={styles.label}>Description</Text>
-            <Text style={styles.description}>{artwork.description}</Text>
+            <Text style={styles.description}>
+              {artwork.description.length > 800
+                ? artwork.description.slice(0, 800) + '…'
+                : artwork.description}
+            </Text>
           </>
         )}
         <Text style={styles.footer}>

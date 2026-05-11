@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Heart, Pipette, X } from 'lucide-react'
+import { Heart, X } from 'lucide-react'
 import { useStore } from '@/store'
 import { STOCK_ROOMS } from '@/lib/rooms'
 import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
@@ -539,28 +539,36 @@ export default function SampleRoom() {
     try {
       setExporting(true)
       const blob = await captureCurrentRoom()
+      let appended: { blob: Blob; name: string }[] = sequenceShots
       if (blob) {
         const slug = (s: string) =>
-          (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+          (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
         const first = placed[0] ? artworkById.get(placed[0].artworkId) : null
-        const stem = first
-          ? `${slug(first.title) || 'artwork'}_${slug(first.artist) || 'artist'}`
-          : 'sample'
-        const name = `${stem}_${String(sequenceIdx + 1).padStart(2, '0')}_${room.id}`
-        setSequenceShots(s => [...s, { blob, name }])
+        const artworkPart = first
+          ? `${slug(first.title) || 'artwork'}-${slug(first.artist) || 'artist'}`
+          : 'artwork'
+        const roomPart = slug(room.name) || slug(room.id) || `room${sequenceIdx + 1}`
+        // Format: 01-artwork-name-artist-room-name.jpg (ordered + descriptive)
+        const name = `${String(sequenceIdx + 1).padStart(2, '0')}-${artworkPart}-${roomPart}`
+        const shot = { blob, name }
+        appended = [...sequenceShots, shot]
+        setSequenceShots(appended)
       }
       const nextIdx = sequenceIdx + 1
       if (nextIdx >= sequence.length) {
-        // Finish: download all captured shots from this run
-        for (const s of sequenceShots) {
+        // Download all in order (sequenceShots may not yet include the just-captured one
+        // due to async state — use `appended` which includes it).
+        for (const s of appended) {
           const url = URL.createObjectURL(s.blob)
           const a = document.createElement('a')
           a.href = url
           a.download = `${s.name}.jpg`
           a.click()
           URL.revokeObjectURL(url)
+          // Small gap between downloads so the browser doesn't drop them
+          await new Promise(r => setTimeout(r, 200))
         }
-        showToast(`Sequence done — ${sequenceShots.length} images saved`)
+        showToast(`Sequence done — ${appended.length} images saved`)
         setSequence(null)
         setSequenceIdx(0)
         setSequenceShots([])
@@ -1018,60 +1026,6 @@ export default function SampleRoom() {
             )}
             {dockTab === 'advanced' && (
               <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
-                <div>
-                  <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1">
-                    Wall color
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={wallColor || '#ffffff'}
-                      onChange={e => setWallColor(e.target.value)}
-                      className="w-10 h-9 border border-line cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={wallColor || ''}
-                      placeholder="#hex"
-                      onChange={e => setWallColor(e.target.value || null)}
-                      className="w-24 h-9 px-2 border border-line text-[12px] tabular-nums uppercase"
-                    />
-                    {typeof window !== 'undefined' && 'EyeDropper' in window && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            // @ts-expect-error EyeDropper not in lib.dom yet
-                            const ed = new window.EyeDropper()
-                            const r = await ed.open()
-                            setWallColor(r.sRGBHex)
-                          } catch {}
-                        }}
-                        title="Pick color from screen"
-                        className="h-9 w-9 grid place-items-center border border-line hover:border-ink"
-                      >
-                        <Pipette size={14} />
-                      </button>
-                    )}
-                    {wallColor && (
-                      <button
-                        onClick={() => setWallColor(null)}
-                        className="text-[11px] tracking-[0.14em] uppercase text-ink-muted underline"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="min-w-[180px]">
-                  <Slider
-                    label={`Tint opacity: ${(wallColorOpacity * 100).toFixed(0)}%`}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={wallColorOpacity}
-                    onChange={setWallColorOpacity}
-                  />
-                </div>
                 <div className="min-w-[200px]">
                   <Slider
                     label={`Zoom: ${zoomPct}%`}
@@ -1581,7 +1535,7 @@ function ThumbStrip({
           .toLowerCase()
           .includes(needle),
       )
-      .slice(0, 200)
+      .slice(0, 2000)
   }, [artworks, q])
 
   return (

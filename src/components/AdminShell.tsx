@@ -17,7 +17,6 @@ import {
   Library,
   LogOut,
   Mail,
-  MapPin,
   Megaphone,
   Palette,
   PieChart,
@@ -39,10 +38,9 @@ const GROUPS: { label: string; items: { href: string; label: string; icon: typeo
     label: 'Visualisation',
     items: [
       { href: '/admin/presentations', label: 'Presentations', icon: FileText },
+      { href: '/admin/sequence', label: 'Artwork Sequence', icon: Star },
       { href: '/admin/designs', label: 'My Designs', icon: LayoutGrid },
       { href: '/sample-room', label: 'Sample Room', icon: ImageIcon },
-      { href: '/admin/shows', label: 'Curated Spaces', icon: MapPin },
-      { href: '/admin/exhibitions', label: 'Virtual Exhibitions', icon: Star },
     ],
   },
   {
@@ -60,7 +58,7 @@ const GROUPS: { label: string; items: { href: string; label: string; icon: typeo
       { href: '/admin/social', label: 'Social Calendar', icon: Calendar },
       { href: '/admin/blog', label: 'Blog', icon: Megaphone },
       { href: '/admin/inbox', label: 'Newsletter', icon: Mail },
-      { href: '/admin/profile', label: 'Discover Profile', icon: Palette },
+      { href: '/admin/profile', label: 'Social Media Posts', icon: Palette },
     ],
   },
 ]
