@@ -167,6 +167,17 @@ export default function AdminArtworks() {
 
   async function openEditor(a: Artwork) {
     setEditing({ ...a })
+    // Track recently viewed (cross-module)
+    import('@/lib/recentlyViewed').then(({ trackView }) => {
+      trackView({
+        id: a.id,
+        kind: 'artwork',
+        label: a.title || 'Untitled',
+        sublabel: a.artist ?? undefined,
+        href: '/admin/artworks',
+        thumbUrl: a.thumb,
+      })
+    })
     try {
       const cids = await collectionsForArtwork(a.id)
       setEditingCollections(cids)

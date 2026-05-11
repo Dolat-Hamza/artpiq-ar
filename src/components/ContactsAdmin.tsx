@@ -44,6 +44,7 @@ import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
 import { useToast } from './ui/toast'
+import { trackView } from '@/lib/recentlyViewed'
 
 const CATEGORIES = ['Prospect', 'Lead', 'Client', 'Press', 'Collector', 'Gallery', 'Institution', 'Other']
 const LIFECYCLE = ['lead', 'prospect', 'qualified', 'client', 'lost'] as const
@@ -319,7 +320,16 @@ export default function ContactsAdmin() {
                       <tr
                         key={c.id}
                         className={`border-b border-line/60 hover:bg-bg cursor-pointer ${active?.id === c.id ? 'bg-accent-soft' : ''}`}
-                        onClick={() => setActive(c)}
+                        onClick={() => {
+                          setActive(c)
+                          trackView({
+                            id: c.id,
+                            kind: 'contact',
+                            label: c.name || c.email || 'Contact',
+                            sublabel: c.email ?? undefined,
+                            href: '/admin/contacts',
+                          })
+                        }}
                       >
                         <td className="py-2 px-3" onClick={e => e.stopPropagation()}>
                           <input

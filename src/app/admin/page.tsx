@@ -21,6 +21,8 @@ import {
   Users,
 } from 'lucide-react'
 import { signOut, useAuth } from '@/lib/db/auth'
+import { getRecent, type RecentItem } from '@/lib/recentlyViewed'
+import { Clock } from 'lucide-react'
 import { listMyArtworks } from '@/lib/db/artworks'
 import { listMyCollections } from '@/lib/db/collections'
 import { listDesigns } from '@/lib/db/savedDesigns'
@@ -48,6 +50,11 @@ export default function AdminDashboard() {
   const [counts, setCounts] = useState<Counts | null>(null)
   const [recentDesigns, setRecentDesigns] = useState<SavedDesign[]>([])
   const [openMenu, setOpenMenu] = useState<'gift' | 'bell' | 'avatar' | null>(null)
+  const [recent, setRecent] = useState<RecentItem[]>([])
+
+  useEffect(() => {
+    setRecent(getRecent())
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -259,6 +266,38 @@ export default function AdminDashboard() {
             </div>
           </Link>
         </section>
+
+        {/* Recently viewed (cross-module) */}
+        {recent.length > 0 && (
+          <section className="mt-6 bg-paper border border-line rounded-md p-5">
+            <div className="flex items-baseline mb-3">
+              <p className="font-display text-[14px] inline-flex items-center gap-2">
+                <Clock size={13} className="text-ink-muted" /> Recently viewed
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {recent.slice(0, 12).map(r => (
+                <Link
+                  key={`${r.kind}-${r.id}`}
+                  href={r.href}
+                  className="block aspect-[4/5] bg-bg border border-line rounded overflow-hidden hover:border-ink hover:shadow-card transition-all ease-snap relative group"
+                  title={r.label}
+                >
+                  {r.thumbUrl ? (
+                    <img src={r.thumbUrl} alt={r.label} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full grid place-items-center">
+                      <span className="text-meta uppercase tracking-[0.14em] text-ink-muted/60">{r.kind}</span>
+                    </div>
+                  )}
+                  <span className="absolute inset-x-0 bottom-0 px-2 py-1 bg-paper/90 backdrop-blur text-[10px] font-bold truncate text-ink opacity-0 group-hover:opacity-100 transition-opacity">
+                    {r.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Recent designs */}
         {recentDesigns.length > 0 && (

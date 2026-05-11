@@ -68,8 +68,19 @@ export default function TasksAdmin() {
         }
       />
       <main className="px-6 md:px-10 py-6 grid gap-6">
-        <Section title="Open" tasks={open} onToggle={toggle} onDelete={rm} />
-        {done.length > 0 && <Section title="Completed" tasks={done} onToggle={toggle} onDelete={rm} muted />}
+        {list.length === 0 ? (
+          <EmptyState
+            icon={<CheckSquare size={24} />}
+            title="No tasks yet"
+            description="Tasks help you track follow-ups: chase a quote, send a viewing room link, prep for a meeting."
+            action={{ label: 'Add your first task', onClick: () => setAdding(true) }}
+          />
+        ) : (
+          <>
+            <Section title="Open" tasks={open} onToggle={toggle} onDelete={rm} />
+            {done.length > 0 && <Section title="Completed" tasks={done} onToggle={toggle} onDelete={rm} muted />}
+          </>
+        )}
       </main>
       {adding && <AddTaskModal ownerId={user.id} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
     </div>
