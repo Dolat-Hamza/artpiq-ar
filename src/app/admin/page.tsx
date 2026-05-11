@@ -93,6 +93,17 @@ export default function AdminDashboard() {
     <div className="min-h-dvh bg-bg">
       {/* Top bar — ArtPlacer style */}
       <header className="bg-paper border-b border-line h-topbar flex items-center px-6 md:px-10 sticky top-0 z-20">
+        {/* Universal search trigger */}
+        <button
+          onClick={() => {
+            const e = new KeyboardEvent('keydown', { key: 'k', metaKey: true })
+            document.dispatchEvent(e)
+          }}
+          className="hidden md:inline-flex items-center gap-2 h-9 px-3 border border-line rounded-md text-meta text-ink-muted hover:border-ink hover:text-ink transition-colors"
+        >
+          <span>Search…</span>
+          <kbd className="text-meta tracking-[0.14em] uppercase border border-line rounded-xs px-1.5 py-0.5 bg-bg">⌘ K</kbd>
+        </button>
         <div className="ml-auto flex items-center gap-3 relative">
           <div className="relative">
             <button

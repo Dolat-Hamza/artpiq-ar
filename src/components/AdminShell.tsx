@@ -25,6 +25,11 @@ import {
   Users,
 } from 'lucide-react'
 import { signOut, useAuth } from '@/lib/db/auth'
+import { ToastProvider } from './ui/toast'
+import { ConfirmProvider } from './ui/ConfirmDialog'
+import CommandPalette from './ui/CommandPalette'
+import ShortcutsHelp from './ui/ShortcutsHelp'
+import GlobalKeyboardNav from './ui/GlobalKeyboardNav'
 
 // ArtPlacer-style sidebar: white bg, group headers, primary CTA pill, collapse
 const TOP: { href: string; label: string; icon: typeof Home }[] = [
@@ -73,6 +78,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   })
 
   return (
+    <ToastProvider>
+    <ConfirmProvider>
+    <CommandPalette />
+    <ShortcutsHelp />
+    <GlobalKeyboardNav />
     <div className="min-h-dvh flex bg-bg text-ink">
       <aside
         className={`hidden md:flex sticky top-0 h-dvh shrink-0 flex-col border-r border-line bg-paper transition-[width] duration-200 ease-snap ${
@@ -196,5 +206,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       <main className="flex-1 min-w-0 pb-14 md:pb-0">{children}</main>
     </div>
+    </ConfirmProvider>
+    </ToastProvider>
   )
 }

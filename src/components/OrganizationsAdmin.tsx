@@ -11,6 +11,8 @@ import {
 import type { Organization, OrganizationType } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
 
 const TYPES: OrganizationType[] = ['gallery', 'collector', 'press', 'institution', 'vendor', 'other']
 
@@ -18,6 +20,8 @@ export default function OrganizationsAdmin() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<Organization[]>([])
   const [adding, setAdding] = useState(false)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => { if (user) refresh() }, [user])
   async function refresh() { if (user) setList(await listOrganizations(user.id)) }
@@ -28,8 +32,15 @@ export default function OrganizationsAdmin() {
     refresh()
   }
   async function rm(id: string) {
-    if (!confirm('Delete organization?')) return
+    const ok = await confirm({
+      title: 'Delete organization?',
+      description: 'Linked contacts and deals will stay but lose this association.',
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     await deleteOrganization(id)
+    toast.success('Organization deleted')
     refresh()
   }
 

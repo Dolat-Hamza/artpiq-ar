@@ -42,6 +42,8 @@ import { listMyArtworks } from '@/lib/db/artworks'
 import type { Activity, Artwork, Contact, ContactPresentation, Deal, Organization, SavedPresentation } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
 
 const CATEGORIES = ['Prospect', 'Lead', 'Client', 'Press', 'Collector', 'Gallery', 'Institution', 'Other']
 const LIFECYCLE = ['lead', 'prospect', 'qualified', 'client', 'lost'] as const
@@ -70,6 +72,8 @@ export default function ContactsAdmin() {
   const [filterOrg, setFilterOrg] = useState<string>('all')
   const [sortKey, setSortKey] = useState<'name' | 'email' | 'created' | 'lifecycle'>('created')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     if (!user) return
@@ -101,16 +105,30 @@ export default function ContactsAdmin() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Delete contact?')) return
+    const ok = await confirm({
+      title: 'Delete contact?',
+      description: 'All linked activities and presentations will lose this contact.',
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     await deleteContact(id)
     if (active?.id === id) setActive(null)
+    toast.success('Contact deleted')
     refresh()
   }
 
   async function bulkDelete() {
     if (!selected.size) return
-    if (!confirm(`Delete ${selected.size} contacts?`)) return
+    const ok = await confirm({
+      title: `Delete ${selected.size} contacts?`,
+      description: 'This cannot be undone.',
+      destructive: true,
+      confirmLabel: `Delete ${selected.size}`,
+    })
+    if (!ok) return
     await bulkDeleteContacts([...selected])
+    toast.success(`${selected.size} contacts deleted`)
     refresh()
   }
 

@@ -6,6 +6,8 @@ import { createContent, deleteContent, listContent, updateContent } from '@/lib/
 import type { ContentItem, ContentStatus } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
 
 const STATUS_LABEL: Record<ContentStatus, string> = {
   draft: 'Draft',
@@ -34,6 +36,8 @@ export default function BlogList() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<ContentItem[]>([])
   const [editing, setEditing] = useState<ContentItem | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => { if (user) refresh() }, [user])
   async function refresh() {
@@ -48,8 +52,15 @@ export default function BlogList() {
     refresh()
   }
   async function rm(id: string) {
-    if (!confirm('Delete this blog post?')) return
+    const ok = await confirm({
+      title: 'Delete this blog post?',
+      description: 'Comments and revisions will be removed.',
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     await deleteContent(id)
+    toast.success('Blog post deleted')
     refresh()
   }
 

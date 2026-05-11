@@ -7,6 +7,8 @@ import { listMyArtworks } from '@/lib/db/artworks'
 import type { Artwork, Deal, DealStage } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
 
 const STAGES: DealStage[] = ['enquiry', 'qualified', 'proposal', 'negotiation', 'reserved', 'won', 'lost']
 const STAGE_COLOR: Record<DealStage, string> = {
@@ -26,6 +28,8 @@ export default function DealsAdmin() {
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Deal | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     if (!user) return
@@ -39,8 +43,15 @@ export default function DealsAdmin() {
     refresh()
   }
   async function rm(id: string) {
-    if (!confirm('Delete deal?')) return
+    const ok = await confirm({
+      title: 'Delete deal?',
+      description: 'Linked activities will be removed too. Cannot be undone.',
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     await deleteDeal(id)
+    toast.success('Deal deleted')
     refresh()
   }
 

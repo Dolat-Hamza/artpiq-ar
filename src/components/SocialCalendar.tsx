@@ -27,6 +27,8 @@ import {
 import type { ContentComment, ContentItem, ContentStatus, ContentType } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
 
 const STATUS_LABEL: Record<ContentStatus, string> = {
   draft: 'Draft',
@@ -83,6 +85,8 @@ export default function SocialCalendar() {
   const [cursor, setCursor] = useState<Date>(startOfMonth(new Date()))
   const [editing, setEditing] = useState<ContentItem | null>(null)
   const [composing, setComposing] = useState<{ type: ContentType; date?: Date } | null>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     if (!user) return
@@ -115,8 +119,15 @@ export default function SocialCalendar() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Delete this content item?')) return
+    const ok = await confirm({
+      title: 'Delete this content?',
+      description: 'Comments and review history will be removed.',
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     await deleteContent(id)
+    toast.success('Content deleted')
     refresh()
   }
 

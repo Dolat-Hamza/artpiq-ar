@@ -6,6 +6,10 @@ import { createTask, deleteTask, listTasks, toggleTaskDone } from '@/lib/db/crm'
 import type { Task, TaskPriority } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
+import EmptyState from './ui/EmptyState'
+import { CheckSquare } from 'lucide-react'
 
 const PRIORITY: Record<TaskPriority, string> = {
   low: 'bg-line text-ink-muted',
@@ -17,6 +21,8 @@ export default function TasksAdmin() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<Task[]>([])
   const [adding, setAdding] = useState(false)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => { if (user) refresh() }, [user])
   async function refresh() { if (user) setList(await listTasks(user.id)) }
@@ -26,8 +32,15 @@ export default function TasksAdmin() {
     refresh()
   }
   async function rm(id: string) {
-    if (!confirm('Delete task?')) return
+    const ok = await confirm({
+      title: 'Delete task?',
+      description: 'This cannot be undone.',
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     await deleteTask(id)
+    toast.success('Task deleted')
     refresh()
   }
 
