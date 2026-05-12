@@ -39,6 +39,9 @@ export interface Artwork {
   contactName?: string
   contactEmail?: string
   contactPhone?: string
+  // Art-market additions
+  ownerContactId?: string | null  // artist/collector/gallery contact who owns it
+  costBasis?: number | null       // gallery's cost (for margin calculations)
 }
 
 export type ArtworkStatus =
@@ -331,6 +334,40 @@ export interface ContentItem {
   approvedBy?: string | null
   bodyMd?: string | null
   bodyHtml?: string | null
+  // Marketing matrix (Thomas's framework)
+  pillar?: string | null              // Brand pillar
+  funnelStage?: string | null         // awareness | consideration | conversion | retention
+  audienceSegment?: string | null     // collectors | first-time | press | curators
+  format?: string | null              // carousel | reel | static | video | story | article | email
+  kpi?: string | null                 // leads | engagement | reach
+  platform?: string | null            // instagram | x | linkedin | facebook | tiktok
+  monthKey?: string | null            // '2026-05' for monthly plan grouping
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Deal line item (art-market)
+export type DealLineDirection = 'out' | 'swap_in'
+export type DealLineMode = 'sale' | 'rent'
+export type DealLineStatus = 'pending' | 'offered' | 'countered' | 'agreed' | 'declined' | 'completed'
+
+export interface DealArtwork {
+  id: string
+  dealId: string
+  artworkId: string
+  direction: DealLineDirection
+  mode: DealLineMode
+  listPrice?: number | null
+  offerPrice?: number | null
+  counterOffer?: number | null
+  agreedPrice?: number | null
+  commissionPct?: number | null
+  rentTermMonths?: number | null
+  rentMonthly?: number | null
+  swapValue?: number | null
+  lineStatus: DealLineStatus
+  notes?: string | null
+  position: number
   createdAt?: string
   updatedAt?: string
 }

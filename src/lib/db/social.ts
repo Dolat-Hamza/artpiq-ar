@@ -50,6 +50,13 @@ export async function deleteChannel(id: string): Promise<void> {
 
 // ----- Content items -----
 const contentRow = (r: Record<string, unknown>): ContentItem => ({
+  pillar: (r.pillar as string | null) ?? null,
+  funnelStage: (r.funnel_stage as string | null) ?? null,
+  audienceSegment: (r.audience_segment as string | null) ?? null,
+  format: (r.format as string | null) ?? null,
+  kpi: (r.kpi as string | null) ?? null,
+  platform: (r.platform as string | null) ?? null,
+  monthKey: (r.month_key as string | null) ?? null,
   id: r.id as string,
   ownerId: r.owner_id as string,
   type: r.type as ContentItem['type'],
@@ -120,6 +127,13 @@ export async function createContent(input: Partial<ContentItem> & { ownerId: str
   if (input.eventLocation !== undefined) row.event_location = input.eventLocation
   if (input.bodyMd !== undefined) row.body_md = input.bodyMd
   if (input.bodyHtml !== undefined) row.body_html = input.bodyHtml
+  if (input.pillar !== undefined) row.pillar = input.pillar
+  if (input.funnelStage !== undefined) row.funnel_stage = input.funnelStage
+  if (input.audienceSegment !== undefined) row.audience_segment = input.audienceSegment
+  if (input.format !== undefined) row.format = input.format
+  if (input.kpi !== undefined) row.kpi = input.kpi
+  if (input.platform !== undefined) row.platform = input.platform
+  if (input.monthKey !== undefined) row.month_key = input.monthKey
   const { data, error } = await supabase().from('content_items').insert(row).select('*').single()
   if (error) throw error
   return contentRow(data as Record<string, unknown>)
@@ -148,6 +162,13 @@ export async function updateContent(id: string, patch: Partial<ContentItem>): Pr
   if (patch.bodyMd !== undefined) row.body_md = patch.bodyMd
   if (patch.bodyHtml !== undefined) row.body_html = patch.bodyHtml
   if (patch.publishedAt !== undefined) row.published_at = patch.publishedAt
+  if (patch.pillar !== undefined) row.pillar = patch.pillar
+  if (patch.funnelStage !== undefined) row.funnel_stage = patch.funnelStage
+  if (patch.audienceSegment !== undefined) row.audience_segment = patch.audienceSegment
+  if (patch.format !== undefined) row.format = patch.format
+  if (patch.kpi !== undefined) row.kpi = patch.kpi
+  if (patch.platform !== undefined) row.platform = patch.platform
+  if (patch.monthKey !== undefined) row.month_key = patch.monthKey
   const { error } = await supabase().from('content_items').update(row).eq('id', id)
   if (error) throw error
 }

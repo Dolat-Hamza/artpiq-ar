@@ -1,10 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Image as ImageIcon, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createDeal, deleteDeal, listDeals, updateDeal } from '@/lib/db/crm'
 import { listMyArtworks } from '@/lib/db/artworks'
-import type { Artwork, Deal, DealStage } from '@/types'
+import {
+  addDealArtwork,
+  computeDealTotals,
+  deleteDealArtwork,
+  listDealArtworks,
+  updateDealArtwork,
+} from '@/lib/db/dealArtworks'
+import type { Artwork, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
@@ -245,111 +252,383 @@ function DealEditModal({
   const [d, setD] = useState<Deal>(deal)
   const [busy, setBusy] = useState(false)
   const [artworkSearch, setArtworkSearch] = useState('')
+  const [lines, setLines] = useState<DealArtwork[]>([])
+  const [pickerOpen, setPickerOpen] = useState<'out' | 'swap_in' | null>(null)
+
+  const artworkById = useMemo(() => {
+    const m = new Map<string, Artwork>()
+    for (const a of allArtworks) m.set(a.id, a)
+    return m
+  }, [allArtworks])
+
+  useEffect(() => {
+    listDealArtworks(deal.id).then(setLines).catch(() => {})
+  }, [deal.id])
 
   const filteredArtworks = artworkSearch.trim()
     ? allArtworks.filter(a => [a.title, a.artist].join(' ').toLowerCase().includes(artworkSearch.toLowerCase()))
     : allArtworks
 
+  const totals = useMemo(() => {
+    const byId = new Map<string, { costBasis?: number | null }>()
+    for (const [id, a] of artworkById) byId.set(id, { costBasis: a.costBasis ?? null })
+    return computeDealTotals(lines, byId)
+  }, [lines, artworkById])
+
   async function save() {
     setBusy(true)
     try {
-      await updateDeal(d.id, d)
+      await updateDeal(d.id, { ...d, amount: totals.grossOut || d.amount })
       onClose()
     } finally { setBusy(false) }
   }
 
-  const linkedIds = new Set(d.artworkIds ?? [])
-
-  function toggleArtwork(id: string) {
-    const current = new Set(d.artworkIds ?? [])
-    if (current.has(id)) current.delete(id)
-    else current.add(id)
-    setD(x => ({ ...x, artworkIds: [...current] }))
+  async function addLine(artworkId: string, direction: 'out' | 'swap_in') {
+    const a = artworkById.get(artworkId)
+    if (!a) return
+    const created = await addDealArtwork({
+      dealId: deal.id,
+      artworkId,
+      direction,
+      mode: 'sale',
+      listPrice: a.price ?? null,
+      offerPrice: a.price ?? null,
+      commissionPct: a.commissionPct ?? 30,
+    })
+    setLines(prev => [...prev, created])
+    setPickerOpen(null)
+    setArtworkSearch('')
   }
+
+  async function patchLine(id: string, patch: Partial<DealArtwork>) {
+    setLines(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l))
+    await updateDealArtwork(id, patch).catch(() => {})
+  }
+
+  async function removeLine(id: string) {
+    setLines(prev => prev.filter(l => l.id !== id))
+    await deleteDealArtwork(id).catch(() => {})
+  }
+
+  const outLines = lines.filter(l => l.direction === 'out')
+  const swapLines = lines.filter(l => l.direction === 'swap_in')
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 md:p-8" onClick={onClose}>
-      <div className="w-full max-w-[720px] max-h-[92vh] overflow-y-auto bg-paper rounded-md shadow-pop" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-[1080px] max-h-[92vh] overflow-y-auto bg-paper rounded-md shadow-pop" onClick={e => e.stopPropagation()}>
         <header className="sticky top-0 z-10 bg-paper border-b border-line px-6 h-14 flex items-center gap-3">
           <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Deal</h2>
+          <span className={`pill ${STAGE_COLOR[d.stage] ?? 'pill-sold'}`}>{d.stage}</span>
           <div className="ml-auto flex gap-2">
             <button onClick={onClose} className="btn-outline"><X size={13} /> Close</button>
             <button onClick={save} disabled={busy} className="btn-primary disabled:opacity-40">Save</button>
           </div>
         </header>
-        <div className="px-6 py-5 grid gap-4">
-          <input value={d.title} onChange={e => setD(x => ({ ...x, title: e.target.value }))} className="input font-display text-[16px]" />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Stage</label>
-              <select value={d.stage} onChange={e => setD(x => ({ ...x, stage: e.target.value as DealStage }))} className="input">
-                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Amount (€)</label>
-              <input
-                value={d.amount ?? ''}
-                onChange={e => setD(x => ({ ...x, amount: e.target.value ? Number(e.target.value) : null }))}
-                inputMode="numeric"
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Expected close</label>
-              <input type="date" value={d.expectedCloseDate ?? ''} onChange={e => setD(x => ({ ...x, expectedCloseDate: e.target.value || null }))} className="input" />
-            </div>
-            <div>
-              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Probability: {d.probability ?? 50}%</label>
-              <input type="range" min={0} max={100} step={5} value={d.probability ?? 50} onChange={e => setD(x => ({ ...x, probability: Number(e.target.value) }))} className="w-full" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Notes</label>
-            <textarea value={d.notes ?? ''} onChange={e => setD(x => ({ ...x, notes: e.target.value }))} rows={3} className="input" />
-          </div>
 
-          {/* Artwork picker */}
-          <div className="border border-line rounded-md p-4">
-            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-3">
-              Linked artworks · {linkedIds.size}
-            </p>
-            {/* Linked chips */}
-            {linkedIds.size > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {allArtworks.filter(a => linkedIds.has(a.id)).map(a => (
-                  <span key={a.id} className="inline-flex items-center gap-1 bg-accent-soft text-accent text-meta px-2 py-0.5 rounded-xs">
-                    {a.title}
-                    <button onClick={() => toggleArtwork(a.id)} className="hover:text-red-600"><X size={10} /></button>
-                  </span>
-                ))}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-0">
+          {/* Main column */}
+          <div className="px-6 py-5 grid gap-4 border-r border-line">
+            <input value={d.title} onChange={e => setD(x => ({ ...x, title: e.target.value }))} className="input font-display text-[16px]" placeholder="Deal title" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Stage</label>
+                <select value={d.stage} onChange={e => setD(x => ({ ...x, stage: e.target.value as DealStage }))} className="input">
+                  {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Expected close</label>
+                <input type="date" value={d.expectedCloseDate ?? ''} onChange={e => setD(x => ({ ...x, expectedCloseDate: e.target.value || null }))} className="input" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Probability: {d.probability ?? 50}%</label>
+                <input type="range" min={0} max={100} step={5} value={d.probability ?? 50} onChange={e => setD(x => ({ ...x, probability: Number(e.target.value) }))} className="w-full" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Notes</label>
+              <textarea value={d.notes ?? ''} onChange={e => setD(x => ({ ...x, notes: e.target.value }))} rows={2} className="input" />
+            </div>
+
+            {/* Sold lines (artworks going out) */}
+            <DealLineSection
+              title="Artworks for sale / rent"
+              subtitle="Items the buyer receives"
+              lines={outLines}
+              artworkById={artworkById}
+              onPatch={patchLine}
+              onRemove={removeLine}
+              onAdd={() => setPickerOpen('out')}
+            />
+
+            {/* Swap lines (artworks coming back) */}
+            <DealLineSection
+              title="Swap / part-exchange"
+              subtitle="Artworks the buyer offers in trade — reduces their cash due"
+              lines={swapLines}
+              artworkById={artworkById}
+              onPatch={patchLine}
+              onRemove={removeLine}
+              onAdd={() => setPickerOpen('swap_in')}
+              isSwap
+            />
+
+            {/* Artwork picker — modal-in-modal */}
+            {pickerOpen && (
+              <div className="fixed inset-0 z-[60] bg-black/40 grid place-items-center p-4" onClick={() => setPickerOpen(null)}>
+                <div className="w-full max-w-[520px] bg-paper rounded-md shadow-pop max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                  <header className="px-4 h-12 flex items-center border-b border-line gap-2">
+                    <h3 className="font-display text-[13px] tracking-[0.16em] uppercase">
+                      {pickerOpen === 'out' ? 'Add sale/rent line' : 'Add swap-in line'}
+                    </h3>
+                    <button onClick={() => setPickerOpen(null)} className="ml-auto text-ink-muted hover:text-ink">
+                      <X size={14} />
+                    </button>
+                  </header>
+                  <input
+                    autoFocus
+                    value={artworkSearch}
+                    onChange={e => setArtworkSearch(e.target.value)}
+                    placeholder="Search artworks…"
+                    className="input !rounded-none !border-0 border-b border-line"
+                  />
+                  <div className="flex-1 overflow-y-auto">
+                    {filteredArtworks.slice(0, 60).map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => addLine(a.id, pickerOpen)}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-bg border-b border-line/60"
+                      >
+                        {a.thumb && <img src={a.thumb} alt="" className="w-10 h-10 object-cover rounded-xs shrink-0" />}
+                        <span className="flex-1 min-w-0">
+                          <span className="text-body font-bold truncate block">{a.title}</span>
+                          <span className="text-meta text-ink-muted truncate block">
+                            {a.artist}{a.price != null ? ` · ${a.currency || 'EUR'} ${a.price.toLocaleString()}` : ''}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
-            <input
-              value={artworkSearch}
-              onChange={e => setArtworkSearch(e.target.value)}
-              placeholder="Search artworks to link…"
-              className="input mb-2"
-            />
-            <div className="max-h-48 overflow-y-auto grid grid-cols-1 divide-y divide-line">
-              {filteredArtworks.slice(0, 50).map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => toggleArtwork(a.id)}
-                  className={`flex items-center gap-2 px-2 py-1.5 text-left hover:bg-bg ${linkedIds.has(a.id) ? 'bg-accent-soft' : ''}`}
-                >
-                  {a.thumb && <img src={a.thumb} alt="" className="w-8 h-8 object-cover rounded-xs shrink-0" />}
-                  <span className="flex-1 min-w-0">
-                    <span className="text-body font-bold truncate block">{a.title}</span>
-                    <span className="text-meta text-ink-muted">{a.artist}</span>
-                  </span>
-                  {linkedIds.has(a.id) && <span className="text-accent text-meta">✓</span>}
-                </button>
-              ))}
-            </div>
           </div>
+
+          {/* Totals sidebar */}
+          <aside className="p-5 bg-bg/40 grid gap-3 content-start">
+            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">Deal totals</p>
+
+            <TotalRow label="Gross out (sale/rent total)" value={totals.grossOut} />
+            {totals.swapInValue > 0 && (
+              <TotalRow label="Swap-in value (offsetting)" value={-totals.swapInValue} muted />
+            )}
+            <div className="border-t border-line pt-2">
+              <TotalRow label="Buyer pays (cash)" value={totals.buyerNet} highlight />
+            </div>
+
+            <div className="border-t border-line pt-3">
+              <TotalRow label="Commission" value={totals.commission} muted />
+              <TotalRow label="Cost basis" value={totals.costBasis} muted />
+              <TotalRow label="Swap value cost" value={totals.swapInValue} muted />
+            </div>
+            <div className="border-t border-line pt-2">
+              <TotalRow
+                label="Net profit"
+                value={totals.netProfit}
+                highlight
+                color={totals.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}
+              />
+              <p className="text-meta text-ink-muted mt-1">
+                Margin: <span className="font-bold">{totals.marginPct.toFixed(1)}%</span>
+              </p>
+            </div>
+
+            <div className="border-t border-line pt-3">
+              <p className="text-meta uppercase tracking-[0.12em] text-ink-muted mb-1">Line statuses</p>
+              <div className="grid gap-1 text-meta">
+                {(['pending', 'offered', 'countered', 'agreed', 'declined', 'completed'] as const).map(s => {
+                  const count = lines.filter(l => l.lineStatus === s).length
+                  if (count === 0) return null
+                  return (
+                    <div key={s} className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${LINE_STATUS_DOT[s]}`} />
+                      <span className="capitalize">{s}</span>
+                      <span className="ml-auto text-ink-muted">{count}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
+    </div>
+  )
+}
+
+const LINE_STATUS_DOT: Record<DealLineStatus, string> = {
+  pending: 'bg-line',
+  offered: 'bg-blue-400',
+  countered: 'bg-amber-400',
+  agreed: 'bg-emerald-500',
+  declined: 'bg-red-500',
+  completed: 'bg-green-700',
+}
+
+function TotalRow({
+  label, value, muted, highlight, color,
+}: { label: string; value: number; muted?: boolean; highlight?: boolean; color?: string }) {
+  return (
+    <div className={`flex items-baseline justify-between ${muted ? 'opacity-70' : ''}`}>
+      <span className="text-meta tracking-[0.12em] uppercase text-ink-muted">{label}</span>
+      <span className={`tabular-nums ${highlight ? 'text-[15px] font-bold' : 'text-body'} ${color ?? ''}`}>
+        € {value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </span>
+    </div>
+  )
+}
+
+function DealLineSection({
+  title, subtitle, lines, artworkById, onPatch, onRemove, onAdd, isSwap,
+}: {
+  title: string
+  subtitle: string
+  lines: DealArtwork[]
+  artworkById: Map<string, Artwork>
+  onPatch: (id: string, p: Partial<DealArtwork>) => void
+  onRemove: (id: string) => void
+  onAdd: () => void
+  isSwap?: boolean
+}) {
+  return (
+    <div className="border border-line rounded-md p-4">
+      <div className="flex items-baseline justify-between mb-3">
+        <div>
+          <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">{title}</p>
+          <p className="text-meta text-ink-muted">{subtitle}</p>
+        </div>
+        <button onClick={onAdd} className="btn-outline !h-8 text-meta">
+          + Add artwork
+        </button>
+      </div>
+      {lines.length === 0 ? (
+        <p className="text-body text-ink-muted text-center py-3">No artworks yet.</p>
+      ) : (
+        <div className="grid gap-2">
+          {lines.map(l => {
+            const a = artworkById.get(l.artworkId)
+            if (!a) return null
+            return (
+              <div key={l.id} className="border border-line/60 rounded-sm p-3 bg-bg/40">
+                <div className="flex items-start gap-3 mb-2">
+                  {a.thumb && <img src={a.thumb} alt="" className="w-12 h-12 object-cover rounded-xs shrink-0" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body font-bold truncate">{a.title}</p>
+                    <p className="text-meta text-ink-muted truncate">{a.artist}{a.price != null ? ` · list € ${a.price.toLocaleString()}` : ''}</p>
+                  </div>
+                  <select
+                    value={l.lineStatus}
+                    onChange={e => onPatch(l.id, { lineStatus: e.target.value as DealLineStatus })}
+                    className="text-meta tracking-[0.12em] uppercase border border-line rounded-xs bg-paper px-1.5 py-0.5"
+                  >
+                    {(['pending', 'offered', 'countered', 'agreed', 'declined', 'completed'] as const).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => onRemove(l.id)} className="text-red-600 hover:text-red-700">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                {isSwap ? (
+                  <div>
+                    <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Swap value (€)</label>
+                    <input
+                      type="number"
+                      value={l.swapValue ?? ''}
+                      onChange={e => onPatch(l.id, { swapValue: e.target.value ? Number(e.target.value) : null })}
+                      className="input !h-8"
+                      placeholder="What's it worth in the deal?"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div className="md:col-span-1">
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Mode</label>
+                      <select
+                        value={l.mode}
+                        onChange={e => onPatch(l.id, { mode: e.target.value as DealLineMode })}
+                        className="input !h-8 !px-1.5 text-[11px]"
+                      >
+                        <option value="sale">Sale</option>
+                        <option value="rent">Rent</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Offer (€)</label>
+                      <input
+                        type="number"
+                        value={l.offerPrice ?? ''}
+                        onChange={e => onPatch(l.id, { offerPrice: e.target.value ? Number(e.target.value) : null })}
+                        className="input !h-8 !px-1.5 text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Counter (€)</label>
+                      <input
+                        type="number"
+                        value={l.counterOffer ?? ''}
+                        onChange={e => onPatch(l.id, { counterOffer: e.target.value ? Number(e.target.value) : null })}
+                        className="input !h-8 !px-1.5 text-[11px]"
+                        placeholder="from buyer"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Agreed (€)</label>
+                      <input
+                        type="number"
+                        value={l.agreedPrice ?? ''}
+                        onChange={e => onPatch(l.id, { agreedPrice: e.target.value ? Number(e.target.value) : null })}
+                        className="input !h-8 !px-1.5 text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Comm %</label>
+                      <input
+                        type="number"
+                        value={l.commissionPct ?? ''}
+                        onChange={e => onPatch(l.id, { commissionPct: e.target.value ? Number(e.target.value) : null })}
+                        className="input !h-8 !px-1.5 text-[11px]"
+                      />
+                    </div>
+                    {l.mode === 'rent' && (
+                      <>
+                        <div>
+                          <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Term (mo)</label>
+                          <input
+                            type="number"
+                            value={l.rentTermMonths ?? ''}
+                            onChange={e => onPatch(l.id, { rentTermMonths: e.target.value ? Number(e.target.value) : null })}
+                            className="input !h-8 !px-1.5 text-[11px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">€/month</label>
+                          <input
+                            type="number"
+                            value={l.rentMonthly ?? ''}
+                            onChange={e => onPatch(l.id, { rentMonthly: e.target.value ? Number(e.target.value) : null })}
+                            className="input !h-8 !px-1.5 text-[11px]"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -41,6 +41,8 @@ export function rowToArtwork(r: Row): Artwork {
     contactName: r.contact_name ?? undefined,
     contactEmail: r.contact_email ?? undefined,
     contactPhone: r.contact_phone ?? undefined,
+    ownerContactId: r.owner_contact_id ?? null,
+    costBasis: r.cost_basis == null ? null : Number(r.cost_basis),
   }
 }
 
@@ -81,6 +83,8 @@ export function artworkToRow(a: Artwork, ownerId: string | null): Insert {
     contact_name: a.contactName ?? null,
     contact_email: a.contactEmail ?? null,
     contact_phone: a.contactPhone ?? null,
+    owner_contact_id: a.ownerContactId ?? null,
+    cost_basis: a.costBasis ?? null,
   }
 }
 

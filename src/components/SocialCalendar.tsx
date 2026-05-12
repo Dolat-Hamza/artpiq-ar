@@ -630,8 +630,13 @@ function ComposerModal({
   async function save() {
     setBusy(true)
     try {
+      // Auto-derive month_key from scheduledAt so monthly portal can group reliably
+      const monthKey = item.scheduledAt
+        ? new Date(item.scheduledAt).toISOString().slice(0, 7)
+        : item.monthKey ?? null
+      const payload = { ...item, monthKey }
       if (existing) {
-        await updateContent(existing.id, item)
+        await updateContent(existing.id, payload)
       } else if (item.type === 'event_promo' && !existing) {
         // Create event_promo anchor + auto-bundle post+blog+newsletter
         await createContent({ ownerId, type: 'event_promo', ...item })
@@ -643,7 +648,7 @@ function ComposerModal({
           ])
         }
       } else {
-        await createContent({ ownerId, type: item.type ?? 'post', ...item })
+        await createContent({ ownerId, type: item.type ?? 'post', ...payload })
       }
       onSaved()
     } finally {
@@ -846,6 +851,110 @@ function ComposerModal({
                 className="input"
               />
             </Field>
+          </fieldset>
+
+          {/* Matrix — Thomas's framework fields */}
+          <fieldset className="border border-line rounded-md p-4 grid gap-3">
+            <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">
+              Matrix
+            </legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Platform">
+                <select
+                  value={item.platform ?? ''}
+                  onChange={e => set('platform', e.target.value || null)}
+                  className="input"
+                >
+                  <option value="">— Choose platform —</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="x">X (Twitter)</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="pinterest">Pinterest</option>
+                  <option value="threads">Threads</option>
+                </select>
+              </Field>
+              <Field label="Brand pillar">
+                <input
+                  list="pillar-list"
+                  value={item.pillar ?? ''}
+                  onChange={e => set('pillar', e.target.value || null)}
+                  placeholder="Artist Story, Behind the Scenes…"
+                  className="input"
+                />
+                <datalist id="pillar-list">
+                  <option value="Artist Story" />
+                  <option value="Behind the Scenes" />
+                  <option value="New Work" />
+                  <option value="Sales" />
+                  <option value="Education" />
+                  <option value="Community" />
+                </datalist>
+              </Field>
+              <Field label="Funnel stage">
+                <select
+                  value={item.funnelStage ?? ''}
+                  onChange={e => set('funnelStage', e.target.value || null)}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  <option value="awareness">Awareness</option>
+                  <option value="consideration">Consideration</option>
+                  <option value="conversion">Conversion</option>
+                  <option value="retention">Retention</option>
+                </select>
+              </Field>
+              <Field label="Format">
+                <select
+                  value={item.format ?? ''}
+                  onChange={e => set('format', e.target.value || null)}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  <option value="carousel">Carousel</option>
+                  <option value="reel">Reel</option>
+                  <option value="static">Static</option>
+                  <option value="video">Video</option>
+                  <option value="story">Story</option>
+                  <option value="article">Article</option>
+                  <option value="email">Email</option>
+                </select>
+              </Field>
+              <Field label="Audience segment">
+                <input
+                  list="audience-list"
+                  value={item.audienceSegment ?? ''}
+                  onChange={e => set('audienceSegment', e.target.value || null)}
+                  placeholder="Collectors, press, curators…"
+                  className="input"
+                />
+                <datalist id="audience-list">
+                  <option value="collectors" />
+                  <option value="first-time buyers" />
+                  <option value="press" />
+                  <option value="curators" />
+                  <option value="investors" />
+                  <option value="general" />
+                </datalist>
+              </Field>
+              <Field label="KPI target">
+                <select
+                  value={item.kpi ?? ''}
+                  onChange={e => set('kpi', e.target.value || null)}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  <option value="reach">Reach</option>
+                  <option value="engagement">Engagement</option>
+                  <option value="leads">Leads</option>
+                  <option value="sales">Sales</option>
+                  <option value="website-clicks">Website clicks</option>
+                  <option value="subscribers">Subscribers</option>
+                </select>
+              </Field>
+            </div>
           </fieldset>
 
           {/* Copy / body — with AI generator */}

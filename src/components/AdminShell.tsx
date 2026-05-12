@@ -60,6 +60,7 @@ const GROUPS: { label: string; items: { href: string; label: string; icon: typeo
   {
     label: 'Marketing',
     items: [
+      { href: '/admin/marketing', label: 'Marketing Portal', icon: PieChart },
       { href: '/admin/social', label: 'Social Calendar', icon: Calendar },
       { href: '/admin/blog', label: 'Blog', icon: Megaphone },
       { href: '/admin/inbox', label: 'Newsletter', icon: Mail },

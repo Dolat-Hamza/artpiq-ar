@@ -162,6 +162,8 @@ export type Database = {
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
+          cost_basis: number | null
+          owner_contact_id: string | null
           created_at: string
           currency: string | null
           depth_cm: number | null
@@ -335,6 +337,7 @@ export type Database = {
           approved_by: string | null
           artwork_ids: string[] | null
           assignee_id: string | null
+          audience_segment: string | null
           body_html: string | null
           body_md: string | null
           channels: string[] | null
@@ -345,11 +348,17 @@ export type Database = {
           cta_url: string | null
           event_date: string | null
           event_location: string | null
+          format: string | null
+          funnel_stage: string | null
           hashtags: string[] | null
           hook: string | null
           id: string
+          kpi: string | null
           media_urls: string[] | null
+          month_key: string | null
           owner_id: string
+          pillar: string | null
+          platform: string | null
           post_type: string | null
           published_at: string | null
           purpose: string | null
@@ -385,6 +394,31 @@ export type Database = {
         }
         Insert: Partial<Database["public"]["Tables"]["deals"]["Row"]> & { owner_id: string; title: string }
         Update: Partial<Database["public"]["Tables"]["deals"]["Row"]>
+        Relationships: []
+      }
+      deal_artworks: {
+        Row: {
+          id: string
+          deal_id: string
+          artwork_id: string
+          direction: string
+          mode: string
+          list_price: number | null
+          offer_price: number | null
+          counter_offer: number | null
+          agreed_price: number | null
+          commission_pct: number | null
+          rent_term_months: number | null
+          rent_monthly: number | null
+          swap_value: number | null
+          line_status: string
+          notes: string | null
+          position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["deal_artworks"]["Row"]> & { deal_id: string; artwork_id: string }
+        Update: Partial<Database["public"]["Tables"]["deal_artworks"]["Row"]>
         Relationships: []
       }
       design_folders: {

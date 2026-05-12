@@ -364,6 +364,7 @@ export default function AdminDashboard() {
         <section className="mt-4 bg-paper border border-line rounded-md p-5">
           <p className="font-display text-[14px] mb-4">Marketing</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <ModuleCard href="/admin/marketing" label="Marketing Portal" icon={PieChart} />
             <ModuleCard href="/admin/social" label="Social Calendar" icon={Calendar} />
             <ModuleCard href="/admin/blog" label="Blog" icon={Megaphone} />
             <ModuleCard href="/admin/inbox" label="Newsletter" icon={Mail} count={counts?.subscribers} />

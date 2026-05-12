@@ -419,8 +419,20 @@ export default function ContactsAdmin() {
                           />
                         </td>
                         <td className="py-2 px-3">
-                          <p className="font-bold">{c.name || <span className="text-ink-muted italic">No name</span>}</p>
-                          <p className="text-meta text-ink-muted md:hidden">{c.email}</p>
+                          <div className="flex items-center gap-2">
+                            {/* Avatar with deterministic colour from name */}
+                            <span
+                              className="w-8 h-8 rounded-full grid place-items-center text-paper text-[11px] font-bold uppercase shrink-0"
+                              style={{ background: avatarColour(c.name || c.email || c.id) }}
+                              aria-hidden="true"
+                            >
+                              {(c.name?.[0] || c.email?.[0] || '?').toUpperCase()}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-bold truncate">{c.name || <span className="text-ink-muted italic">No name</span>}</p>
+                              <p className="text-meta text-ink-muted md:hidden truncate">{c.email}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="py-2 px-3 text-ink-muted hidden md:table-cell">{c.email}</td>
                         <td className="py-2 px-3 hidden lg:table-cell">
@@ -1021,6 +1033,28 @@ function AddContactModal({
       </div>
     </div>
   )
+}
+
+/**
+ * Deterministic colour for contact avatars (HubSpot-style colourful pills).
+ * Uses a fixed-size palette + hashed-string index so same name = same colour.
+ */
+const AVATAR_PALETTE = [
+  '#2563EB', // indigo accent
+  '#1EAC99', // teal
+  '#E0233C', // red
+  '#7C3AED', // violet
+  '#F59E0B', // amber
+  '#0EA5E9', // sky
+  '#EC4899', // pink
+  '#10B981', // emerald
+  '#6366F1', // indigo lighter
+  '#F97316', // orange
+]
+function avatarColour(seed: string): string {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length]
 }
 
 function SegmentPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
