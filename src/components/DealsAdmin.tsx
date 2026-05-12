@@ -37,6 +37,40 @@ export default function DealsAdmin() {
   const [editing, setEditing] = useState<Deal | null>(null)
   const confirm = useConfirm()
   const toast = useToast()
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOverStage, setDragOverStage] = useState<DealStage | null>(null)
+
+  function onDragStart(e: React.DragEvent, d: Deal) {
+    setDragId(d.id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', d.id)
+  }
+  function onDragOver(e: React.DragEvent, stage: DealStage) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverStage !== stage) setDragOverStage(stage)
+  }
+  function onDragLeave() {
+    setDragOverStage(null)
+  }
+  async function onDrop(e: React.DragEvent, stage: DealStage) {
+    e.preventDefault()
+    const id = e.dataTransfer.getData('text/plain') || dragId
+    setDragId(null)
+    setDragOverStage(null)
+    if (!id) return
+    const d = list.find(x => x.id === id)
+    if (!d || d.stage === stage) return
+    // Optimistic
+    setList(prev => prev.map(x => x.id === id ? { ...x, stage } : x))
+    try {
+      await updateDeal(id, { stage })
+      toast.success(`Moved to ${stage}`)
+    } catch {
+      toast.error('Move failed')
+      refresh()
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -45,10 +79,6 @@ export default function DealsAdmin() {
   }, [user])
   async function refresh() { if (user) setList(await listDeals(user.id)) }
 
-  async function moveStage(d: Deal, stage: DealStage) {
-    await updateDeal(d.id, { stage })
-    refresh()
-  }
   async function rm(id: string) {
     const ok = await confirm({
       title: 'Delete deal?',
@@ -101,8 +131,17 @@ export default function DealsAdmin() {
             {STAGES.map(stage => {
               const col = list.filter(d => d.stage === stage)
               const sum = col.reduce((s, d) => s + (d.amount ?? 0), 0)
+              const isOver = dragOverStage === stage
               return (
-                <section key={stage} className="bg-paper border border-line rounded-md p-3 min-h-[200px]">
+                <section
+                  key={stage}
+                  onDragOver={e => onDragOver(e, stage)}
+                  onDragLeave={onDragLeave}
+                  onDrop={e => onDrop(e, stage)}
+                  className={`bg-paper border rounded-md p-3 min-h-[200px] transition-colors ${
+                    isOver ? 'border-accent bg-accent-soft' : 'border-line'
+                  }`}
+                >
                   <div className="flex items-center justify-between mb-3">
                     <p className="font-display text-meta uppercase tracking-[0.14em]">{stage}</p>
                     <span className="text-meta tracking-[0.14em] text-ink-muted">{col.length}</span>
@@ -111,8 +150,18 @@ export default function DealsAdmin() {
                   <div className="flex flex-col gap-2">
                     {col.map(d => {
                     const linked = artworks.filter(a => (d.artworkIds ?? []).includes(a.id))
+                    const isDragging = dragId === d.id
                     return (
-                      <article key={d.id} className="border border-line rounded-sm p-2 bg-bg/50 cursor-pointer hover:border-ink" onClick={() => setEditing(d)}>
+                      <article
+                        key={d.id}
+                        draggable
+                        onDragStart={e => onDragStart(e, d)}
+                        onDragEnd={() => { setDragId(null); setDragOverStage(null) }}
+                        className={`border border-line rounded-sm p-2 bg-bg/50 cursor-grab active:cursor-grabbing hover:border-ink transition-opacity ${
+                          isDragging ? 'opacity-40' : ''
+                        }`}
+                        onClick={() => setEditing(d)}
+                      >
                         <p className="text-body font-bold truncate">{d.title}</p>
                         {d.amount && <p className="text-meta text-ink-muted">€ {d.amount.toLocaleString()}</p>}
                         {linked.length > 0 && (
@@ -125,13 +174,6 @@ export default function DealsAdmin() {
                             {linked.length > 3 && <span className="text-meta text-ink-muted">+{linked.length - 3}</span>}
                           </div>
                         )}
-                        <div className="flex gap-1 mt-1.5 flex-wrap">
-                          {STAGES.filter(s => s !== d.stage).slice(0, 2).map(s => (
-                            <button key={s} onClick={e => { e.stopPropagation(); moveStage(d, s) }} className="text-meta tracking-[0.12em] uppercase text-ink-muted underline hover:text-ink">
-                              → {s}
-                            </button>
-                          ))}
-                        </div>
                       </article>
                     )
                   })}

@@ -388,12 +388,45 @@ function KanbanView({
   onStatus: (item: ContentItem, status: ContentStatus) => void
 }) {
   const cols: ContentStatus[] = ['draft', 'in_progress', 'submitted_for_review', 'approved', 'scheduled', 'published']
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<ContentStatus | null>(null)
+
+  function onDragStart(e: React.DragEvent, it: ContentItem) {
+    setDragId(it.id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', it.id)
+  }
+  function onDragOver(e: React.DragEvent, col: ContentStatus) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverCol !== col) setDragOverCol(col)
+  }
+  function onDrop(e: React.DragEvent, col: ContentStatus) {
+    e.preventDefault()
+    const id = e.dataTransfer.getData('text/plain') || dragId
+    setDragId(null)
+    setDragOverCol(null)
+    if (!id) return
+    const item = items.find(i => i.id === id)
+    if (!item || item.status === col) return
+    onStatus(item, col)
+  }
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
       {cols.map(col => {
         const colItems = items.filter(i => i.status === col)
+        const isOver = dragOverCol === col
         return (
-          <section key={col} className="bg-paper border border-line rounded-md p-3 min-h-[200px]">
+          <section
+            key={col}
+            onDragOver={e => onDragOver(e, col)}
+            onDragLeave={() => setDragOverCol(null)}
+            onDrop={e => onDrop(e, col)}
+            className={`bg-paper border rounded-md p-3 min-h-[200px] transition-colors ${
+              isOver ? 'border-accent bg-accent-soft' : 'border-line'
+            }`}
+          >
             <div className="flex items-center justify-between mb-3">
               <p className="font-display text-meta uppercase tracking-[0.14em]">
                 {STATUS_LABEL[col]}
@@ -403,11 +436,17 @@ function KanbanView({
             <div className="flex flex-col gap-2">
               {colItems.map(it => {
                 const Icon = TYPE_ICON[it.type]
+                const isDragging = dragId === it.id
                 return (
                   <article
                     key={it.id}
-                    className="border border-line rounded-sm p-2 bg-bg/50 cursor-pointer hover:border-ink"
+                    draggable
+                    onDragStart={e => onDragStart(e, it)}
+                    onDragEnd={() => { setDragId(null); setDragOverCol(null) }}
                     onClick={() => onItemClick(it)}
+                    className={`border border-line rounded-sm p-2 bg-bg/50 cursor-grab active:cursor-grabbing hover:border-ink transition-opacity ${
+                      isDragging ? 'opacity-40' : ''
+                    }`}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <Icon size={11} className="text-ink-muted" />
@@ -424,40 +463,6 @@ function KanbanView({
                         })}
                       </p>
                     )}
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {col !== 'submitted_for_review' && col !== 'approved' && col !== 'published' && (
-                        <button
-                          onClick={e => { e.stopPropagation(); onStatus(it, 'submitted_for_review') }}
-                          className="text-meta tracking-[0.14em] uppercase text-accent underline"
-                        >
-                          Submit
-                        </button>
-                      )}
-                      {col === 'submitted_for_review' && (
-                        <>
-                          <button
-                            onClick={e => { e.stopPropagation(); onStatus(it, 'approved') }}
-                            className="text-meta tracking-[0.14em] uppercase text-emerald-700 underline"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); onStatus(it, 'changes_requested') }}
-                            className="text-meta tracking-[0.14em] uppercase text-orange-700 underline"
-                          >
-                            Request changes
-                          </button>
-                        </>
-                      )}
-                      {col === 'approved' && (
-                        <button
-                          onClick={e => { e.stopPropagation(); onStatus(it, 'scheduled') }}
-                          className="text-meta tracking-[0.14em] uppercase text-indigo-700 underline"
-                        >
-                          Schedule
-                        </button>
-                      )}
-                    </div>
                   </article>
                 )
               })}
