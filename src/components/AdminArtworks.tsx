@@ -73,6 +73,7 @@ export default function AdminArtworks() {
   const { user, loading, configured } = useAuth()
   const [list, setList] = useState<Artwork[]>([])
   const [collections, setCollections] = useState<Collection[]>([])
+  const [contacts, setContacts] = useState<{ id: string; name: string | null; email: string | null; isArtist?: boolean }[]>([])
   const [editing, setEditing] = useState<Artwork | null>(null)
   const [editingCollections, setEditingCollections] = useState<string[]>([])
   const [filters, setFilters] = useState<Filters>(initialFilters)
@@ -91,12 +92,14 @@ export default function AdminArtworks() {
     if (!user) return
     try {
       setBusy(true)
-      const [arts, cols] = await Promise.all([
+      const [arts, cols, cs] = await Promise.all([
         listMyArtworks(user.id),
         listMyCollections(user.id),
+        import('@/lib/db/contacts').then(m => m.listContacts(user.id)).catch(() => []),
       ])
       setList(arts)
       setCollections(cols)
+      setContacts(cs.map(c => ({ id: c.id, name: c.name ?? null, email: c.email ?? null, isArtist: c.isArtist })))
       // Build collection membership map for filter
       const m: Record<string, string[]> = {}
       for (const c of cols) {
@@ -464,6 +467,7 @@ export default function AdminArtworks() {
               prev.includes(cid) ? prev.filter(x => x !== cid) : [...prev, cid],
             )
           }
+          ownerOptions={contacts}
         />
       )}
     </div>
@@ -479,6 +483,7 @@ function EditorDrawer({
   collections,
   selectedCollectionIds,
   onToggleCollection,
+  ownerOptions,
 }: {
   aw: Artwork
   ownerId: string
@@ -488,6 +493,7 @@ function EditorDrawer({
   collections: Collection[]
   selectedCollectionIds: string[]
   onToggleCollection: (id: string) => void
+  ownerOptions: { id: string; name: string | null; email: string | null; isArtist?: boolean }[]
 }) {
   const set = <K extends keyof Artwork>(k: K, v: Artwork[K]) => onChange({ ...aw, [k]: v })
   const [uploading, setUploading] = useState(false)
@@ -682,6 +688,32 @@ function EditorDrawer({
                 }
                 className="input"
               />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cost basis (€)">
+              <input
+                type="number"
+                step="1"
+                value={aw.costBasis ?? ''}
+                onChange={e => set('costBasis', e.target.value ? Number(e.target.value) : null)}
+                placeholder="Gallery cost — for margin calc"
+                className="input"
+              />
+            </Field>
+            <Field label="Owner (artist / collector / gallery)">
+              <select
+                value={aw.ownerContactId ?? ''}
+                onChange={e => set('ownerContactId', e.target.value || null)}
+                className="input"
+              >
+                <option value="">— none —</option>
+                {ownerOptions.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || c.email || '—'}{c.isArtist ? ' (artist)' : ''}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
           <Field label="Tax amount">

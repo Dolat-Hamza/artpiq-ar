@@ -448,13 +448,29 @@ function KanbanView({
                       isDragging ? 'opacity-40' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                       <Icon size={11} className="text-ink-muted" />
                       <span className="text-meta uppercase tracking-[0.14em] text-ink-muted">
                         {TYPE_LABEL[it.type]}
                       </span>
+                      {it.platform && (
+                        <span className="text-meta tracking-[0.12em] uppercase bg-bg border border-line/80 px-1 rounded-xs text-ink-muted">
+                          {it.platform}
+                        </span>
+                      )}
                     </div>
                     <p className="text-body font-bold truncate">{it.title || '(untitled)'}</p>
+                    {(it.pillar || it.format) && (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {it.pillar && (
+                          <span className="text-[9px] tracking-[0.12em] uppercase text-ink-muted">{it.pillar}</span>
+                        )}
+                        {it.pillar && it.format && <span className="text-ink-muted">·</span>}
+                        {it.format && (
+                          <span className="text-[9px] tracking-[0.12em] uppercase text-accent">{it.format}</span>
+                        )}
+                      </div>
+                    )}
                     {it.scheduledAt && (
                       <p className="text-meta text-ink-muted mt-1 inline-flex items-center gap-1">
                         <Clock size={10} />
@@ -500,25 +516,44 @@ function ListView({
           <tr>
             <th className="text-left py-2 px-3">Title</th>
             <th className="text-left py-2 px-3">Type</th>
-            <th className="text-left py-2 px-3">Purpose</th>
+            <th className="text-left py-2 px-3 hidden md:table-cell">Platform</th>
+            <th className="text-left py-2 px-3 hidden lg:table-cell">Pillar</th>
+            <th className="text-left py-2 px-3 hidden lg:table-cell">Format</th>
+            <th className="text-left py-2 px-3 hidden xl:table-cell">Funnel</th>
+            <th className="text-left py-2 px-3 hidden xl:table-cell">Audience</th>
             <th className="text-left py-2 px-3">Status</th>
-            <th className="text-left py-2 px-3">Scheduled</th>
+            <th className="text-left py-2 px-3 hidden md:table-cell">Scheduled</th>
             <th className="text-right py-2 px-3"></th>
           </tr>
         </thead>
         <tbody>
           {items.map(it => (
             <tr key={it.id} className="border-b border-line/60 hover:bg-bg cursor-pointer" onClick={() => onItemClick(it)}>
-              <td className="py-2 px-3 font-bold">{it.title || '(untitled)'}</td>
-              <td className="py-2 px-3 text-ink-muted">{TYPE_LABEL[it.type]}</td>
-              <td className="py-2 px-3 text-ink-muted truncate max-w-[260px]">{it.purpose || '—'}</td>
+              <td className="py-2 px-3">
+                <p className="font-bold truncate max-w-[280px]">{it.title || '(untitled)'}</p>
+                {it.purpose && <p className="text-meta text-ink-muted truncate max-w-[280px]">{it.purpose}</p>}
+              </td>
+              <td className="py-2 px-3 text-ink-muted text-meta uppercase tracking-[0.12em]">{TYPE_LABEL[it.type]}</td>
+              <td className="py-2 px-3 hidden md:table-cell">
+                {it.platform ? (
+                  <span className="text-meta tracking-[0.12em] uppercase bg-bg border border-line px-1.5 py-0.5 rounded-xs">{it.platform}</span>
+                ) : <span className="text-ink-muted">—</span>}
+              </td>
+              <td className="py-2 px-3 hidden lg:table-cell text-meta text-ink-muted truncate max-w-[140px]">{it.pillar || '—'}</td>
+              <td className="py-2 px-3 hidden lg:table-cell">
+                {it.format ? (
+                  <span className="text-meta tracking-[0.12em] uppercase text-accent">{it.format}</span>
+                ) : <span className="text-ink-muted">—</span>}
+              </td>
+              <td className="py-2 px-3 hidden xl:table-cell text-meta text-ink-muted">{it.funnelStage || '—'}</td>
+              <td className="py-2 px-3 hidden xl:table-cell text-meta text-ink-muted truncate max-w-[120px]">{it.audienceSegment || '—'}</td>
               <td className="py-2 px-3">
                 <span className={`inline-block px-2 py-0.5 rounded-xs text-meta tracking-[0.14em] uppercase ${STATUS_COLOR[it.status]}`}>
                   {STATUS_LABEL[it.status]}
                 </span>
               </td>
-              <td className="py-2 px-3 text-ink-muted text-[11px]">
-                {it.scheduledAt ? new Date(it.scheduledAt).toLocaleString() : '—'}
+              <td className="py-2 px-3 hidden md:table-cell text-ink-muted text-[11px]">
+                {it.scheduledAt ? new Date(it.scheduledAt).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
               </td>
               <td className="py-2 px-3 text-right">
                 <button
