@@ -64,6 +64,8 @@ export default function ContactsAdmin() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<Contact[]>([])
   const [orgs, setOrgs] = useState<Organization[]>([])
+  const [allDeals, setAllDeals] = useState<Deal[]>([])
+  const [allActivities, setAllActivities] = useState<Activity[]>([])
   const [adding, setAdding] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [active, setActive] = useState<Contact | null>(null)
@@ -91,14 +93,18 @@ export default function ContactsAdmin() {
     if (!user) return
     setBusy(true)
     try {
-      const [contacts, organizations, views] = await Promise.all([
+      const [contacts, organizations, views, deals, activities] = await Promise.all([
         listContacts(user.id),
         listOrganizations(user.id),
         listCrmViews(user.id).catch(() => []),
+        listDeals(user.id).catch(() => [] as Deal[]),
+        listActivities(user.id).catch(() => [] as Activity[]),
       ])
       setList(contacts)
       setOrgs(organizations)
       setSavedViews(views)
+      setAllDeals(deals)
+      setAllActivities(activities)
       setSelected(new Set())
     } finally {
       setBusy(false)
@@ -386,13 +392,21 @@ export default function ContactsAdmin() {
                       <th className="text-left py-2 px-3 hidden lg:table-cell cursor-pointer hover:text-ink" onClick={() => toggleSort('lifecycle')}>
                         Stage{sortKey === 'lifecycle' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
                       </th>
-                      <th className="text-left py-2 px-3 hidden lg:table-cell">Category</th>
-                      <th className="text-left py-2 px-3 hidden xl:table-cell">Source</th>
+                      <th className="text-left py-2 px-3 hidden xl:table-cell">Organisation</th>
+                      <th className="text-left py-2 px-3 hidden lg:table-cell">Country</th>
+                      <th className="text-right py-2 px-3 hidden lg:table-cell">Deals</th>
+                      <th className="text-right py-2 px-3 hidden xl:table-cell">Pipeline</th>
+                      <th className="text-right py-2 px-3 hidden xl:table-cell">Last activity</th>
                       <th className="text-right py-2 px-3"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sorted.map(c => (
+                    {sorted.map(c => {
+                      const contactDeals = allDeals.filter(d => d.contactId === c.id)
+                      const pipeline = contactDeals.filter(d => d.stage !== 'lost').reduce((s, d) => s + (d.amount ?? 0), 0)
+                      const lastAct = allActivities.filter(a => a.contactId === c.id).sort((a, b) => (b.occurredAt ?? '').localeCompare(a.occurredAt ?? ''))[0]
+                      const org = c.organizationId ? orgs.find(o => o.id === c.organizationId) : null
+                      return (
                       <tr
                         key={c.id}
                         className={`border-b border-line/60 hover:bg-bg cursor-pointer ${active?.id === c.id ? 'bg-accent-soft' : ''}`}
@@ -436,21 +450,51 @@ export default function ContactsAdmin() {
                         </td>
                         <td className="py-2 px-3 text-ink-muted hidden md:table-cell">{c.email}</td>
                         <td className="py-2 px-3 hidden lg:table-cell">
-                          {c.lifecycleStage && (
-                            <span className={`text-meta tracking-[0.12em] uppercase px-2 py-0.5 rounded-xs ${LIFECYCLE_COLOR[c.lifecycleStage] ?? 'bg-line text-ink-muted'}`}>
-                              {c.lifecycleStage}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {c.lifecycleStage && (
+                              <span className={`text-meta tracking-[0.12em] uppercase px-2 py-0.5 rounded-xs ${LIFECYCLE_COLOR[c.lifecycleStage] ?? 'bg-line text-ink-muted'}`}>
+                                {c.lifecycleStage}
+                              </span>
+                            )}
+                            {c.isArtist && (
+                              <span className="text-[9px] tracking-[0.14em] uppercase font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-xs">
+                                Artist
+                              </span>
+                            )}
+                            {c.category && c.category !== 'Other' && (
+                              <span className="text-meta text-ink-muted">· {c.category}</span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-2 px-3 text-ink-muted text-meta uppercase tracking-[0.12em] hidden lg:table-cell">{c.category || '—'}</td>
-                        <td className="py-2 px-3 text-ink-muted text-meta uppercase tracking-[0.12em] hidden xl:table-cell">{c.source}</td>
+                        <td className="py-2 px-3 text-ink-muted text-meta hidden xl:table-cell">
+                          {org ? (
+                            <span className="inline-flex items-center gap-1 truncate">
+                              <span className="w-1.5 h-1.5 rounded-full bg-ink-muted shrink-0" />
+                              <span className="truncate">{org.name}</span>
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td className="py-2 px-3 text-ink-muted text-meta hidden lg:table-cell">{c.country || '—'}</td>
+                        <td className="py-2 px-3 text-right hidden lg:table-cell">
+                          {contactDeals.length > 0 ? (
+                            <span className="font-bold text-ink">{contactDeals.length}</span>
+                          ) : <span className="text-ink-muted">—</span>}
+                        </td>
+                        <td className="py-2 px-3 text-right hidden xl:table-cell text-meta">
+                          {pipeline > 0 ? (
+                            <span className="font-bold tabular-nums text-ink">€ {Math.round(pipeline).toLocaleString()}</span>
+                          ) : <span className="text-ink-muted">—</span>}
+                        </td>
+                        <td className="py-2 px-3 text-right hidden xl:table-cell text-meta text-ink-muted">
+                          {lastAct ? relativeTime(lastAct.occurredAt) : '—'}
+                        </td>
                         <td className="py-2 px-3 text-right" onClick={e => e.stopPropagation()}>
                           <button className="text-ink-muted hover:text-ink mr-1">
                             <ChevronRight size={14} />
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -1055,6 +1099,23 @@ function avatarColour(seed: string): string {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length]
+}
+
+function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso).getTime()
+  if (Number.isNaN(d)) return '—'
+  const diff = Date.now() - d
+  const m = Math.floor(diff / 60000)
+  const h = Math.floor(m / 60)
+  const days = Math.floor(h / 24)
+  if (m < 1) return 'now'
+  if (m < 60) return `${m}m ago`
+  if (h < 24) return `${h}h ago`
+  if (days < 7) return `${days}d ago`
+  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`
+  return `${Math.floor(days / 365)}y ago`
 }
 
 function SegmentPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
