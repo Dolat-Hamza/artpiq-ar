@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createDeal, deleteDeal, listDeals, updateDeal } from '@/lib/db/crm'
@@ -77,6 +78,16 @@ export default function DealsAdmin() {
     refresh()
     listMyArtworks(user.id).then(setArtworks).catch(() => {})
   }, [user])
+
+  // Universal Create deep-link: ?new=1 from sidebar Create menu
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setAdding('enquiry')
+      router.replace('/admin/deals')
+    }
+  }, [searchParams, router])
   async function refresh() { if (user) setList(await listDeals(user.id)) }
 
   async function rm(id: string) {

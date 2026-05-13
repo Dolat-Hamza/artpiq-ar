@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ARTWORK_STATUSES, Artwork, ArtworkStatus, Collection } from '@/types'
 import {
   artworksToCsv,
@@ -193,6 +194,16 @@ export default function AdminArtworks() {
     setEditing(newArtwork())
     setEditingCollections([])
   }
+
+  // Universal Create deep-link: ?new=1 from sidebar Create menu
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      openNewEditor()
+      router.replace('/admin/artworks')
+    }
+  }, [searchParams, router])
 
   async function duplicate(a: Artwork) {
     if (!user) return

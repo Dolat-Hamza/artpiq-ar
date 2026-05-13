@@ -31,6 +31,7 @@ import { listExhibitions } from '@/lib/db/exhibitions'
 import { listContacts } from '@/lib/db/contacts'
 import { listSubscribers } from '@/lib/db/subscribers'
 import LoginForm from '@/components/LoginForm'
+import TodayPanel from '@/components/TodayPanel'
 import { SavedDesign } from '@/types'
 
 interface Counts {
@@ -214,6 +215,11 @@ export default function AdminDashboard() {
         <h1 className="font-display text-h2">
           {greeting}, <span className="capitalize">{name}</span>
         </h1>
+
+        {/* Today: action-oriented hero */}
+        <div className="mt-6">
+          <TodayPanel />
+        </div>
 
         {/* Activity overview — ArtPlacer panels */}
         <section className="mt-6 bg-paper border border-line rounded-md p-5">

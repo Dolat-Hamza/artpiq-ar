@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Building2,
   Calendar,
@@ -67,6 +68,14 @@ export default function ContactsAdmin() {
   const [allDeals, setAllDeals] = useState<Deal[]>([])
   const [allActivities, setAllActivities] = useState<Activity[]>([])
   const [adding, setAdding] = useState(false)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setAdding(true)
+      router.replace('/admin/contacts')
+    }
+  }, [searchParams, router])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [active, setActive] = useState<Contact | null>(null)
   const [busy, setBusy] = useState(false)

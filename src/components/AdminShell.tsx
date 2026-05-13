@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import {
   Briefcase,
   Calendar,
@@ -31,6 +31,7 @@ import { ConfirmProvider } from './ui/ConfirmDialog'
 import CommandPalette from './ui/CommandPalette'
 import ShortcutsHelp from './ui/ShortcutsHelp'
 import GlobalKeyboardNav from './ui/GlobalKeyboardNav'
+import HelpFab from './ui/HelpFab'
 import { TourProvider } from './ui/Tour'
 
 // ArtPlacer-style sidebar: white bg, group headers, primary CTA pill, collapse
@@ -88,6 +89,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <CommandPalette />
     <ShortcutsHelp />
     <GlobalKeyboardNav />
+    <HelpFab />
     <div className="min-h-dvh flex bg-bg text-ink">
       <aside
         className={`hidden md:flex sticky top-0 h-dvh shrink-0 flex-col border-r border-line bg-paper transition-[width] duration-200 ease-snap ${
@@ -102,12 +104,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <span className="w-3 h-3 bg-accent rounded-[2px] inline-block" />
         </Link>
 
-        {/* Primary CTA */}
+        {/* Primary CTA — universal Create */}
         <div className="px-3 pt-3 pb-2">
-          <Link href="/sample-room" className="btn-primary w-full">
-            <Plus size={14} strokeWidth={2.5} />
-            {!collapsed && 'Start Creating'}
-          </Link>
+          <CreateMenu collapsed={collapsed} />
         </div>
 
         {/* Search trigger */}
@@ -238,5 +237,97 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     </TourProvider>
     </ConfirmProvider>
     </ToastProvider>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Universal Create menu — single entry point for new entities.
+// Routes to the relevant list page with ?new=1 query so the
+// destination can auto-open its add modal. Falls back to the list
+// page even if the route ignores the query param.
+// ──────────────────────────────────────────────────────────────
+const CREATE_ITEMS: { label: string; href: string; icon: typeof Home; shortcut?: string }[] = [
+  { label: 'Artwork', href: '/admin/artworks?new=1', icon: Frame, shortcut: 'A' },
+  { label: 'Contact', href: '/admin/contacts?new=1', icon: Users, shortcut: 'C' },
+  { label: 'Deal', href: '/admin/deals?new=1', icon: PieChart, shortcut: 'D' },
+  { label: 'Task', href: '/admin/tasks?new=1', icon: CheckSquare, shortcut: 'T' },
+  { label: 'Presentation', href: '/admin/presentations?new=1', icon: FileText, shortcut: 'P' },
+  { label: 'Social post', href: '/admin/social?new=1', icon: Megaphone, shortcut: 'S' },
+  { label: 'Room design', href: '/sample-room', icon: ImageIcon, shortcut: 'R' },
+]
+
+function CreateMenu({ collapsed }: { collapsed: boolean }) {
+  const [open, setOpen] = useState(false)
+  const router = useRouter()
+  const ref = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+      // Letter shortcut while menu open
+      const match = CREATE_ITEMS.find(i => i.shortcut?.toLowerCase() === e.key.toLowerCase())
+      if (match) {
+        e.preventDefault()
+        setOpen(false)
+        router.push(match.href)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, router])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        data-tour="create-menu"
+        onClick={() => setOpen(o => !o)}
+        className="btn-primary w-full"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Plus size={14} strokeWidth={2.5} />
+        {!collapsed && (
+          <span className="inline-flex items-center gap-1">
+            Create
+            <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </span>
+        )}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 right-0 mt-2 bg-paper border border-line rounded-md shadow-pop py-1 z-50 max-h-[70vh] overflow-y-auto"
+        >
+          {CREATE_ITEMS.map(i => {
+            const Icon = i.icon
+            return (
+              <Link
+                key={i.label}
+                href={i.href}
+                onClick={() => setOpen(false)}
+                role="menuitem"
+                className="flex items-center gap-2 px-3 py-2 text-body hover:bg-bg group"
+              >
+                <Icon size={14} strokeWidth={1.6} className="text-ink-muted group-hover:text-ink" />
+                <span className="flex-1">{i.label}</span>
+                {i.shortcut && (
+                  <kbd className="text-meta tracking-[0.12em] uppercase text-ink-muted border border-line rounded-xs px-1 py-0.5 bg-bg">
+                    {i.shortcut}
+                  </kbd>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
