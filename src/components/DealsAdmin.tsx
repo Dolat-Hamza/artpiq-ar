@@ -33,7 +33,7 @@ export default function DealsAdmin() {
   const [list, setList] = useState<Deal[]>([])
   const [artworks, setArtworks] = useState<Artwork[]>([])
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState<false | DealStage>(false)
   const [editing, setEditing] = useState<Deal | null>(null)
   const confirm = useConfirm()
   const toast = useToast()
@@ -112,7 +112,7 @@ export default function DealsAdmin() {
                 </button>
               ))}
             </div>
-            <button onClick={() => setAdding(true)} className="btn-primary">
+            <button data-tour="new-deal" onClick={() => setAdding('enquiry')} className="btn-primary">
               <Plus size={14} strokeWidth={2.5} /> New deal
             </button>
           </>
@@ -157,13 +157,20 @@ export default function DealsAdmin() {
                         draggable
                         onDragStart={e => onDragStart(e, d)}
                         onDragEnd={() => { setDragId(null); setDragOverStage(null) }}
-                        className={`border border-line rounded-sm p-2 bg-bg/50 cursor-grab active:cursor-grabbing hover:border-ink transition-opacity ${
+                        className={`border border-line rounded-sm p-2 bg-paper cursor-grab active:cursor-grabbing hover:border-ink hover:shadow-sm transition-all ${
                           isDragging ? 'opacity-40' : ''
                         }`}
                         onClick={() => setEditing(d)}
                       >
                         <p className="text-body font-bold truncate">{d.title}</p>
-                        {d.amount && <p className="text-meta text-ink-muted">€ {d.amount.toLocaleString()}</p>}
+                        <div className="flex items-center justify-between mt-1 gap-2">
+                          {d.amount ? (
+                            <p className="text-meta text-ink font-bold">€ {d.amount.toLocaleString()}</p>
+                          ) : <span />}
+                          {typeof d.probability === 'number' && (
+                            <span className="text-[10px] text-ink-muted">{d.probability}%</span>
+                          )}
+                        </div>
                         {linked.length > 0 && (
                           <div className="flex gap-1 mt-1.5 flex-wrap">
                             {linked.slice(0, 3).map(a => (
@@ -178,6 +185,13 @@ export default function DealsAdmin() {
                     )
                   })}
                   </div>
+                  <button
+                    onClick={() => setAdding(stage)}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink py-1.5 border border-dashed border-line rounded-sm hover:border-ink transition-colors"
+                    title={`Add deal in ${stage}`}
+                  >
+                    <Plus size={11} /> Add
+                  </button>
                 </section>
               )
             })}
@@ -217,7 +231,7 @@ export default function DealsAdmin() {
           </div>
         )}
       </main>
-      {adding && <AddDealModal ownerId={user.id} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
+      {adding && <AddDealModal ownerId={user.id} initialStage={adding} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
       {editing && (
         <DealEditModal
           deal={editing}
@@ -231,15 +245,17 @@ export default function DealsAdmin() {
 
 function AddDealModal({
   ownerId,
+  initialStage,
   onCancel,
   onSaved,
 }: {
   ownerId: string
+  initialStage?: DealStage
   onCancel: () => void
   onSaved: () => void
 }) {
   const [title, setTitle] = useState('')
-  const [stage, setStage] = useState<DealStage>('enquiry')
+  const [stage, setStage] = useState<DealStage>(initialStage ?? 'enquiry')
   const [amount, setAmount] = useState('')
   const [probability, setProbability] = useState(50)
   const [expectedCloseDate, setExpectedCloseDate] = useState('')

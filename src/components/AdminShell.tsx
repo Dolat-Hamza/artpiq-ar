@@ -21,6 +21,7 @@ import {
   Palette,
   PieChart,
   Plus,
+  Search,
   Star,
   Users,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ import { ConfirmProvider } from './ui/ConfirmDialog'
 import CommandPalette from './ui/CommandPalette'
 import ShortcutsHelp from './ui/ShortcutsHelp'
 import GlobalKeyboardNav from './ui/GlobalKeyboardNav'
+import { TourProvider } from './ui/Tour'
 
 // ArtPlacer-style sidebar: white bg, group headers, primary CTA pill, collapse
 const TOP: { href: string; label: string; icon: typeof Home }[] = [
@@ -38,11 +40,12 @@ const TOP: { href: string; label: string; icon: typeof Home }[] = [
   { href: '/admin/rooms', label: 'Room Mockups', icon: Library },
 ]
 
-const GROUPS: { label: string; items: { href: string; label: string; icon: typeof Home }[] }[] = [
+type NavItem = { href: string; label: string; icon: typeof Home; tourId?: string }
+const GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Visualisation',
     items: [
-      { href: '/admin/presentations', label: 'Presentations', icon: FileText },
+      { href: '/admin/presentations', label: 'Presentations', icon: FileText, tourId: 'nav-presentations' },
       { href: '/admin/sequence', label: 'Artwork Sequence', icon: Star },
       { href: '/admin/designs', label: 'My Designs', icon: LayoutGrid },
       { href: '/sample-room', label: 'Sample Room', icon: ImageIcon },
@@ -51,16 +54,16 @@ const GROUPS: { label: string; items: { href: string; label: string; icon: typeo
   {
     label: 'CRM',
     items: [
-      { href: '/admin/contacts', label: 'Contacts', icon: Users },
+      { href: '/admin/contacts', label: 'Contacts', icon: Users, tourId: 'nav-contacts' },
       { href: '/admin/organizations', label: 'Organizations', icon: Briefcase },
-      { href: '/admin/deals', label: 'Deals', icon: PieChart },
+      { href: '/admin/deals', label: 'Deals', icon: PieChart, tourId: 'nav-deals' },
       { href: '/admin/tasks', label: 'Tasks', icon: CheckSquare },
     ],
   },
   {
     label: 'Marketing',
     items: [
-      { href: '/admin/marketing', label: 'Marketing Portal', icon: PieChart },
+      { href: '/admin/marketing', label: 'Marketing Portal', icon: PieChart, tourId: 'nav-marketing' },
       { href: '/admin/social', label: 'Social Calendar', icon: Calendar },
       { href: '/admin/blog', label: 'Blog', icon: Megaphone },
       { href: '/admin/inbox', label: 'Newsletter', icon: Mail },
@@ -81,6 +84,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   return (
     <ToastProvider>
     <ConfirmProvider>
+    <TourProvider>
     <CommandPalette />
     <ShortcutsHelp />
     <GlobalKeyboardNav />
@@ -104,6 +108,24 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <Plus size={14} strokeWidth={2.5} />
             {!collapsed && 'Start Creating'}
           </Link>
+        </div>
+
+        {/* Search trigger */}
+        <div className="px-3 pb-2">
+          <button
+            data-tour="cmd-k"
+            onClick={() => window.dispatchEvent(new Event('artpiq:open-cmdk'))}
+            title="Search (⌘K)"
+            className="ap-nav w-full text-left"
+          >
+            <Search size={16} strokeWidth={1.6} />
+            {!collapsed && (
+              <span className="flex-1 flex items-center justify-between">
+                <span className="text-ink-muted">Search</span>
+                <kbd className="text-meta tracking-[0.14em] uppercase text-ink-muted border border-line rounded-xs px-1 py-0.5 bg-bg">⌘K</kbd>
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Top static items */}
@@ -144,7 +166,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                       const Icon = it.icon
                       return (
                         <li key={it.href}>
-                          <Link href={it.href} data-active={active} className="ap-nav" title={it.label}>
+                          <Link
+                            href={it.href}
+                            data-active={active}
+                            data-tour={it.tourId}
+                            className="ap-nav"
+                            title={it.label}
+                          >
                             <Icon size={16} strokeWidth={1.6} />
                             {!collapsed && <span className="truncate">{it.label}</span>}
                           </Link>
@@ -207,6 +235,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       <main className="flex-1 min-w-0 pb-14 md:pb-0">{children}</main>
     </div>
+    </TourProvider>
     </ConfirmProvider>
     </ToastProvider>
   )
