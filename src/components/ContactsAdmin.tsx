@@ -272,7 +272,7 @@ export default function ContactsAdmin() {
       <div className="flex flex-1 min-h-0">
         {/* Contact list */}
         <section className={`flex-1 min-w-0 flex flex-col ${active ? 'hidden lg:flex' : ''}`}>
-          <div className="px-6 md:px-10 py-3 border-b border-line bg-paper flex items-center gap-2 flex-wrap">
+          <div data-tour="contacts-filters" className="px-6 md:px-10 py-3 border-b border-line bg-paper flex items-center gap-2 flex-wrap">
             <div className="relative w-64">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
               <input
@@ -324,7 +324,7 @@ export default function ContactsAdmin() {
           </div>
           {/* Saved views */}
           {(savedViews.length > 0 || true) && (
-            <div className="px-6 md:px-10 py-2 border-b border-line bg-paper flex gap-1 flex-wrap items-center text-meta">
+            <div data-tour="contacts-views" className="px-6 md:px-10 py-2 border-b border-line bg-paper flex gap-1 flex-wrap items-center text-meta">
               <span className="text-meta uppercase tracking-[0.14em] text-ink-muted mr-1 inline-flex items-center gap-1">
                 <Bookmark size={11} /> Views:
               </span>

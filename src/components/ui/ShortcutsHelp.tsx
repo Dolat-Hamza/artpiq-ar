@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Keyboard, X } from 'lucide-react'
+import { Keyboard, Sparkles, X } from 'lucide-react'
+import { useTour } from './Tour'
 
 interface Shortcut {
   keys: string[]
@@ -40,6 +41,7 @@ const SHORTCUTS: { group: string; items: Shortcut[] }[] = [
 
 export default function ShortcutsHelp() {
   const [open, setOpen] = useState(false)
+  const { startById } = useTour()
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -80,7 +82,22 @@ export default function ShortcutsHelp() {
                 <X size={16} />
               </button>
             </header>
-            <div className="px-6 py-5 grid gap-4 max-h-[60vh] overflow-y-auto">
+            <div className="px-6 pt-5 pb-3">
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  startById('welcome')
+                }}
+                className="w-full inline-flex items-center gap-2 h-10 px-3 rounded-md bg-bg hover:bg-line transition-colors text-body text-ink"
+              >
+                <span className="w-6 h-6 rounded-full bg-accent text-paper grid place-items-center">
+                  <Sparkles size={12} />
+                </span>
+                <span className="flex-1 text-left">Replay welcome tour</span>
+                <span className="text-meta tracking-[0.12em] uppercase text-ink-muted">2 min</span>
+              </button>
+            </div>
+            <div className="px-6 pb-5 grid gap-4 max-h-[60vh] overflow-y-auto">
               {SHORTCUTS.map(g => (
                 <section key={g.group}>
                   <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">{g.group}</p>

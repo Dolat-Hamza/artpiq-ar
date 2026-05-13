@@ -91,8 +91,15 @@ export default function CommandPalette() {
       }
       if (e.key === 'Escape' && open) setOpen(false)
     }
+    function onExternalOpen() {
+      setOpen(true)
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    window.addEventListener('artpiq:open-cmdk', onExternalOpen)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('artpiq:open-cmdk', onExternalOpen)
+    }
   }, [open])
 
   // Load data lazily on first open

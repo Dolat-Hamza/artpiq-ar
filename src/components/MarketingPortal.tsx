@@ -184,7 +184,7 @@ export default function MarketingPortal() {
 
         {/* Approval queue */}
         {approvalQueue.length > 0 && (
-          <section className="bg-paper border border-line rounded-md p-5">
+          <section data-tour="approval-queue" className="bg-paper border border-line rounded-md p-5">
             <div className="flex items-baseline mb-3">
               <p className="font-display text-[14px] inline-flex items-center gap-2">
                 <Clock size={13} className="text-amber-700" /> Awaiting your approval
@@ -233,7 +233,7 @@ export default function MarketingPortal() {
         )}
 
         {/* Distribution dashboard — matrix scorecard */}
-        <section className="bg-paper border border-line rounded-md p-5">
+        <section data-tour="distribution-score" className="bg-paper border border-line rounded-md p-5">
           <div className="flex items-baseline mb-4">
             <p className="font-display text-[14px] inline-flex items-center gap-2">
               <TrendingUp size={13} className="text-ink-muted" /> Monthly distribution score
@@ -244,7 +244,7 @@ export default function MarketingPortal() {
         </section>
 
         {/* Platform tabs */}
-        <section className="bg-paper border border-line rounded-md overflow-hidden">
+        <section data-tour="platform-tabs" className="bg-paper border border-line rounded-md overflow-hidden">
           <div className="flex border-b border-line overflow-x-auto no-scrollbar">
             <PlatformTab label="All" active={filterPlatform === 'all'} onClick={() => setFilterPlatform('all')} count={thisMonth.length} />
             {PLATFORMS.map(p => {
