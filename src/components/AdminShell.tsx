@@ -4,7 +4,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import {
   Briefcase,
-  Calendar,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -16,9 +15,7 @@ import {
   LayoutGrid,
   Library,
   LogOut,
-  Mail,
   Megaphone,
-  Palette,
   PieChart,
   Plus,
   Search,
@@ -42,9 +39,12 @@ const TOP: { href: string; label: string; icon: typeof Home }[] = [
 ]
 
 type NavItem = { href: string; label: string; icon: typeof Home; tourId?: string }
-const GROUPS: { label: string; items: NavItem[] }[] = [
+type Workspace = 'all' | 'visualise' | 'crm' | 'marketing'
+
+const GROUPS: { label: string; workspace: Workspace; items: NavItem[] }[] = [
   {
     label: 'Visualisation',
+    workspace: 'visualise',
     items: [
       { href: '/admin/presentations', label: 'Presentations', icon: FileText, tourId: 'nav-presentations' },
       { href: '/admin/sequence', label: 'Artwork Sequence', icon: Star },
@@ -54,6 +54,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: 'CRM',
+    workspace: 'crm',
     items: [
       { href: '/admin/contacts', label: 'Contacts', icon: Users, tourId: 'nav-contacts' },
       { href: '/admin/organizations', label: 'Organizations', icon: Briefcase },
@@ -63,15 +64,22 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: 'Marketing',
+    workspace: 'marketing',
     items: [
+      // Collapsed IA: portal page hosts tabs for Social/Blog/Newsletter/Posts.
       { href: '/admin/marketing', label: 'Marketing Portal', icon: PieChart, tourId: 'nav-marketing' },
-      { href: '/admin/social', label: 'Social Calendar', icon: Calendar },
-      { href: '/admin/blog', label: 'Blog', icon: Megaphone },
-      { href: '/admin/inbox', label: 'Newsletter', icon: Mail },
-      { href: '/admin/profile', label: 'Social Media Posts', icon: Palette },
     ],
   },
 ]
+
+const WORKSPACES: { id: Workspace; label: string; hint: string }[] = [
+  { id: 'all', label: 'All', hint: 'Show everything' },
+  { id: 'visualise', label: 'Visualise', hint: 'Artworks, rooms, presentations' },
+  { id: 'crm', label: 'CRM', hint: 'Contacts, deals, tasks' },
+  { id: 'marketing', label: 'Marketing', hint: 'Portal, social, blog, newsletter' },
+]
+
+const WORKSPACE_STORAGE_KEY = 'artpiq:workspace:v1'
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -81,6 +89,20 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     'My Creations': true,
     'Lead Generation': true,
   })
+
+  // Workspace mode — filters which groups appear in the sidebar. Persists.
+  const [workspace, setWorkspaceState] = useState<Workspace>('all')
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(WORKSPACE_STORAGE_KEY) as Workspace | null
+      if (stored && WORKSPACES.some(w => w.id === stored)) setWorkspaceState(stored)
+    } catch {}
+  }, [])
+  function setWorkspace(w: Workspace) {
+    setWorkspaceState(w)
+    try { localStorage.setItem(WORKSPACE_STORAGE_KEY, w) } catch {}
+  }
+  const visibleGroups = workspace === 'all' ? GROUPS : GROUPS.filter(g => g.workspace === workspace)
 
   return (
     <ToastProvider>
@@ -127,6 +149,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </button>
         </div>
 
+        {/* Workspace switcher */}
+        {!collapsed && (
+          <div className="px-3 pb-2">
+            <WorkspaceSwitcher value={workspace} onChange={setWorkspace} />
+          </div>
+        )}
+
         {/* Top static items */}
         <nav className="overflow-y-auto flex-1 py-2">
           <ul>
@@ -145,7 +174,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </ul>
 
           {/* Groups */}
-          {GROUPS.map(g => {
+          {visibleGroups.map(g => {
             const open = openGroups[g.label]
             return (
               <div key={g.label} className="mt-1">
@@ -237,6 +266,71 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     </TourProvider>
     </ConfirmProvider>
     </ToastProvider>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Workspace switcher — filters sidebar groups by mode.
+// Reduces cognitive load: pick "CRM" and Visualisation + Marketing
+// disappear from the nav. Default mode 'all' shows everything.
+// ──────────────────────────────────────────────────────────────
+function WorkspaceSwitcher({
+  value,
+  onChange,
+}: {
+  value: Workspace
+  onChange: (w: Workspace) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!open) return
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+  const active = WORKSPACES.find(w => w.id === value) ?? WORKSPACES[0]
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full h-8 px-2 inline-flex items-center gap-2 border border-line rounded-md text-meta uppercase tracking-[0.14em] text-ink hover:border-ink transition-colors bg-bg"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+        <span className="flex-1 text-left truncate">{active.label}</span>
+        <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 right-0 mt-1 bg-paper border border-line rounded-md shadow-pop py-1 z-50"
+        >
+          {WORKSPACES.map(w => (
+            <button
+              key={w.id}
+              role="menuitemradio"
+              aria-checked={value === w.id}
+              onClick={() => { onChange(w.id); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 hover:bg-bg ${value === w.id ? 'bg-bg' : ''}`}
+            >
+              <p className="text-body font-bold">{w.label}</p>
+              <p className="text-meta text-ink-muted mt-0.5">{w.hint}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
