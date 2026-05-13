@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, Trash2, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createDeal, deleteDeal, listDeals, updateDeal } from '@/lib/db/crm'
 import { listMyArtworks } from '@/lib/db/artworks'
@@ -243,13 +244,22 @@ export default function DealsAdmin() {
         )}
       </main>
       {adding && <AddDealModal ownerId={user.id} initialStage={adding} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
-      {editing && (
-        <DealEditModal
-          deal={editing}
-          allArtworks={artworks}
-          onClose={() => { setEditing(null); refresh() }}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {editing && (
+          <DealEditModal
+            deal={editing}
+            allArtworks={artworks}
+            dealList={list}
+            onNavigate={dir => {
+              const idx = list.findIndex(d => d.id === editing.id)
+              if (idx < 0) return
+              const next = dir === 'next' ? list[idx + 1] : list[idx - 1]
+              if (next) setEditing(next)
+            }}
+            onClose={() => { setEditing(null); refresh() }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -312,14 +322,21 @@ function AddDealModal({
 function DealEditModal({
   deal,
   allArtworks,
+  dealList,
+  onNavigate,
   onClose,
 }: {
   deal: Deal
   allArtworks: Artwork[]
+  dealList: Deal[]
+  onNavigate: (dir: 'next' | 'prev') => void
   onClose: () => void
 }) {
   const [d, setD] = useState<Deal>(deal)
   const [busy, setBusy] = useState(false)
+  const idx = useMemo(() => dealList.findIndex(x => x.id === deal.id), [deal.id, dealList])
+  const hasPrev = idx > 0
+  const hasNext = idx >= 0 && idx < dealList.length - 1
   const [artworkSearch, setArtworkSearch] = useState('')
   const [lines, setLines] = useState<DealArtwork[]>([])
   const [pickerOpen, setPickerOpen] = useState<'out' | 'swap_in' | null>(null)
@@ -331,8 +348,23 @@ function DealEditModal({
   }, [allArtworks])
 
   useEffect(() => {
+    setD(deal)
     listDealArtworks(deal.id).then(setLines).catch(() => {})
-  }, [deal.id])
+  }, [deal])
+
+  // j/k navigation between deals (Artlogic-style)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null
+      const tag = t?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key === 'j' && hasNext) { e.preventDefault(); onNavigate('next') }
+      if (e.key === 'k' && hasPrev) { e.preventDefault(); onNavigate('prev') }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [hasNext, hasPrev, onClose, onNavigate])
 
   const filteredArtworks = artworkSearch.trim()
     ? allArtworks.filter(a => [a.title, a.artist].join(' ').toLowerCase().includes(artworkSearch.toLowerCase()))
@@ -383,11 +415,52 @@ function DealEditModal({
   const swapLines = lines.filter(l => l.direction === 'swap_in')
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 md:p-8" onClick={onClose}>
-      <div className="w-full max-w-[1080px] max-h-[92vh] overflow-y-auto bg-paper rounded-md shadow-pop" onClick={e => e.stopPropagation()}>
+    <>
+      {/* Scrim */}
+      <motion.div
+        className="fixed inset-0 z-50 bg-black/40"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        onClick={onClose}
+      />
+      {/* Slide-over drawer */}
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        className="fixed top-0 right-0 z-50 h-dvh w-full max-w-[760px] bg-paper shadow-pop overflow-y-auto"
+      >
         <header className="sticky top-0 z-10 bg-paper border-b border-line px-6 h-14 flex items-center gap-3">
           <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Deal</h2>
           <span className={`pill ${STAGE_COLOR[d.stage] ?? 'pill-sold'}`}>{d.stage}</span>
+          {dealList.length > 1 && (
+            <div className="ml-2 inline-flex items-center gap-0.5">
+              <button
+                onClick={() => onNavigate('prev')}
+                disabled={!hasPrev}
+                title="Previous deal (k)"
+                className="w-7 h-7 grid place-items-center text-ink-muted hover:text-ink disabled:opacity-30"
+              >
+                <ArrowUp size={13} />
+              </button>
+              <button
+                onClick={() => onNavigate('next')}
+                disabled={!hasNext}
+                title="Next deal (j)"
+                className="w-7 h-7 grid place-items-center text-ink-muted hover:text-ink disabled:opacity-30"
+              >
+                <ArrowDown size={13} />
+              </button>
+              <span className="ml-1 text-meta text-ink-muted tabular-nums">
+                {idx + 1}/{dealList.length}
+              </span>
+            </div>
+          )}
           <div className="ml-auto flex gap-2">
             <button onClick={onClose} className="btn-outline"><X size={13} /> Close</button>
             <button onClick={save} disabled={busy} className="btn-primary disabled:opacity-40">Save</button>
@@ -530,8 +603,8 @@ function DealEditModal({
             </div>
           </aside>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </>
   )
 }
 
