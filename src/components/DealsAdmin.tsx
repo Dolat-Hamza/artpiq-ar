@@ -93,12 +93,15 @@ export default function DealsAdmin() {
     listContacts(user.id).then(setContacts).catch(() => {})
   }, [user])
 
-  // Universal Create deep-link: ?new=1 from sidebar Create menu
+  // Universal Create deep-link: ?new=1 (optionally &contactId=) from
+  // sidebar Create menu or the Contact drawer's New deal button.
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [prefillContactId, setPrefillContactId] = useState<string | null>(null)
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       setAdding('enquiry')
+      setPrefillContactId(searchParams.get('contactId'))
       router.replace('/admin/deals')
     }
   }, [searchParams, router])
@@ -272,7 +275,16 @@ export default function DealsAdmin() {
           </div>
         </div>
       </main>
-      {adding && <AddDealModal ownerId={user.id} initialStage={adding} contacts={contacts} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
+      {adding && (
+        <AddDealModal
+          ownerId={user.id}
+          initialStage={adding}
+          initialContactId={prefillContactId}
+          contacts={contacts}
+          onCancel={() => { setAdding(false); setPrefillContactId(null) }}
+          onSaved={() => { setAdding(false); setPrefillContactId(null); refresh() }}
+        />
+      )}
       <AnimatePresence mode="wait">
         {editing && (
           <DealEditModal
@@ -364,12 +376,14 @@ function MetricCard({
 function AddDealModal({
   ownerId,
   initialStage,
+  initialContactId,
   contacts,
   onCancel,
   onSaved,
 }: {
   ownerId: string
   initialStage?: DealStage
+  initialContactId?: string | null
   contacts: Contact[]
   onCancel: () => void
   onSaved: () => void
@@ -379,7 +393,7 @@ function AddDealModal({
   const [amount, setAmount] = useState('')
   const [probability, setProbability] = useState(50)
   const [expectedCloseDate, setExpectedCloseDate] = useState('')
-  const [contactId, setContactId] = useState<string>('')
+  const [contactId, setContactId] = useState<string>(initialContactId ?? '')
   const [contactSearch, setContactSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const filtered = useMemo(() => {
