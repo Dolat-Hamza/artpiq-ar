@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
-import { createDeal, deleteDeal, listDeals, updateDeal } from '@/lib/db/crm'
+import { createActivity, createDeal, deleteDeal, listActivities, listDeals, updateDeal } from '@/lib/db/crm'
 import { listContacts } from '@/lib/db/contacts'
 import { listMyArtworks } from '@/lib/db/artworks'
 import {
@@ -14,13 +14,24 @@ import {
   listDealArtworks,
   updateDealArtwork,
 } from '@/lib/db/dealArtworks'
-import type { Artwork, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage } from '@/types'
+import type { Activity, ActivityType, Artwork, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
 import { useToast } from './ui/toast'
 
 const STAGES: DealStage[] = ['enquiry', 'qualified', 'proposal', 'negotiation', 'reserved', 'won', 'lost']
+// Default probability per stage. Saves the user from sliding a range
+// after every stage move; they can still override.
+const STAGE_PROBABILITY: Record<DealStage, number> = {
+  enquiry: 10,
+  qualified: 25,
+  proposal: 50,
+  negotiation: 70,
+  reserved: 90,
+  won: 100,
+  lost: 0,
+}
 const STAGE_COLOR: Record<DealStage, string> = {
   enquiry: 'bg-line text-ink-muted',
   qualified: 'bg-blue-100 text-blue-700',
@@ -267,6 +278,7 @@ export default function DealsAdmin() {
           <DealEditModal
             deal={editing}
             allArtworks={artworks}
+            allContacts={contacts}
             dealList={list}
             onNavigate={dir => {
               const idx = list.findIndex(d => d.id === editing.id)
@@ -465,12 +477,14 @@ function AddDealModal({
 function DealEditModal({
   deal,
   allArtworks,
+  allContacts,
   dealList,
   onNavigate,
   onClose,
 }: {
   deal: Deal
   allArtworks: Artwork[]
+  allContacts: Contact[]
   dealList: Deal[]
   onNavigate: (dir: 'next' | 'prev') => void
   onClose: () => void
@@ -489,11 +503,56 @@ function DealEditModal({
     for (const a of allArtworks) m.set(a.id, a)
     return m
   }, [allArtworks])
+  const contactById = useMemo(() => {
+    const m = new Map<string, Contact>()
+    for (const c of allContacts) m.set(c.id, c)
+    return m
+  }, [allContacts])
+
+  // Activity log + new-activity composer (in-drawer mini-timeline)
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [actType, setActType] = useState<ActivityType>('note')
+  const [actBody, setActBody] = useState('')
+  const [actBusy, setActBusy] = useState(false)
+
+  const customer = useMemo(
+    () => (deal.contactId ? allContacts.find(c => c.id === deal.contactId) : null),
+    [deal.contactId, allContacts]
+  )
 
   useEffect(() => {
     setD(deal)
     listDealArtworks(deal.id).then(setLines).catch(() => {})
+    listActivities(deal.ownerId, { dealId: deal.id }).then(setActivities).catch(() => {})
   }, [deal])
+
+  function setStage(stage: DealStage) {
+    setD(x => ({
+      ...x,
+      stage,
+      probability: STAGE_PROBABILITY[stage], // auto-suggest; user can still slide
+    }))
+  }
+
+  async function logActivity() {
+    if (!actBody.trim()) return
+    setActBusy(true)
+    try {
+      const a = await createActivity({
+        ownerId: deal.ownerId,
+        dealId: deal.id,
+        contactId: deal.contactId ?? null,
+        type: actType,
+        subject: null,
+        body: actBody.trim(),
+        occurredAt: new Date().toISOString(),
+      })
+      setActivities(prev => [a, ...prev])
+      setActBody('')
+    } finally {
+      setActBusy(false)
+    }
+  }
 
   // j/k navigation between deals (Artlogic-style)
   useEffect(() => {
@@ -613,11 +672,36 @@ function DealEditModal({
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-0">
           {/* Main column */}
           <div className="px-6 py-5 grid gap-4 border-r border-line">
+            {/* Customer card — most-important fact in the drawer */}
+            {customer ? (
+              <a
+                href={`/admin/contacts?focus=${customer.id}`}
+                className="block border border-line rounded-md p-3 bg-bg/40 hover:bg-bg hover:border-ink transition-colors"
+              >
+                <p className="text-meta uppercase tracking-[0.14em] text-ink-muted">Customer</p>
+                <p className="font-display text-[15px] mt-0.5">{customer.name || customer.email || '—'}</p>
+                <div className="flex items-center gap-2 mt-1 text-meta text-ink-muted">
+                  {customer.email && <span>{customer.email}</span>}
+                  {customer.country && <><span>·</span><span>{customer.country}</span></>}
+                  {customer.lifecycleStage && (
+                    <span className="ml-auto text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-line text-ink-muted">
+                      {customer.lifecycleStage}
+                    </span>
+                  )}
+                </div>
+              </a>
+            ) : (
+              <div className="border border-amber-200 bg-amber-50/40 rounded-md p-3">
+                <p className="text-meta uppercase tracking-[0.14em] text-amber-700 font-bold">No customer attached</p>
+                <p className="text-meta text-ink-muted mt-0.5">Legacy deal — link a contact in CRM to enable per-customer reporting.</p>
+              </div>
+            )}
+
             <input value={d.title} onChange={e => setD(x => ({ ...x, title: e.target.value }))} className="input font-display text-[16px]" placeholder="Deal title" />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Stage</label>
-                <select value={d.stage} onChange={e => setD(x => ({ ...x, stage: e.target.value as DealStage }))} className="input">
+                <select value={d.stage} onChange={e => setStage(e.target.value as DealStage)} className="input">
                   {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -641,6 +725,7 @@ function DealEditModal({
               subtitle="Items the buyer receives"
               lines={outLines}
               artworkById={artworkById}
+              contactById={contactById}
               onPatch={patchLine}
               onRemove={removeLine}
               onAdd={() => setPickerOpen('out')}
@@ -652,11 +737,64 @@ function DealEditModal({
               subtitle="Artworks the buyer offers in trade — reduces their cash due"
               lines={swapLines}
               artworkById={artworkById}
+              contactById={contactById}
               onPatch={patchLine}
               onRemove={removeLine}
               onAdd={() => setPickerOpen('swap_in')}
               isSwap
             />
+
+            {/* Activity timeline */}
+            <section className="border-t border-line pt-4">
+              <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
+                Activity · {activities.length}
+              </p>
+              <div className="flex items-end gap-2 mb-3">
+                <select
+                  value={actType}
+                  onChange={e => setActType(e.target.value as ActivityType)}
+                  className="input !w-auto !h-9 !py-1"
+                  aria-label="Activity type"
+                >
+                  {(['note','call','email','meeting','viewing','offer','file'] as ActivityType[]).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <input
+                  value={actBody}
+                  onChange={e => setActBody(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); logActivity() } }}
+                  placeholder="Add note, call summary, offer detail…"
+                  className="input flex-1"
+                />
+                <button
+                  onClick={logActivity}
+                  disabled={!actBody.trim() || actBusy}
+                  className="btn-primary !h-9 disabled:opacity-40"
+                >
+                  Log
+                </button>
+              </div>
+              {activities.length === 0 ? (
+                <p className="text-meta text-ink-muted">No activity logged yet.</p>
+              ) : (
+                <ul className="grid gap-2">
+                  {activities.slice(0, 15).map(a => (
+                    <li key={a.id} className="border border-line rounded-sm p-2">
+                      <div className="flex items-baseline gap-2 mb-0.5">
+                        <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-line text-ink-muted">
+                          {a.type}
+                        </span>
+                        <span className="text-meta text-ink-muted">
+                          {new Date(a.occurredAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {a.body && <p className="text-body whitespace-pre-wrap">{a.body}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
             {/* Artwork picker — modal-in-modal */}
             {pickerOpen && (
@@ -712,7 +850,10 @@ function DealEditModal({
             </div>
 
             <div className="border-t border-line pt-3">
-              <TotalRow label="Commission" value={totals.commission} muted />
+              <TotalRow label="Commission (you keep)" value={totals.commission} muted />
+              {/* Net to artists/owners = gross out − commission. Tells the seller
+                  how much they owe artists/owners across the deal. */}
+              <TotalRow label="Net to owners" value={Math.max(0, totals.grossOut - totals.commission)} muted />
               <TotalRow label="Cost basis" value={totals.costBasis} muted />
               <TotalRow label="Swap value cost" value={totals.swapInValue} muted />
             </div>
@@ -774,12 +915,13 @@ function TotalRow({
 }
 
 function DealLineSection({
-  title, subtitle, lines, artworkById, onPatch, onRemove, onAdd, isSwap,
+  title, subtitle, lines, artworkById, contactById, onPatch, onRemove, onAdd, isSwap,
 }: {
   title: string
   subtitle: string
   lines: DealArtwork[]
   artworkById: Map<string, Artwork>
+  contactById: Map<string, Contact>
   onPatch: (id: string, p: Partial<DealArtwork>) => void
   onRemove: (id: string) => void
   onAdd: () => void
@@ -810,6 +952,32 @@ function DealLineSection({
                   <div className="flex-1 min-w-0">
                     <p className="text-body font-bold truncate">{a.title}</p>
                     <p className="text-meta text-ink-muted truncate">{a.artist}{a.price != null ? ` · list € ${a.price.toLocaleString()}` : ''}</p>
+                    {/* Owner + net-to-artist hint — only meaningful on out lines with a price */}
+                    {!isSwap && (() => {
+                      const owner = a.ownerContactId ? contactById.get(a.ownerContactId) : null
+                      const price = l.agreedPrice ?? l.counterOffer ?? l.offerPrice ?? l.listPrice ?? a.price ?? 0
+                      const commission = l.commissionPct ?? a.commissionPct ?? 0
+                      const net = Math.max(0, price * (1 - commission / 100))
+                      if (!owner && price === 0) return null
+                      return (
+                        <div className="flex items-center gap-2 mt-1 text-meta text-ink-muted">
+                          {owner && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-indigo-100 text-indigo-700">
+                                Owner
+                              </span>
+                              <span>{owner.name || owner.email}</span>
+                            </span>
+                          )}
+                          {price > 0 && commission > 0 && (
+                            <span className="ml-auto">
+                              Net to owner: <span className="font-bold text-ink tabular-nums">€ {Math.round(net).toLocaleString()}</span>
+                              <span className="text-ink-muted/70"> ({(100 - commission).toFixed(0)}%)</span>
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                   <select
                     value={l.lineStatus}
