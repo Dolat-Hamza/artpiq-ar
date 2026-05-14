@@ -888,23 +888,51 @@ function ContactDetail({
 
         {/* Deals tab */}
         {tab === 'deals' && (
-          <div className="p-4">
+          <div className="p-4 grid gap-3">
+            <div className="flex items-center gap-2">
+              <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
+                Linked deals · {deals.length}
+              </p>
+              <div className="ml-auto flex gap-2">
+                <a
+                  href={`/admin/deals?new=1&contactId=${contact.id}`}
+                  className="btn-primary !h-8 text-meta"
+                  title="Create a new deal pre-filled with this contact"
+                >
+                  + New deal
+                </a>
+                <a
+                  href="/admin/deals"
+                  className="btn-outline !h-8 text-meta"
+                  title="Open the deals workspace"
+                >
+                  Open deals
+                </a>
+              </div>
+            </div>
             {!deals.length ? (
-              <p className="text-body text-ink-muted py-8 text-center">No deals linked.</p>
+              <p className="text-body text-ink-muted py-6 text-center">
+                No deals linked yet. Click <b>+ New deal</b> to start one.
+              </p>
             ) : (
               <ul className="grid gap-2">
                 {deals.map(d => (
-                  <li key={d.id} className="border border-line rounded-md p-3">
-                    <p className="font-bold text-body">{d.title}</p>
-                    <div className="flex gap-3 mt-1 text-meta text-ink-muted uppercase tracking-[0.12em]">
-                      <span>{d.stage}</span>
-                      {d.amount != null && <span>€ {d.amount.toLocaleString()}</span>}
-                      {d.expectedCloseDate && (
-                        <span className="inline-flex items-center gap-1">
-                          <Calendar size={10} /> {d.expectedCloseDate}
-                        </span>
-                      )}
-                    </div>
+                  <li key={d.id}>
+                    <a
+                      href="/admin/deals"
+                      className="block border border-line rounded-md p-3 hover:border-ink hover:shadow-sm transition-all"
+                    >
+                      <p className="font-bold text-body">{d.title}</p>
+                      <div className="flex gap-3 mt-1 text-meta text-ink-muted uppercase tracking-[0.12em]">
+                        <span>{d.stage}</span>
+                        {d.amount != null && <span>€ {d.amount.toLocaleString()}</span>}
+                        {d.expectedCloseDate && (
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar size={10} /> {d.expectedCloseDate}
+                          </span>
+                        )}
+                      </div>
+                    </a>
                   </li>
                 ))}
               </ul>
