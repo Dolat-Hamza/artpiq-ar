@@ -14,7 +14,7 @@ import {
   listDealArtworks,
   updateDealArtwork,
 } from '@/lib/db/dealArtworks'
-import type { Activity, ActivityType, Artwork, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage } from '@/types'
+import type { Activity, ActivityType, Artwork, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage, OfferRound } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
@@ -1111,11 +1111,251 @@ function DealLineSection({
                     )}
                   </div>
                 )}
+                {/* Negotiation rounds — append-only ledger of every offer */}
+                {!isSwap && (
+                  <NegotiationRounds line={l} artwork={a} onPatch={onPatch} />
+                )}
               </div>
             )
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Negotiation rounds — append-only history of offers between
+// company and client. Each round captures by/amount/sales-commission
+// at the moment it was made. Accepting a round sets agreed_price and
+// flips line status to agreed.
+// ──────────────────────────────────────────────────────────────
+function NegotiationRounds({
+  line,
+  artwork,
+  onPatch,
+}: {
+  line: DealArtwork
+  artwork: Artwork
+  onPatch: (id: string, p: Partial<DealArtwork>) => void
+}) {
+  const rounds = line.offerRounds ?? []
+  const [showForm, setShowForm] = useState(false)
+  const [by, setBy] = useState<'company' | 'client'>('company')
+  const [amount, setAmount] = useState('')
+  const [salesPct, setSalesPct] = useState('')
+  const taxPct = artwork.taxPct ?? 0
+  const ourPct = line.commissionPct ?? artwork.commissionPct ?? 0
+
+  function calc(amt: number, sCommPct: number) {
+    const taxAmt = amt * taxPct / 100
+    const ourComm = amt * ourPct / 100
+    const salesComm = amt * sCommPct / 100
+    // Owner net: gross - our cut (only meaningful for non-dealer-owned)
+    const ownerNet = Math.max(0, amt - ourComm)
+    // Dealer keep: our commission - tax - sales person commission
+    const dealerKeep = ourComm - taxAmt - salesComm
+    return { taxAmt, ourComm, salesComm, ownerNet, dealerKeep }
+  }
+
+  function addRound() {
+    if (!amount) return
+    const next: OfferRound = {
+      round: (rounds[rounds.length - 1]?.round ?? 0) + 1,
+      by,
+      amount: Number(amount),
+      salesCommissionPct: salesPct ? Number(salesPct) : null,
+      occurredAt: new Date().toISOString(),
+      note: null,
+    }
+    const updated = [...rounds, next]
+    // Snapshot the latest values to legacy fields so totals + price
+    // cascade keep working: company offers fill counterOffer, client
+    // offers fill offerPrice.
+    const patch: Partial<DealArtwork> = { offerRounds: updated }
+    if (by === 'company') patch.counterOffer = next.amount
+    else patch.offerPrice = next.amount
+    if (next.salesCommissionPct != null) {
+      // commissionPct is already used for our cut; keep sales separate
+      // by stashing on the line via... hmm, no dedicated field. We
+      // accept the limitation — sales commission per round lives only
+      // in the rounds JSON. Aggregated totals can read the last value.
+    }
+    onPatch(line.id, patch)
+    setAmount('')
+    setSalesPct('')
+    setShowForm(false)
+  }
+
+  function accept(round: OfferRound) {
+    onPatch(line.id, {
+      agreedPrice: round.amount,
+      lineStatus: 'agreed',
+    })
+  }
+
+  const accepted = line.lineStatus === 'agreed' || line.lineStatus === 'completed'
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <div className="flex items-center mb-2">
+        <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
+          Negotiation · {rounds.length} round{rounds.length === 1 ? '' : 's'}
+        </p>
+        <div className="ml-auto flex gap-1">
+          {!accepted && rounds.length > 0 && (
+            <button
+              onClick={() => accept(rounds[rounds.length - 1])}
+              className="btn-outline !h-7 text-meta !text-emerald-700 !border-emerald-300 hover:!bg-emerald-50"
+              title="Accept latest as final"
+            >
+              ✓ Accept final
+            </button>
+          )}
+          <button
+            onClick={() => { setBy('company'); setShowForm(true) }}
+            className="btn-outline !h-7 text-meta"
+          >
+            + Company offer
+          </button>
+          <button
+            onClick={() => { setBy('client'); setShowForm(true) }}
+            className="btn-outline !h-7 text-meta"
+          >
+            + Client counter
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="border border-line rounded-sm p-3 mb-2 bg-paper grid gap-2">
+          <div className="flex items-center gap-2 text-meta">
+            <span className="uppercase tracking-[0.14em] text-ink-muted">Round {(rounds[rounds.length - 1]?.round ?? 0) + 1} · </span>
+            <select
+              value={by}
+              onChange={e => setBy(e.target.value as 'company' | 'client')}
+              className="input !h-8 !w-auto !py-1"
+            >
+              <option value="company">Company → Client</option>
+              <option value="client">Client → Company</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <LineField label="Offer amount (€)">
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="input !h-8 !px-1.5 text-[11px]"
+                autoFocus
+              />
+            </LineField>
+            <LineField label="Sales commission %">
+              <input
+                type="number"
+                value={salesPct}
+                onChange={e => setSalesPct(e.target.value)}
+                className="input !h-8 !px-1.5 text-[11px]"
+                placeholder="optional"
+              />
+            </LineField>
+          </div>
+          {amount && (
+            <NegotiationCalc
+              amount={Number(amount)}
+              salesPct={Number(salesPct || 0)}
+              calc={calc(Number(amount), Number(salesPct || 0))}
+              taxPct={taxPct}
+              ourPct={ourPct}
+            />
+          )}
+          <div className="flex justify-end gap-1">
+            <button onClick={() => setShowForm(false)} className="btn-outline !h-7 text-meta">Cancel</button>
+            <button onClick={addRound} disabled={!amount} className="btn-primary !h-7 text-meta disabled:opacity-40">
+              Save round
+            </button>
+          </div>
+        </div>
+      )}
+
+      {rounds.length > 0 && (
+        <ul className="grid gap-1.5">
+          {rounds.map((r, i) => {
+            const latest = i === rounds.length - 1
+            const breakdown = calc(r.amount, r.salesCommissionPct ?? 0)
+            const isAccepted = accepted && latest
+            return (
+              <li
+                key={i}
+                className={`border rounded-sm p-2 ${
+                  isAccepted ? 'border-emerald-300 bg-emerald-50/40' : 'border-line/60 bg-bg/40'
+                }`}
+              >
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-line text-ink-muted">
+                    R{r.round}
+                  </span>
+                  <span className={`text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs ${
+                    r.by === 'company' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {r.by === 'company' ? 'Company' : 'Client'}
+                  </span>
+                  <span className="font-bold tabular-nums">€ {r.amount.toLocaleString()}</span>
+                  {r.salesCommissionPct != null && (
+                    <span className="text-meta text-ink-muted">· sales {r.salesCommissionPct}%</span>
+                  )}
+                  {isAccepted && (
+                    <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-emerald-200 text-emerald-800 ml-1">
+                      Final
+                    </span>
+                  )}
+                  <span className="ml-auto text-meta text-ink-muted">
+                    {new Date(r.occurredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <NegotiationCalc
+                  amount={r.amount}
+                  salesPct={r.salesCommissionPct ?? 0}
+                  calc={breakdown}
+                  taxPct={taxPct}
+                  ourPct={ourPct}
+                  compact
+                />
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function NegotiationCalc({
+  amount, salesPct, calc, taxPct, ourPct, compact,
+}: {
+  amount: number
+  salesPct: number
+  calc: { taxAmt: number; ourComm: number; salesComm: number; ownerNet: number; dealerKeep: number }
+  taxPct: number
+  ourPct: number
+  compact?: boolean
+}) {
+  const cells: Array<[string, string]> = [
+    ['Gross', `€ ${amount.toLocaleString()}`],
+    [`Tax ${taxPct}%`, `€ ${Math.round(calc.taxAmt).toLocaleString()}`],
+    [`Our ${ourPct}%`, `€ ${Math.round(calc.ourComm).toLocaleString()}`],
+    [`Sales ${salesPct}%`, `€ ${Math.round(calc.salesComm).toLocaleString()}`],
+    ['Owner net', `€ ${Math.round(calc.ownerNet).toLocaleString()}`],
+    ['Dealer keep', `€ ${Math.round(calc.dealerKeep).toLocaleString()}`],
+  ]
+  return (
+    <div className={`grid grid-cols-3 sm:grid-cols-6 gap-1 ${compact ? 'text-[10px]' : 'text-meta'}`}>
+      {cells.map(([k, v]) => (
+        <div key={k} className="flex flex-col">
+          <span className="uppercase tracking-[0.12em] text-ink-muted">{k}</span>
+          <span className="tabular-nums font-bold">{v}</span>
+        </div>
+      ))}
     </div>
   )
 }
