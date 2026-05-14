@@ -369,9 +369,27 @@ export type Database = {
           title: string | null
           type: string
           updated_at: string
+          campaign_id: string | null
         }
         Insert: Partial<Database["public"]["Tables"]["content_items"]["Row"]> & { owner_id: string; type: string }
         Update: Partial<Database["public"]["Tables"]["content_items"]["Row"]>
+        Relationships: []
+      }
+      campaigns: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          description: string | null
+          start_date: string | null
+          end_date: string | null
+          status: string
+          colour: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["campaigns"]["Row"]> & { owner_id: string; name: string }
+        Update: Partial<Database["public"]["Tables"]["campaigns"]["Row"]>
         Relationships: []
       }
       deals: {
