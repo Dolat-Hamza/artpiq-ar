@@ -1032,6 +1032,17 @@ function DealLineSection({
                         <option value="rent">Rent</option>
                       </select>
                     </LineField>
+                    {/* List price — snapshot of artwork price at time the line
+                        was added. Editable per-deal; defaults to artwork.price. */}
+                    <LineField label="List price (€)">
+                      <input
+                        type="number"
+                        value={l.listPrice ?? a.price ?? ''}
+                        onChange={e => onPatch(l.id, { listPrice: e.target.value ? Number(e.target.value) : null })}
+                        className="input !h-8 !px-1.5 text-[11px]"
+                        placeholder={a.price != null ? String(a.price) : '—'}
+                      />
+                    </LineField>
                     <LineField label="Customer offer (€)">
                       <input
                         type="number"
