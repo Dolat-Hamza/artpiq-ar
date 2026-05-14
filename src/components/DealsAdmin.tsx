@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Building2, Check, MessageSquareQuote, Plus, Trash2, Undo2, User, X } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createActivity, createDeal, deleteDeal, listActivities, listDeals, updateDeal } from '@/lib/db/crm'
 import { listContacts } from '@/lib/db/contacts'
@@ -1236,141 +1236,191 @@ function NegotiationRounds({
 
   return (
     <div className="border-t border-line pt-3">
-      <div className="flex items-center mb-2 flex-wrap gap-2">
-        <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
-          Negotiation · {rounds.length} round{rounds.length === 1 ? '' : 's'}
+      <div className="flex items-center mb-3 flex-wrap gap-2">
+        <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold inline-flex items-center gap-1.5">
+          <MessageSquareQuote size={12} className="text-ink-muted" />
+          Negotiation
+          {rounds.length > 0 && (
+            <span className="text-ink-muted/70">· {rounds.length} round{rounds.length === 1 ? '' : 's'}</span>
+          )}
         </p>
         <div className="ml-auto flex gap-1 flex-wrap">
           {accepted ? (
             <button
               onClick={reopen}
-              className="btn-outline !h-7 text-meta !text-amber-700 !border-amber-300 hover:!bg-amber-50"
+              className="btn-outline !h-7 text-meta !text-amber-700 !border-amber-300 hover:!bg-amber-50 inline-flex items-center gap-1"
               title="Reopen negotiation — clears agreed price, drops status back to countered"
             >
-              ← Reopen
+              <Undo2 size={11} /> Reopen
             </button>
           ) : rounds.length > 0 ? (
             <button
               onClick={() => accept(rounds[rounds.length - 1])}
-              className="btn-outline !h-7 text-meta !text-emerald-700 !border-emerald-300 hover:!bg-emerald-50"
+              className="btn-outline !h-7 text-meta !text-emerald-700 !border-emerald-300 hover:!bg-emerald-50 inline-flex items-center gap-1"
               title="Accept latest as final"
             >
-              ✓ Accept final
+              <Check size={11} /> Accept final
             </button>
           ) : null}
           <button
             onClick={() => { setBy('company'); setShowForm(true) }}
-            className="btn-outline !h-7 text-meta"
+            className="btn-outline !h-7 text-meta inline-flex items-center gap-1"
           >
-            + Company offer
+            <Building2 size={11} /> Company offer
           </button>
           <button
             onClick={() => { setBy('client'); setShowForm(true) }}
-            className="btn-outline !h-7 text-meta"
+            className="btn-outline !h-7 text-meta inline-flex items-center gap-1"
           >
-            + Client counter
+            <User size={11} /> Client counter
           </button>
         </div>
       </div>
 
       {showForm && (
-        <div className="border border-line rounded-sm p-3 mb-2 bg-paper grid gap-2">
-          <div className="flex items-center gap-2 text-meta">
-            <span className="uppercase tracking-[0.14em] text-ink-muted">Round {(rounds[rounds.length - 1]?.round ?? 0) + 1} · </span>
+        <div className="border border-line rounded-md p-4 mb-3 bg-paper grid gap-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-bg">
+              {by === 'company' ? <Building2 size={13} className="text-indigo-700" /> : <User size={13} className="text-amber-700" />}
+            </span>
             <select
               value={by}
               onChange={e => setBy(e.target.value as 'company' | 'client')}
-              className="input !h-8 !w-auto !py-1"
+              className="input !h-8 !w-auto !py-1 font-bold"
             >
               <option value="company">Company → Client</option>
               <option value="client">Client → Company</option>
             </select>
+            <span className="ml-auto text-meta uppercase tracking-[0.14em] text-ink-muted">
+              Round {(rounds[rounds.length - 1]?.round ?? 0) + 1}
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <LineField label="Offer amount (€)">
+          {/* Amount as the hero input */}
+          <div>
+            <label className="block text-[10px] tracking-[0.16em] uppercase text-ink-muted mb-1">Offer amount</label>
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[22px] text-ink-muted">€</span>
               <input
                 type="number"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className="input !h-8 !px-1.5 text-[11px]"
+                className="input !h-12 !text-[22px] font-display tabular-nums flex-1"
                 autoFocus
+                placeholder="0"
               />
-            </LineField>
-            <LineField label="Sales commission %">
-              <input
-                type="number"
-                value={salesPct}
-                onChange={e => setSalesPct(e.target.value)}
-                className="input !h-8 !px-1.5 text-[11px]"
-                placeholder="optional"
-              />
-            </LineField>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={salesPct}
+                  onChange={e => setSalesPct(e.target.value)}
+                  className="input !h-12 !w-20 !text-[14px] text-center"
+                  placeholder="0"
+                />
+                <span className="text-meta uppercase tracking-[0.12em] text-ink-muted">% sales</span>
+              </div>
+            </div>
           </div>
           {amount && (
-            <NegotiationCalc
-              amount={Number(amount)}
-              salesPct={Number(salesPct || 0)}
-              calc={calc(Number(amount), Number(salesPct || 0))}
-              taxPct={taxPct}
-              ourPct={ourPct}
-            />
+            <div className="border-t border-line/60 pt-2">
+              <NegotiationCalc
+                amount={Number(amount)}
+                salesPct={Number(salesPct || 0)}
+                calc={calc(Number(amount), Number(salesPct || 0))}
+                taxPct={taxPct}
+                ourPct={ourPct}
+              />
+            </div>
           )}
-          <div className="flex justify-end gap-1">
-            <button onClick={() => setShowForm(false)} className="btn-outline !h-7 text-meta">Cancel</button>
-            <button onClick={addRound} disabled={!amount} className="btn-primary !h-7 text-meta disabled:opacity-40">
-              Save round
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowForm(false)} className="btn-outline !h-8 text-meta">Cancel</button>
+            <button
+              onClick={addRound}
+              disabled={!amount}
+              className="btn-primary !h-8 disabled:opacity-40 inline-flex items-center gap-1"
+            >
+              <Check size={12} /> Save round
             </button>
           </div>
         </div>
       )}
 
+      {rounds.length === 0 && !showForm && (
+        <div className="border border-dashed border-line rounded-md p-5 text-center bg-bg/30">
+          <MessageSquareQuote size={20} className="mx-auto text-ink-muted/60 mb-2" />
+          <p className="text-meta text-ink-muted">
+            No offers yet. Start with <b className="text-ink">Company offer</b> or capture an incoming <b className="text-ink">Client counter</b>.
+          </p>
+        </div>
+      )}
+
       {rounds.length > 0 && (
-        <ul className="grid gap-1.5">
+        <ol className="relative">
+          {/* Vertical connector line */}
+          <span className="absolute left-3.5 top-3 bottom-3 w-px bg-line" aria-hidden />
           {rounds.map((r, i) => {
             const latest = i === rounds.length - 1
             const breakdown = calc(r.amount, r.salesCommissionPct ?? 0)
             const isAccepted = accepted && latest
+            const Icon = r.by === 'company' ? Building2 : User
+            const dot = isAccepted
+              ? 'bg-emerald-500 ring-emerald-100'
+              : r.by === 'company'
+              ? 'bg-indigo-500 ring-indigo-100'
+              : 'bg-amber-500 ring-amber-100'
             return (
               <li
                 key={i}
-                className={`border rounded-sm p-2 ${
-                  isAccepted ? 'border-emerald-300 bg-emerald-50/40' : 'border-line/60 bg-bg/40'
-                }`}
+                className="relative pl-9 pb-3 last:pb-0"
               >
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-line text-ink-muted">
-                    R{r.round}
-                  </span>
-                  <span className={`text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs ${
-                    r.by === 'company' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {r.by === 'company' ? 'Company' : 'Client'}
-                  </span>
-                  <span className="font-bold tabular-nums">€ {r.amount.toLocaleString()}</span>
-                  {r.salesCommissionPct != null && (
-                    <span className="text-meta text-ink-muted">· sales {r.salesCommissionPct}%</span>
-                  )}
-                  {isAccepted && (
-                    <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-emerald-200 text-emerald-800 ml-1">
-                      Final
+                {/* Marker */}
+                <span
+                  className={`absolute left-1.5 top-2.5 w-4 h-4 rounded-full ring-4 ${dot} grid place-items-center`}
+                  aria-hidden
+                >
+                  <Icon size={9} className="text-paper" />
+                </span>
+                <div
+                  className={`rounded-md p-3 border ${
+                    isAccepted ? 'border-emerald-300 bg-emerald-50/50' : 'border-line bg-paper'
+                  }`}
+                >
+                  <div className="flex items-baseline gap-2 flex-wrap mb-1.5">
+                    <span className="text-[9px] tracking-[0.14em] uppercase font-bold text-ink-muted">
+                      R{r.round}
                     </span>
-                  )}
-                  <span className="ml-auto text-meta text-ink-muted">
-                    {new Date(r.occurredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </span>
+                    <span className={`text-[9px] tracking-[0.14em] uppercase font-bold ${
+                      r.by === 'company' ? 'text-indigo-700' : 'text-amber-700'
+                    }`}>
+                      {r.by === 'company' ? 'Company' : 'Client'}
+                    </span>
+                    <span className="font-display text-[15px] font-bold tabular-nums ml-1">
+                      € {r.amount.toLocaleString()}
+                    </span>
+                    {r.salesCommissionPct != null && (
+                      <span className="text-meta text-ink-muted">sales {r.salesCommissionPct}%</span>
+                    )}
+                    {isAccepted && (
+                      <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-emerald-200 text-emerald-800">
+                        ✓ Final
+                      </span>
+                    )}
+                    <span className="ml-auto text-meta text-ink-muted">
+                      {new Date(r.occurredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </span>
+                  </div>
+                  <NegotiationCalc
+                    amount={r.amount}
+                    salesPct={r.salesCommissionPct ?? 0}
+                    calc={breakdown}
+                    taxPct={taxPct}
+                    ourPct={ourPct}
+                    compact
+                  />
                 </div>
-                <NegotiationCalc
-                  amount={r.amount}
-                  salesPct={r.salesCommissionPct ?? 0}
-                  calc={breakdown}
-                  taxPct={taxPct}
-                  ourPct={ourPct}
-                  compact
-                />
               </li>
             )
           })}
-        </ul>
+        </ol>
       )}
     </div>
   )
@@ -1386,20 +1436,27 @@ function NegotiationCalc({
   ourPct: number
   compact?: boolean
 }) {
-  const cells: Array<[string, string]> = [
-    ['Gross', `€ ${amount.toLocaleString()}`],
-    [`Tax ${taxPct}%`, `€ ${Math.round(calc.taxAmt).toLocaleString()}`],
-    [`Our ${ourPct}%`, `€ ${Math.round(calc.ourComm).toLocaleString()}`],
-    [`Sales ${salesPct}%`, `€ ${Math.round(calc.salesComm).toLocaleString()}`],
-    ['Owner net', `€ ${Math.round(calc.ownerNet).toLocaleString()}`],
-    ['Dealer keep', `€ ${Math.round(calc.dealerKeep).toLocaleString()}`],
+  const cells: Array<{ k: string; v: string; tone?: 'pos' | 'neg' | 'mute' }> = [
+    { k: 'Gross', v: `€ ${amount.toLocaleString()}` },
+    { k: `Tax ${taxPct}%`, v: `€ ${Math.round(calc.taxAmt).toLocaleString()}`, tone: 'mute' },
+    { k: `Our ${ourPct}%`, v: `€ ${Math.round(calc.ourComm).toLocaleString()}` },
+    { k: `Sales ${salesPct}%`, v: `€ ${Math.round(calc.salesComm).toLocaleString()}`, tone: 'mute' },
+    { k: 'Owner net', v: `€ ${Math.round(calc.ownerNet).toLocaleString()}` },
+    { k: 'Dealer keep', v: `€ ${Math.round(calc.dealerKeep).toLocaleString()}`, tone: calc.dealerKeep >= 0 ? 'pos' : 'neg' },
   ]
   return (
-    <div className={`grid grid-cols-3 sm:grid-cols-6 gap-1 ${compact ? 'text-[10px]' : 'text-meta'}`}>
-      {cells.map(([k, v]) => (
-        <div key={k} className="flex flex-col">
-          <span className="uppercase tracking-[0.12em] text-ink-muted">{k}</span>
-          <span className="tabular-nums font-bold">{v}</span>
+    <div className={`grid grid-cols-3 sm:grid-cols-6 gap-x-3 gap-y-1 ${compact ? 'text-[10px]' : 'text-meta'}`}>
+      {cells.map(({ k, v, tone }) => (
+        <div key={k} className="flex flex-col min-w-0">
+          <span className="uppercase tracking-[0.12em] text-ink-muted truncate">{k}</span>
+          <span className={`tabular-nums font-bold truncate ${
+            tone === 'pos' ? 'text-emerald-700'
+            : tone === 'neg' ? 'text-red-600'
+            : tone === 'mute' ? 'text-ink-muted'
+            : 'text-ink'
+          }`}>
+            {v}
+          </span>
         </div>
       ))}
     </div>
