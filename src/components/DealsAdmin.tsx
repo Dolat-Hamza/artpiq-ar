@@ -649,7 +649,7 @@ function DealEditModal({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        className="fixed top-0 right-0 z-50 h-dvh w-full max-w-[760px] bg-paper shadow-pop overflow-y-auto"
+        className="fixed top-0 right-0 z-50 h-dvh w-full max-w-[960px] bg-paper shadow-pop overflow-y-auto"
       >
         <header className="sticky top-0 z-10 bg-paper border-b border-line px-6 h-14 flex items-center gap-3">
           <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Deal</h2>
@@ -956,8 +956,8 @@ function DealLineSection({
   isSwap?: boolean
 }) {
   return (
-    <div className="border border-line rounded-md p-4">
-      <div className="flex items-baseline justify-between mb-3">
+    <div className="bg-bg/40 border border-line rounded-md p-5 grid gap-3">
+      <div className="flex items-baseline justify-between">
         <div>
           <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">{title}</p>
           <p className="text-meta text-ink-muted">{subtitle}</p>
@@ -974,9 +974,9 @@ function DealLineSection({
             const a = artworkById.get(l.artworkId)
             if (!a) return null
             return (
-              <div key={l.id} className="border border-line/60 rounded-sm p-3 bg-bg/40">
-                <div className="flex items-start gap-3 mb-2">
-                  {a.thumb && <img src={a.thumb} alt="" className="w-12 h-12 object-cover rounded-xs shrink-0" />}
+              <div key={l.id} className="border border-line rounded-md p-4 bg-paper grid gap-3">
+                <div className="flex items-start gap-3">
+                  {a.thumb && <img src={a.thumb} alt="" className="w-14 h-14 object-cover rounded-sm shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <p className="text-body font-bold truncate">{a.title}</p>
                     <p className="text-meta text-ink-muted truncate">{a.artist}{a.price != null ? ` · list € ${a.price.toLocaleString()}` : ''}</p>
@@ -1055,30 +1055,6 @@ function DealLineSection({
                         onChange={e => onPatch(l.id, { listPrice: e.target.value ? Number(e.target.value) : null })}
                         className="input !h-8 !px-1.5 text-[11px]"
                         placeholder={a.price != null ? String(a.price) : '—'}
-                      />
-                    </LineField>
-                    <LineField label="Customer offer (€)">
-                      <input
-                        type="number"
-                        value={l.offerPrice ?? ''}
-                        onChange={e => onPatch(l.id, { offerPrice: e.target.value ? Number(e.target.value) : null })}
-                        className="input !h-8 !px-1.5 text-[11px]"
-                      />
-                    </LineField>
-                    <LineField label="Company offer (€)">
-                      <input
-                        type="number"
-                        value={l.counterOffer ?? ''}
-                        onChange={e => onPatch(l.id, { counterOffer: e.target.value ? Number(e.target.value) : null })}
-                        className="input !h-8 !px-1.5 text-[11px]"
-                      />
-                    </LineField>
-                    <LineField label="Agreed (€)">
-                      <input
-                        type="number"
-                        value={l.agreedPrice ?? ''}
-                        onChange={e => onPatch(l.id, { agreedPrice: e.target.value ? Number(e.target.value) : null })}
-                        className="input !h-8 !px-1.5 text-[11px]"
                       />
                     </LineField>
                     <LineField label="Comm %">
@@ -1197,12 +1173,12 @@ function NegotiationRounds({
   const accepted = line.lineStatus === 'agreed' || line.lineStatus === 'completed'
 
   return (
-    <div className="mt-3 border-t border-line pt-3">
-      <div className="flex items-center mb-2">
+    <div className="border-t border-line pt-3">
+      <div className="flex items-center mb-2 flex-wrap gap-2">
         <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
           Negotiation · {rounds.length} round{rounds.length === 1 ? '' : 's'}
         </p>
-        <div className="ml-auto flex gap-1">
+        <div className="ml-auto flex gap-1 flex-wrap">
           {!accepted && rounds.length > 0 && (
             <button
               onClick={() => accept(rounds[rounds.length - 1])}
