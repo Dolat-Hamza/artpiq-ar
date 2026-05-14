@@ -43,6 +43,11 @@ export function rowToArtwork(r: Row): Artwork {
     contactPhone: r.contact_phone ?? undefined,
     ownerContactId: r.owner_contact_id ?? null,
     costBasis: r.cost_basis == null ? null : Number(r.cost_basis),
+    ownershipStatus: (r.ownership_status as Artwork['ownershipStatus']) ?? null,
+    purchaseDate: r.purchase_date ?? null,
+    soldPrice: r.sold_price == null ? null : Number(r.sold_price),
+    taxPct: r.tax_pct == null ? null : Number(r.tax_pct),
+    salesCommissionPct: r.sales_commission_pct == null ? null : Number(r.sales_commission_pct),
   }
 }
 
@@ -85,6 +90,11 @@ export function artworkToRow(a: Artwork, ownerId: string | null): Insert {
     contact_phone: a.contactPhone ?? null,
     owner_contact_id: a.ownerContactId ?? null,
     cost_basis: a.costBasis ?? null,
+    ownership_status: a.ownershipStatus ?? null,
+    purchase_date: a.purchaseDate ?? null,
+    sold_price: a.soldPrice ?? null,
+    tax_pct: a.taxPct ?? null,
+    sales_commission_pct: a.salesCommissionPct ?? null,
   }
 }
 

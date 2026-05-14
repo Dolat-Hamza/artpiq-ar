@@ -194,6 +194,11 @@ export type Database = {
           width_cm: number
           wiki_title: string | null
           year: string | null
+          ownership_status: string | null
+          purchase_date: string | null
+          sold_price: number | null
+          tax_pct: number | null
+          sales_commission_pct: number | null
         }
         Insert: Partial<Database["public"]["Tables"]["artworks"]["Row"]> & { id?: string; title: string; width_cm: number; height_cm: number }
         Update: Partial<Database["public"]["Tables"]["artworks"]["Row"]>

@@ -41,8 +41,22 @@ export interface Artwork {
   contactPhone?: string
   // Art-market additions
   ownerContactId?: string | null  // artist/collector/gallery contact who owns it
-  costBasis?: number | null       // gallery's cost (for margin calculations)
+  costBasis?: number | null       // gallery's cost (alias: dealer purchase price)
+  // Three-way ownership model:
+  //   dealer    -> the account holder owns it; full economics tracked
+  //   artist    -> owned by an artist contact (commission split)
+  //   collector -> owned by a collector / gallery contact (consignment)
+  ownershipStatus?: 'dealer' | 'artist' | 'collector' | null
+  purchaseDate?: string | null      // when the dealer/consigner acquired it
+  soldPrice?: number | null         // final realized sale price
+  taxPct?: number | null            // VAT / sales tax rate %
+  // Collector / gallery consignment split — separate from commissionPct
+  // (which doubles as "our commission %" for consignments and the
+  // sales-person % for dealer-owned stock).
+  salesCommissionPct?: number | null
 }
+
+export type ArtworkOwnershipStatus = 'dealer' | 'artist' | 'collector'
 
 export type ArtworkStatus =
   | 'for_sale'

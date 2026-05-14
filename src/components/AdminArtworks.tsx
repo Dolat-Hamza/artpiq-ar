@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ARTWORK_STATUSES, Artwork, ArtworkStatus, Collection } from '@/types'
+import { ARTWORK_STATUSES, Artwork, ArtworkOwnershipStatus, ArtworkStatus, Collection } from '@/types'
 import {
   artworksToCsv,
   duplicateArtwork,
@@ -689,55 +689,9 @@ function EditorDrawer({
                 className="input"
               />
             </Field>
-            <Field label="Commission %">
-              <input
-                type="number"
-                step="0.1"
-                value={aw.commissionPct ?? ''}
-                onChange={e =>
-                  set('commissionPct', e.target.value ? Number(e.target.value) : undefined)
-                }
-                className="input"
-              />
-            </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Cost basis (€)">
-              <input
-                type="number"
-                step="1"
-                value={aw.costBasis ?? ''}
-                onChange={e => set('costBasis', e.target.value ? Number(e.target.value) : null)}
-                placeholder="Gallery cost — for margin calc"
-                className="input"
-              />
-            </Field>
-            <Field label="Owner (artist / collector / gallery)">
-              <select
-                value={aw.ownerContactId ?? ''}
-                onChange={e => set('ownerContactId', e.target.value || null)}
-                className="input"
-              >
-                <option value="">— none —</option>
-                {ownerOptions.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name || c.email || '—'}{c.isArtist ? ' (artist)' : ''}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <Field label="Tax amount">
-            <input
-              type="number"
-              step="0.01"
-              value={aw.taxAmount ?? ''}
-              onChange={e =>
-                set('taxAmount', e.target.value ? Number(e.target.value) : undefined)
-              }
-              className="input"
-            />
-          </Field>
+          {/* Ownership panel — conditional fields per ownership_status */}
+          <OwnershipPanel aw={aw} set={set} ownerOptions={ownerOptions} />
           <div className="border-t border-line pt-3 mt-1">
             <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted mb-2">
               Location
@@ -948,6 +902,208 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="block text-[11px] tracking-[0.16em] uppercase text-ink-muted mb-1">{label}</span>
       {children}
     </label>
+  )
+}
+
+// Read-only calc cell so calculated economics line up with input fields.
+function CalcField({ label, value, currency = '€', hint }: { label: string; value: number; currency?: string; hint?: string }) {
+  return (
+    <div>
+      <span className="block text-[11px] tracking-[0.16em] uppercase text-ink-muted mb-1">{label}</span>
+      <div className="input flex items-center justify-between bg-bg cursor-default select-text">
+        <span className="tabular-nums font-bold">{currency} {Math.round(value).toLocaleString()}</span>
+        {hint && <span className="text-meta text-ink-muted">{hint}</span>}
+      </div>
+    </div>
+  )
+}
+
+// Ownership-aware field panel.
+//   dealer    — purchase + sale + tax + sales commission + profit
+//   artist    — list/sold/tax/our commission/sales commission/artist profit
+//   collector — purchase + list/sold/tax/our commission/sales commission
+function OwnershipPanel({
+  aw,
+  set,
+  ownerOptions,
+}: {
+  aw: Artwork
+  set: <K extends keyof Artwork>(k: K, v: Artwork[K]) => void
+  ownerOptions: { id: string; name: string | null; email: string | null; isArtist?: boolean }[]
+}) {
+  const status: ArtworkOwnershipStatus = (aw.ownershipStatus as ArtworkOwnershipStatus) ?? 'dealer'
+
+  // Centralised economic calculations. All percentages applied to sold price.
+  const sold = Number(aw.soldPrice ?? 0)
+  const purchase = Number(aw.costBasis ?? 0)
+  const taxPct = Number(aw.taxPct ?? 0)
+  const ourPct = Number(aw.commissionPct ?? 0)
+  const salesPct = Number(aw.salesCommissionPct ?? 0)
+  const taxAmount = sold > 0 && taxPct > 0 ? sold * taxPct / 100 : 0
+  const ourCommission = sold > 0 && ourPct > 0 ? sold * ourPct / 100 : 0
+  const salesCommission = sold > 0 && salesPct > 0 ? sold * salesPct / 100 : 0
+  // Dealer profit: keep gross minus what's paid out (tax + sales person commission) minus purchase.
+  const dealerProfit = sold - purchase - taxAmount - salesCommission
+  const dealerProfitPct = purchase > 0 ? (dealerProfit / purchase) * 100 : 0
+  // Artist's take after dealer's cut + tax + sales commission.
+  const artistProfit = sold - taxAmount - ourCommission - salesCommission
+
+  // Restrict owner-contact picker depending on ownership type.
+  const ownerOptionsForRole = status === 'artist'
+    ? ownerOptions.filter(o => o.isArtist)
+    : ownerOptions.filter(o => !o.isArtist)
+
+  return (
+    <div className="border border-line rounded-md p-4 grid gap-3">
+      <div className="flex items-baseline gap-3">
+        <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted font-bold">Ownership</p>
+      </div>
+      <Field label="Ownership status">
+        <select
+          value={status}
+          onChange={e => {
+            const next = e.target.value as ArtworkOwnershipStatus
+            set('ownershipStatus', next)
+            // When switching to dealer, drop the owner contact.
+            if (next === 'dealer') set('ownerContactId', null)
+          }}
+          className="input"
+        >
+          <option value="dealer">Owned by Dealer / Company (us)</option>
+          <option value="artist">Owned by Artist</option>
+          <option value="collector">Owned by Collector / Gallery</option>
+        </select>
+      </Field>
+
+      {status !== 'dealer' && (
+        <Field label={status === 'artist' ? 'Artist contact' : 'Collector / gallery contact'}>
+          <select
+            value={aw.ownerContactId ?? ''}
+            onChange={e => set('ownerContactId', e.target.value || null)}
+            className="input"
+          >
+            <option value="">— none —</option>
+            {ownerOptionsForRole.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name || c.email || '—'}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
+      {/* Purchase block — dealer + collector only */}
+      {status !== 'artist' && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Purchase price (€)">
+            <input
+              type="number"
+              value={aw.costBasis ?? ''}
+              onChange={e => set('costBasis', e.target.value ? Number(e.target.value) : null)}
+              className="input"
+            />
+          </Field>
+          <Field label="Purchase date">
+            <input
+              type="date"
+              value={aw.purchaseDate ?? ''}
+              onChange={e => set('purchaseDate', e.target.value || null)}
+              className="input"
+            />
+          </Field>
+        </div>
+      )}
+
+      {/* Sale block — always shown */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="List price (€)">
+          <input
+            type="number"
+            value={aw.price ?? ''}
+            onChange={e => set('price', e.target.value ? Number(e.target.value) : undefined)}
+            className="input"
+          />
+        </Field>
+        <Field label="Sold price (€)">
+          <input
+            type="number"
+            value={aw.soldPrice ?? ''}
+            onChange={e => set('soldPrice', e.target.value ? Number(e.target.value) : null)}
+            className="input"
+          />
+        </Field>
+      </div>
+
+      {/* Tax */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Tax %">
+          <input
+            type="number"
+            step="0.1"
+            value={aw.taxPct ?? ''}
+            onChange={e => set('taxPct', e.target.value ? Number(e.target.value) : null)}
+            className="input"
+          />
+        </Field>
+        <CalcField label="Tax amount" value={taxAmount} hint={taxPct ? `${taxPct}% of sold` : undefined} />
+      </div>
+
+      {/* Commission split */}
+      {status === 'dealer' ? (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Sales person commission %">
+            <input
+              type="number"
+              step="0.1"
+              value={aw.salesCommissionPct ?? aw.commissionPct ?? ''}
+              onChange={e => set('salesCommissionPct', e.target.value ? Number(e.target.value) : null)}
+              className="input"
+            />
+          </Field>
+          <CalcField label="Sales person commission (€)" value={salesCommission} />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Our commission %">
+              <input
+                type="number"
+                step="0.1"
+                value={aw.commissionPct ?? ''}
+                onChange={e => set('commissionPct', e.target.value ? Number(e.target.value) : undefined)}
+                className="input"
+              />
+            </Field>
+            <CalcField label="Our commission (€)" value={ourCommission} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Sales person commission %">
+              <input
+                type="number"
+                step="0.1"
+                value={aw.salesCommissionPct ?? ''}
+                onChange={e => set('salesCommissionPct', e.target.value ? Number(e.target.value) : null)}
+                className="input"
+              />
+            </Field>
+            <CalcField label="Sales person commission (€)" value={salesCommission} />
+          </div>
+        </>
+      )}
+
+      {/* Profit row(s) */}
+      {status === 'dealer' && (
+        <div className="grid grid-cols-2 gap-3 border-t border-line pt-3">
+          <CalcField label="Profit (€)" value={dealerProfit} />
+          <CalcField label="Profit %" value={dealerProfitPct} currency="" hint="of purchase" />
+        </div>
+      )}
+      {status === 'artist' && (
+        <div className="border-t border-line pt-3">
+          <CalcField label="Artist profit (€)" value={artistProfit} hint="after tax + commissions" />
+        </div>
+      )}
+    </div>
   )
 }
 
