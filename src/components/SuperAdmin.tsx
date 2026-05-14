@@ -77,12 +77,20 @@ export default function SuperAdmin() {
         authedFetch('/api/superadmin/users'),
         authedFetch('/api/superadmin/admins'),
       ])
-      if (!u.ok) throw new Error((await u.json()).error || 'users failed')
-      if (!a.ok) throw new Error((await a.json()).error || 'admins failed')
-      const uJson = await u.json()
-      const aJson = await a.json()
-      setUsers(uJson.users || [])
-      setAdmins(aJson.admins || [])
+      const uText = await u.text()
+      const aText = await a.text()
+      if (!u.ok) {
+        let msg = `users ${u.status}`
+        try { msg = JSON.parse(uText).error || msg } catch {}
+        throw new Error(`Users API: ${msg}. Likely SUPABASE_SERVICE_ROLE_KEY missing on Vercel.`)
+      }
+      if (!a.ok) {
+        let msg = `admins ${a.status}`
+        try { msg = JSON.parse(aText).error || msg } catch {}
+        throw new Error(`Admins API: ${msg}`)
+      }
+      setUsers(JSON.parse(uText).users || [])
+      setAdmins(JSON.parse(aText).admins || [])
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
