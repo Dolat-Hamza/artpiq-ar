@@ -81,7 +81,10 @@ export default function SocialCalendar() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<ContentItem[]>([])
   const [busy, setBusy] = useState(false)
-  const [view, setView] = useState<'calendar' | 'kanban' | 'list'>('calendar')
+  const [view, setView] = useState<'platforms' | 'calendar' | 'kanban' | 'list'>('platforms')
+  // Filters layered on top of every view
+  const [filterType, setFilterType] = useState<ContentType | 'all'>('all')
+  const [filterStatus, setFilterStatus] = useState<ContentStatus | 'all'>('all')
   const [cursor, setCursor] = useState<Date>(startOfMonth(new Date()))
   const [editing, setEditing] = useState<ContentItem | null>(null)
   const [composing, setComposing] = useState<{ type: ContentType; date?: Date } | null>(null)
@@ -144,6 +147,12 @@ export default function SocialCalendar() {
     return acc
   }, {} as Record<ContentStatus, number>)
 
+  const filteredList = list.filter(c => {
+    if (filterType !== 'all' && c.type !== filterType) return false
+    if (filterStatus !== 'all' && c.status !== filterStatus) return false
+    return true
+  })
+
   return (
     <div className="min-h-dvh bg-bg text-ink">
       <AdminPageHeader
@@ -151,7 +160,7 @@ export default function SocialCalendar() {
         actions={
           <>
             <div className="hidden md:inline-flex items-center gap-1 mr-2">
-              {(['calendar', 'kanban', 'list'] as const).map(v => (
+              {(['platforms', 'calendar', 'kanban', 'list'] as const).map(v => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -208,21 +217,64 @@ export default function SocialCalendar() {
         }
       />
 
-      <main className="px-6 md:px-10 py-6">
+      <main className="px-6 md:px-10 py-6 grid gap-4">
+        {/* Filter bar — applies to every view */}
+        <div className="bg-paper border border-line rounded-md px-4 py-2 flex items-center gap-3 flex-wrap text-meta">
+          <span className="uppercase tracking-[0.14em] text-ink-muted">Filter:</span>
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value as ContentType | 'all')}
+            className="input !w-auto !h-8 !py-1"
+            aria-label="Filter by type"
+          >
+            <option value="all">All types</option>
+            {(['post', 'reel', 'story', 'blog', 'newsletter', 'event_promo'] as ContentType[]).map(t => (
+              <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+            ))}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value as ContentStatus | 'all')}
+            className="input !w-auto !h-8 !py-1"
+            aria-label="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            {(['draft','in_progress','submitted_for_review','changes_requested','approved','scheduled','published','archived'] as ContentStatus[]).map(s => (
+              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+            ))}
+          </select>
+          {(filterType !== 'all' || filterStatus !== 'all') && (
+            <button
+              onClick={() => { setFilterType('all'); setFilterStatus('all') }}
+              className="text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink underline"
+            >
+              Clear
+            </button>
+          )}
+          <span className="ml-auto text-ink-muted">{filteredList.length} of {list.length}</span>
+        </div>
+
+        {view === 'platforms' && (
+          <PlatformView
+            items={filteredList}
+            onItemClick={item => setEditing(item)}
+            onNew={type => setComposing({ type })}
+          />
+        )}
         {view === 'calendar' && (
           <CalendarView
             cursor={cursor}
             setCursor={setCursor}
-            items={list}
+            items={filteredList}
             onCellClick={(date, type) => setComposing({ type, date })}
             onItemClick={item => setEditing(item)}
           />
         )}
         {view === 'kanban' && (
-          <KanbanView items={list} onItemClick={item => setEditing(item)} onStatus={quickStatus} />
+          <KanbanView items={filteredList} onItemClick={item => setEditing(item)} onStatus={quickStatus} />
         )}
         {view === 'list' && (
-          <ListView items={list} onItemClick={item => setEditing(item)} onDelete={remove} />
+          <ListView items={filteredList} onItemClick={item => setEditing(item)} onDelete={remove} />
         )}
       </main>
 
@@ -372,6 +424,96 @@ function CalendarView({
         })}
       </div>
     </section>
+  )
+}
+
+// ============================================================
+// Platforms view — DEFAULT: posts grouped by source (each platform,
+// Blog, Newsletter, Events). Reads like a publication board: one
+// column per channel, scannable images + status at a glance.
+// ============================================================
+const PLATFORM_GROUPS: { id: string; label: string; matches: (c: ContentItem) => boolean }[] = [
+  { id: 'instagram', label: 'Instagram', matches: c => c.platform === 'instagram' },
+  { id: 'tiktok',    label: 'TikTok',    matches: c => c.platform === 'tiktok' },
+  { id: 'facebook',  label: 'Facebook',  matches: c => c.platform === 'facebook' },
+  { id: 'x',         label: 'X',         matches: c => c.platform === 'x' },
+  { id: 'linkedin',  label: 'LinkedIn',  matches: c => c.platform === 'linkedin' },
+  { id: 'youtube',   label: 'YouTube',   matches: c => c.platform === 'youtube' },
+  { id: 'pinterest', label: 'Pinterest', matches: c => c.platform === 'pinterest' },
+  { id: 'threads',   label: 'Threads',   matches: c => c.platform === 'threads' },
+  { id: 'blog',      label: 'Blog',      matches: c => c.type === 'blog' && !c.platform },
+  { id: 'newsletter', label: 'Newsletter', matches: c => c.type === 'newsletter' && !c.platform },
+  { id: 'events',    label: 'Events',    matches: c => c.type === 'event_promo' && !c.platform },
+  { id: 'unassigned', label: 'Unassigned', matches: c =>
+      !c.platform && c.type !== 'blog' && c.type !== 'newsletter' && c.type !== 'event_promo' },
+]
+
+function PlatformView({
+  items,
+  onItemClick,
+  onNew,
+}: {
+  items: ContentItem[]
+  onItemClick: (item: ContentItem) => void
+  onNew: (type: ContentType) => void
+}) {
+  const groups = PLATFORM_GROUPS.map(g => ({ ...g, items: items.filter(g.matches) })).filter(g => g.items.length > 0)
+  if (groups.length === 0) {
+    return (
+      <div className="bg-paper border border-line rounded-md p-8 text-center">
+        <p className="text-body text-ink-muted">No content matches the current filter.</p>
+        <button onClick={() => onNew('post')} className="btn-primary mt-3">
+          <Plus size={14} strokeWidth={2.5} /> New post
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      {groups.map(g => (
+        <section key={g.id} className="bg-paper border border-line rounded-md p-3 min-h-[240px]">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-display text-meta uppercase tracking-[0.14em]">{g.label}</p>
+            <span className="text-meta tracking-[0.14em] text-ink-muted">{g.items.length}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {g.items
+              .slice()
+              .sort((a, b) => (b.scheduledAt ?? '').localeCompare(a.scheduledAt ?? ''))
+              .map(c => (
+                <article
+                  key={c.id}
+                  onClick={() => onItemClick(c)}
+                  className="border border-line rounded-sm p-2 bg-paper hover:border-ink hover:shadow-sm transition-all cursor-pointer"
+                >
+                  <div className="flex items-start gap-2">
+                    {c.coverUrl && (
+                      <img
+                        src={c.coverUrl}
+                        alt=""
+                        className="w-12 h-12 object-cover border border-line/60 rounded-xs shrink-0 bg-bg"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-body font-bold truncate">{c.title || <span className="text-ink-muted italic">(untitled)</span>}</p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`text-[9px] tracking-[0.12em] uppercase font-bold px-1.5 py-0.5 rounded-xs ${STATUS_COLOR[c.status] ?? 'bg-line text-ink-muted'}`}>
+                          {STATUS_LABEL[c.status] ?? c.status}
+                        </span>
+                        {c.scheduledAt && (
+                          <span className="text-meta text-ink-muted">
+                            {new Date(c.scheduledAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+          </div>
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -893,8 +1035,8 @@ function ComposerModal({
             </Field>
           </fieldset>
 
-          {/* Matrix — Thomas's framework fields */}
-          <fieldset className="border border-line rounded-md p-4 grid gap-3">
+          {/* Matrix — moved to end per Thomas: image, title, hashtags come first */}
+          <fieldset data-matrix-fieldset className="border border-line rounded-md p-4 grid gap-3 order-last">
             <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">
               Matrix
             </legend>
@@ -1070,18 +1212,67 @@ function ComposerModal({
             </Field>
           )}
 
-          {/* Cover image URL */}
-          <Field label="Cover image URL">
-            <input
-              value={item.coverUrl ?? ''}
-              onChange={e => set('coverUrl', e.target.value)}
-              placeholder="https://…"
-              className="input"
-            />
-          </Field>
-          {item.coverUrl && (
-            <img src={item.coverUrl} alt="cover" className="max-h-48 object-cover border border-line rounded-sm" />
-          )}
+          {/* Cover image + gallery */}
+          <fieldset className="border border-line rounded-md p-4 grid gap-3">
+            <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">Images</legend>
+            <Field label="Cover image URL">
+              <input
+                value={item.coverUrl ?? ''}
+                onChange={e => set('coverUrl', e.target.value)}
+                placeholder="https://…"
+                className="input"
+              />
+            </Field>
+            {item.coverUrl && (
+              <img src={item.coverUrl} alt="cover" className="max-h-48 object-cover border border-line rounded-sm" />
+            )}
+            {/* Gallery — additional images for approval; reviewer picks the one to publish */}
+            <div>
+              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">
+                Variant images for approval ({(item.mediaUrls ?? []).length})
+              </label>
+              <div className="grid gap-2">
+                {(item.mediaUrls ?? []).map((url, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <img
+                      src={url}
+                      alt={`variant ${i + 1}`}
+                      className="w-14 h-14 object-cover border border-line rounded-sm shrink-0 bg-bg"
+                    />
+                    <input
+                      value={url}
+                      onChange={e => {
+                        const arr = [...(item.mediaUrls ?? [])]
+                        arr[i] = e.target.value
+                        set('mediaUrls', arr)
+                      }}
+                      className="input flex-1"
+                    />
+                    <button
+                      onClick={() => {
+                        const arr = [...(item.mediaUrls ?? [])]
+                        arr.splice(i, 1)
+                        set('mediaUrls', arr)
+                      }}
+                      title="Remove"
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => set('mediaUrls', [...(item.mediaUrls ?? []), ''])}
+                  className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink py-1.5 border border-dashed border-line rounded-sm hover:border-ink"
+                >
+                  <Plus size={11} /> Add another image
+                </button>
+              </div>
+              <p className="text-meta text-ink-muted mt-1.5">
+                Paste public image URLs. Reviewer can comment on each variant.
+              </p>
+            </div>
+          </fieldset>
         </div>
         )}
       </div>
