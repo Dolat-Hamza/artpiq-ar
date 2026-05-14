@@ -23,6 +23,8 @@ import {
   Users,
 } from 'lucide-react'
 import { signOut, useAuth } from '@/lib/db/auth'
+import { useFeatures, type FeatureKey } from '@/lib/db/features'
+import { Shield } from 'lucide-react'
 import { ToastProvider } from './ui/toast'
 import { ConfirmProvider } from './ui/ConfirmDialog'
 import CommandPalette from './ui/CommandPalette'
@@ -102,7 +104,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     setWorkspaceState(w)
     try { localStorage.setItem(WORKSPACE_STORAGE_KEY, w) } catch {}
   }
-  const visibleGroups = workspace === 'all' ? GROUPS : GROUPS.filter(g => g.workspace === workspace)
+  const { has, isSuperAdmin } = useFeatures()
+  // First filter by feature gate; then by workspace mode.
+  const featureGroups = GROUPS.filter(g => has(g.workspace as FeatureKey))
+  const visibleGroups = workspace === 'all' ? featureGroups : featureGroups.filter(g => g.workspace === workspace)
 
   return (
     <ToastProvider>
@@ -216,6 +221,17 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
         {/* Bottom utilities */}
         <div className="border-t border-line py-2">
+          {isSuperAdmin && (
+            <Link
+              href="/admin/superadmin"
+              data-active={pathname?.startsWith('/admin/superadmin')}
+              className="ap-nav w-full"
+              title="Super Admin"
+            >
+              <Shield size={16} strokeWidth={1.6} />
+              {!collapsed && <span>Super Admin</span>}
+            </Link>
+          )}
           <button
             onClick={() => signOut()}
             className="ap-nav w-full"
@@ -340,20 +356,22 @@ function WorkspaceSwitcher({
 // destination can auto-open its add modal. Falls back to the list
 // page even if the route ignores the query param.
 // ──────────────────────────────────────────────────────────────
-const CREATE_ITEMS: { label: string; href: string; icon: typeof Home; shortcut?: string }[] = [
-  { label: 'Artwork', href: '/admin/artworks?new=1', icon: Frame, shortcut: 'A' },
-  { label: 'Contact', href: '/admin/contacts?new=1', icon: Users, shortcut: 'C' },
-  { label: 'Deal', href: '/admin/deals?new=1', icon: PieChart, shortcut: 'D' },
-  { label: 'Task', href: '/admin/tasks?new=1', icon: CheckSquare, shortcut: 'T' },
-  { label: 'Presentation', href: '/admin/presentations?new=1', icon: FileText, shortcut: 'P' },
-  { label: 'Social post', href: '/admin/social?new=1', icon: Megaphone, shortcut: 'S' },
-  { label: 'Room design', href: '/sample-room', icon: ImageIcon, shortcut: 'R' },
+const CREATE_ITEMS: { label: string; href: string; icon: typeof Home; shortcut?: string; feature: FeatureKey }[] = [
+  { label: 'Artwork', href: '/admin/artworks?new=1', icon: Frame, shortcut: 'A', feature: 'visualise' },
+  { label: 'Contact', href: '/admin/contacts?new=1', icon: Users, shortcut: 'C', feature: 'crm' },
+  { label: 'Deal', href: '/admin/deals?new=1', icon: PieChart, shortcut: 'D', feature: 'crm' },
+  { label: 'Task', href: '/admin/tasks?new=1', icon: CheckSquare, shortcut: 'T', feature: 'crm' },
+  { label: 'Presentation', href: '/admin/presentations?new=1', icon: FileText, shortcut: 'P', feature: 'visualise' },
+  { label: 'Social post', href: '/admin/social?new=1', icon: Megaphone, shortcut: 'S', feature: 'marketing' },
+  { label: 'Room design', href: '/sample-room', icon: ImageIcon, shortcut: 'R', feature: 'visualise' },
 ]
 
 function CreateMenu({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const ref = useRef<HTMLDivElement | null>(null)
+  const { has } = useFeatures()
+  const items = CREATE_ITEMS.filter(i => has(i.feature))
 
   useEffect(() => {
     if (!open) return
@@ -363,7 +381,7 @@ function CreateMenu({ collapsed }: { collapsed: boolean }) {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
       // Letter shortcut while menu open
-      const match = CREATE_ITEMS.find(i => i.shortcut?.toLowerCase() === e.key.toLowerCase())
+      const match = items.find(i => i.shortcut?.toLowerCase() === e.key.toLowerCase())
       if (match) {
         e.preventDefault()
         setOpen(false)
@@ -400,7 +418,7 @@ function CreateMenu({ collapsed }: { collapsed: boolean }) {
           role="menu"
           className="absolute left-0 right-0 mt-2 bg-paper border border-line rounded-md shadow-pop py-1 z-50 max-h-[70vh] overflow-y-auto"
         >
-          {CREATE_ITEMS.map(i => {
+          {items.map(i => {
             const Icon = i.icon
             return (
               <Link

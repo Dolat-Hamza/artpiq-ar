@@ -375,6 +375,28 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["content_items"]["Row"]>
         Relationships: []
       }
+      user_features: {
+        Row: {
+          owner_id: string
+          features: string[]
+          plan: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["user_features"]["Row"]> & { owner_id: string }
+        Update: Partial<Database["public"]["Tables"]["user_features"]["Row"]>
+        Relationships: []
+      }
+      app_admins: {
+        Row: {
+          email: string
+          role: string
+          created_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["app_admins"]["Row"]> & { email: string }
+        Update: Partial<Database["public"]["Tables"]["app_admins"]["Row"]>
+        Relationships: []
+      }
       campaigns: {
         Row: {
           id: string
