@@ -210,6 +210,20 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
 textarea.input { height: auto; padding: 8px 10px; line-height: 1.5; }
 select.input { appearance: none; padding-right: 28px; background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%), linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%); background-position: calc(100% - 14px) 16px, calc(100% - 9px) 16px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
 
+/* Remove the numeric spinner buttons on all number inputs — Thomas's request.
+   Keeps numeric typing + paste behaviour, drops the up/down arrows that
+   look noisy when stacked in grids. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Range input style — matches accent color on every browser */
 input[type="range"] {
   -webkit-appearance: none;

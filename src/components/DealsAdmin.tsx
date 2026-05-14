@@ -892,6 +892,20 @@ function DealEditModal({
   )
 }
 
+// Compact labelled field used inside the per-line auto-fit grid. The
+// fixed-height label keeps inputs bottom-aligned even when labels wrap
+// to two lines on narrow columns.
+function LineField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col">
+      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5 leading-[1.25] min-h-[22px]">
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
 const LINE_STATUS_DOT: Record<DealLineStatus, string> = {
   pending: 'bg-line',
   offered: 'bg-blue-400',
@@ -1004,9 +1018,11 @@ function DealLineSection({
                     />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                    <div className="md:col-span-1">
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Mode</label>
+                  // Auto-fit grid: every cell is ≥120px wide and grows
+                  // equally. Multi-line labels share a fixed min-height so
+                  // every input bottom-aligns into a clean row.
+                  <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))]">
+                    <LineField label="Mode">
                       <select
                         value={l.mode}
                         onChange={e => onPatch(l.id, { mode: e.target.value as DealLineMode })}
@@ -1015,64 +1031,57 @@ function DealLineSection({
                         <option value="sale">Sale</option>
                         <option value="rent">Rent</option>
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Customer offer (€)</label>
+                    </LineField>
+                    <LineField label="Customer offer (€)">
                       <input
                         type="number"
                         value={l.offerPrice ?? ''}
                         onChange={e => onPatch(l.id, { offerPrice: e.target.value ? Number(e.target.value) : null })}
                         className="input !h-8 !px-1.5 text-[11px]"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Company offer (€)</label>
+                    </LineField>
+                    <LineField label="Company offer (€)">
                       <input
                         type="number"
                         value={l.counterOffer ?? ''}
                         onChange={e => onPatch(l.id, { counterOffer: e.target.value ? Number(e.target.value) : null })}
                         className="input !h-8 !px-1.5 text-[11px]"
-                        placeholder="from buyer"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Agreed (€)</label>
+                    </LineField>
+                    <LineField label="Agreed (€)">
                       <input
                         type="number"
                         value={l.agreedPrice ?? ''}
                         onChange={e => onPatch(l.id, { agreedPrice: e.target.value ? Number(e.target.value) : null })}
                         className="input !h-8 !px-1.5 text-[11px]"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Comm %</label>
+                    </LineField>
+                    <LineField label="Comm %">
                       <input
                         type="number"
                         value={l.commissionPct ?? ''}
                         onChange={e => onPatch(l.id, { commissionPct: e.target.value ? Number(e.target.value) : null })}
                         className="input !h-8 !px-1.5 text-[11px]"
                       />
-                    </div>
+                    </LineField>
                     {l.mode === 'rent' && (
                       <>
-                        <div>
-                          <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Term (mo)</label>
+                        <LineField label="Term (mo)">
                           <input
                             type="number"
                             value={l.rentTermMonths ?? ''}
                             onChange={e => onPatch(l.id, { rentTermMonths: e.target.value ? Number(e.target.value) : null })}
                             className="input !h-8 !px-1.5 text-[11px]"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">€/month</label>
+                        </LineField>
+                        <LineField label="€ / month">
                           <input
                             type="number"
                             value={l.rentMonthly ?? ''}
                             onChange={e => onPatch(l.id, { rentMonthly: e.target.value ? Number(e.target.value) : null })}
                             className="input !h-8 !px-1.5 text-[11px]"
                           />
-                        </div>
+                        </LineField>
                       </>
                     )}
                   </div>
