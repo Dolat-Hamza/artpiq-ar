@@ -441,6 +441,9 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["deals"]["Row"]>
         Relationships: []
       }
+      // Note: deal_artworks JSON column offer_rounds is handled via the
+      // explicit cast in dealArtworks.ts. The generated Update type still
+      // accepts unknown extra keys when widened via Record there.
       deal_artworks: {
         Row: {
           id: string

@@ -381,6 +381,15 @@ export type DealLineDirection = 'out' | 'swap_in'
 export type DealLineMode = 'sale' | 'rent'
 export type DealLineStatus = 'pending' | 'offered' | 'countered' | 'agreed' | 'declined' | 'completed'
 
+export interface OfferRound {
+  round: number
+  by: 'company' | 'client'
+  amount: number
+  salesCommissionPct?: number | null
+  occurredAt: string
+  note?: string | null
+}
+
 export interface DealArtwork {
   id: string
   dealId: string
@@ -398,6 +407,7 @@ export interface DealArtwork {
   lineStatus: DealLineStatus
   notes?: string | null
   position: number
+  offerRounds?: OfferRound[] | null   // negotiation history (jsonb)
   createdAt?: string
   updatedAt?: string
 }

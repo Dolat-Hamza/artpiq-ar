@@ -1,6 +1,6 @@
 import { supabase } from './client'
 import type { Database } from './types'
-import type { DealArtwork, DealLineDirection, DealLineMode, DealLineStatus } from '@/types'
+import type { DealArtwork, DealLineDirection, DealLineMode, DealLineStatus, OfferRound } from '@/types'
 
 type Upd = Database['public']['Tables']['deal_artworks']['Update']
 
@@ -22,9 +22,35 @@ function row(r: Record<string, unknown>): DealArtwork {
     lineStatus: (r.line_status as DealLineStatus) ?? 'pending',
     notes: (r.notes as string | null) ?? null,
     position: (r.position as number) ?? 0,
+    offerRounds: Array.isArray(r.offer_rounds)
+      ? (r.offer_rounds as unknown[]).map(raw => {
+          const o = raw as Record<string, unknown>
+          return {
+            round: Number(o.round ?? 0),
+            by: (o.by as 'company' | 'client') ?? 'company',
+            amount: Number(o.amount ?? 0),
+            salesCommissionPct:
+              o.sales_commission_pct == null ? null : Number(o.sales_commission_pct),
+            occurredAt: (o.occurred_at as string) ?? new Date().toISOString(),
+            note: (o.note as string | null) ?? null,
+          }
+        })
+      : [],
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   }
+}
+
+// Serialise OfferRound[] back into the snake_case json shape stored in DB.
+function offerRoundsToJson(rounds: OfferRound[]) {
+  return rounds.map(o => ({
+    round: o.round,
+    by: o.by,
+    amount: o.amount,
+    sales_commission_pct: o.salesCommissionPct ?? null,
+    occurred_at: o.occurredAt,
+    note: o.note ?? null,
+  }))
 }
 
 export async function listDealArtworks(dealId: string): Promise<DealArtwork[]> {
@@ -78,6 +104,9 @@ export async function updateDealArtwork(id: string, patch: Partial<DealArtwork>)
   if (patch.lineStatus !== undefined) r.line_status = patch.lineStatus
   if (patch.notes !== undefined) r.notes = patch.notes
   if (patch.position !== undefined) r.position = patch.position
+  if (patch.offerRounds !== undefined) {
+    (r as Record<string, unknown>).offer_rounds = offerRoundsToJson(patch.offerRounds ?? [])
+  }
   const { error } = await supabase().from('deal_artworks').update(r).eq('id', id)
   if (error) throw error
 }
