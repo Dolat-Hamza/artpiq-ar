@@ -342,6 +342,22 @@ export interface ContentItem {
   kpi?: string | null                 // leads | engagement | reach
   platform?: string | null            // instagram | x | linkedin | facebook | tiktok
   monthKey?: string | null            // '2026-05' for monthly plan grouping
+  campaignId?: string | null          // optional Upfluence-style campaign grouping
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Marketing campaign — a named bucket of related content items.
+export type CampaignStatus = 'planned' | 'active' | 'completed' | 'archived'
+export interface Campaign {
+  id: string
+  ownerId: string
+  name: string
+  description?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  status: CampaignStatus
+  colour?: string | null
   createdAt?: string
   updatedAt?: string
 }

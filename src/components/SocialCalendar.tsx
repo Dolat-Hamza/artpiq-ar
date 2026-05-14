@@ -24,7 +24,8 @@ import {
   resolveComment,
   updateContent,
 } from '@/lib/db/social'
-import type { ContentComment, ContentItem, ContentStatus, ContentType } from '@/types'
+import type { Campaign, ContentComment, ContentItem, ContentStatus, ContentType } from '@/types'
+import { createCampaign, deleteCampaign, listCampaigns, updateCampaign } from '@/lib/db/campaigns'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
@@ -81,10 +82,15 @@ export default function SocialCalendar() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<ContentItem[]>([])
   const [busy, setBusy] = useState(false)
-  const [view, setView] = useState<'platforms' | 'calendar' | 'kanban' | 'list'>('platforms')
+  const [view, setView] = useState<'platforms' | 'campaigns' | 'calendar' | 'kanban' | 'list'>('platforms')
   // Filters layered on top of every view
   const [filterType, setFilterType] = useState<ContentType | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<ContentStatus | 'all'>('all')
+  const [filterCampaign, setFilterCampaign] = useState<string>('all')
+  const [filterFrom, setFilterFrom] = useState<string>('')
+  const [filterTo, setFilterTo] = useState<string>('')
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [manageCampaigns, setManageCampaigns] = useState(false)
   const [cursor, setCursor] = useState<Date>(startOfMonth(new Date()))
   const [editing, setEditing] = useState<ContentItem | null>(null)
   const [composing, setComposing] = useState<{ type: ContentType; date?: Date } | null>(null)
@@ -94,6 +100,7 @@ export default function SocialCalendar() {
   useEffect(() => {
     if (!user) return
     refresh()
+    listCampaigns(user.id).then(setCampaigns).catch(() => {})
   }, [user])
 
   async function refresh() {
@@ -104,6 +111,11 @@ export default function SocialCalendar() {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function refreshCampaigns() {
+    if (!user) return
+    setCampaigns(await listCampaigns(user.id))
   }
 
   async function createEventPromoBundle(title: string, eventDate: string, location: string) {
@@ -147,9 +159,20 @@ export default function SocialCalendar() {
     return acc
   }, {} as Record<ContentStatus, number>)
 
+  const fromTs = filterFrom ? new Date(filterFrom).getTime() : null
+  const toTs = filterTo ? new Date(filterTo).getTime() + 86399999 : null
   const filteredList = list.filter(c => {
     if (filterType !== 'all' && c.type !== filterType) return false
     if (filterStatus !== 'all' && c.status !== filterStatus) return false
+    if (filterCampaign !== 'all') {
+      if (filterCampaign === 'none' ? !!c.campaignId : c.campaignId !== filterCampaign) return false
+    }
+    if (fromTs || toTs) {
+      const t = c.scheduledAt ? new Date(c.scheduledAt).getTime() : null
+      if (!t) return false
+      if (fromTs && t < fromTs) return false
+      if (toTs && t > toTs) return false
+    }
     return true
   })
 
@@ -160,7 +183,7 @@ export default function SocialCalendar() {
         actions={
           <>
             <div className="hidden md:inline-flex items-center gap-1 mr-2">
-              {(['platforms', 'calendar', 'kanban', 'list'] as const).map(v => (
+              {(['platforms', 'campaigns', 'calendar', 'kanban', 'list'] as const).map(v => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -171,6 +194,9 @@ export default function SocialCalendar() {
                 </button>
               ))}
             </div>
+            <button onClick={() => setManageCampaigns(true)} className="btn-outline mr-2" title="Manage campaigns">
+              Campaigns
+            </button>
             <div className="relative group">
               <button className="btn-primary">
                 <Plus size={14} strokeWidth={2.5} /> New
@@ -243,9 +269,38 @@ export default function SocialCalendar() {
               <option key={s} value={s}>{STATUS_LABEL[s]}</option>
             ))}
           </select>
-          {(filterType !== 'all' || filterStatus !== 'all') && (
+          <select
+            value={filterCampaign}
+            onChange={e => setFilterCampaign(e.target.value)}
+            className="input !w-auto !h-8 !py-1"
+            aria-label="Filter by campaign"
+          >
+            <option value="all">All campaigns</option>
+            <option value="none">No campaign</option>
+            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <span className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted">From</span>
+          <input
+            type="date"
+            value={filterFrom}
+            onChange={e => setFilterFrom(e.target.value)}
+            className="input !w-auto !h-8 !py-1 text-[11px]"
+            aria-label="From date"
+          />
+          <span className="text-meta uppercase tracking-[0.14em] text-ink-muted">To</span>
+          <input
+            type="date"
+            value={filterTo}
+            onChange={e => setFilterTo(e.target.value)}
+            className="input !w-auto !h-8 !py-1 text-[11px]"
+            aria-label="To date"
+          />
+          {(filterType !== 'all' || filterStatus !== 'all' || filterCampaign !== 'all' || filterFrom || filterTo) && (
             <button
-              onClick={() => { setFilterType('all'); setFilterStatus('all') }}
+              onClick={() => {
+                setFilterType('all'); setFilterStatus('all')
+                setFilterCampaign('all'); setFilterFrom(''); setFilterTo('')
+              }}
               className="text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink underline"
             >
               Clear
@@ -259,6 +314,14 @@ export default function SocialCalendar() {
             items={filteredList}
             onItemClick={item => setEditing(item)}
             onNew={type => setComposing({ type })}
+          />
+        )}
+        {view === 'campaigns' && (
+          <CampaignView
+            items={filteredList}
+            campaigns={campaigns}
+            onItemClick={item => setEditing(item)}
+            onManage={() => setManageCampaigns(true)}
           />
         )}
         {view === 'calendar' && (
@@ -281,6 +344,7 @@ export default function SocialCalendar() {
       {composing && (
         <ComposerModal
           ownerId={user.id}
+          campaigns={campaigns}
           initial={{ type: composing.type, scheduledAt: composing.date?.toISOString() ?? null }}
           onClose={() => setComposing(null)}
           onSaved={() => {
@@ -292,12 +356,21 @@ export default function SocialCalendar() {
       {editing && (
         <ComposerModal
           ownerId={user.id}
+          campaigns={campaigns}
           existing={editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null)
             refresh()
           }}
+        />
+      )}
+      {manageCampaigns && (
+        <ManageCampaignsModal
+          ownerId={user.id}
+          campaigns={campaigns}
+          onClose={() => setManageCampaigns(false)}
+          onChange={refreshCampaigns}
         />
       )}
     </div>
@@ -732,12 +805,14 @@ function ComposerModal({
   ownerId,
   initial,
   existing,
+  campaigns,
   onClose,
   onSaved,
 }: {
   ownerId: string
   initial?: Partial<ContentItem> & { type: ContentType }
   existing?: ContentItem
+  campaigns: Campaign[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -1180,6 +1255,20 @@ function ComposerModal({
             </Field>
           )}
 
+          {/* Campaign — Upfluence-style grouping */}
+          <Field label="Campaign">
+            <select
+              value={item.campaignId ?? ''}
+              onChange={e => set('campaignId', e.target.value || null)}
+              className="input"
+            >
+              <option value="">— No campaign —</option>
+              {campaigns.filter(c => c.status !== 'archived').map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </Field>
+
           {/* Schedule */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="Scheduled date & time">
@@ -1286,5 +1375,250 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">{label}</span>
       {children}
     </label>
+  )
+}
+
+// ============================================================
+// Campaign view — groups posts under campaigns (Upfluence-style)
+// ============================================================
+function CampaignView({
+  items,
+  campaigns,
+  onItemClick,
+  onManage,
+}: {
+  items: ContentItem[]
+  campaigns: Campaign[]
+  onItemClick: (item: ContentItem) => void
+  onManage: () => void
+}) {
+  if (campaigns.length === 0) {
+    return (
+      <div className="bg-paper border border-line rounded-md p-8 text-center">
+        <p className="text-body text-ink-muted">No campaigns yet.</p>
+        <button onClick={onManage} className="btn-primary mt-3">
+          <Plus size={14} strokeWidth={2.5} /> Create your first campaign
+        </button>
+      </div>
+    )
+  }
+  const grouped = campaigns.map(c => ({
+    campaign: c,
+    items: items.filter(i => i.campaignId === c.id),
+  }))
+  const unassigned = items.filter(i => !i.campaignId)
+  return (
+    <div className="grid gap-4">
+      {grouped.map(g => (
+        <CampaignCard
+          key={g.campaign.id}
+          campaign={g.campaign}
+          items={g.items}
+          onItemClick={onItemClick}
+        />
+      ))}
+      {unassigned.length > 0 && (
+        <CampaignCard
+          campaign={null}
+          items={unassigned}
+          onItemClick={onItemClick}
+        />
+      )}
+    </div>
+  )
+}
+
+function CampaignCard({
+  campaign,
+  items,
+  onItemClick,
+}: {
+  campaign: Campaign | null
+  items: ContentItem[]
+  onItemClick: (item: ContentItem) => void
+}) {
+  const colour = campaign?.colour || '#94A3B8'
+  return (
+    <section className="bg-paper border border-line rounded-md p-4">
+      <div className="flex items-baseline mb-3 gap-2 flex-wrap">
+        <span className="w-3 h-3 rounded-full" style={{ background: colour }} aria-hidden />
+        <p className="font-display text-[14px]">
+          {campaign?.name ?? <span className="text-ink-muted italic">Unassigned</span>}
+        </p>
+        {campaign?.status && (
+          <span className={`text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs ${
+            campaign.status === 'active' ? 'bg-emerald-100 text-emerald-700'
+            : campaign.status === 'planned' ? 'bg-blue-100 text-blue-700'
+            : campaign.status === 'completed' ? 'bg-line text-ink-muted'
+            : 'bg-line text-ink-muted'
+          }`}>
+            {campaign.status}
+          </span>
+        )}
+        {campaign?.startDate && (
+          <span className="text-meta text-ink-muted">
+            {new Date(campaign.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+            {campaign.endDate ? ` → ${new Date(campaign.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` : ''}
+          </span>
+        )}
+        <span className="ml-auto text-meta uppercase tracking-[0.14em] text-ink-muted">{items.length} item{items.length === 1 ? '' : 's'}</span>
+      </div>
+      {campaign?.description && (
+        <p className="text-meta text-ink-muted mb-3 line-clamp-2">{campaign.description}</p>
+      )}
+      {items.length === 0 ? (
+        <p className="text-meta text-ink-muted py-2">No content in this campaign yet.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+          {items.map(c => (
+            <article
+              key={c.id}
+              onClick={() => onItemClick(c)}
+              className="border border-line rounded-sm p-2 bg-paper hover:border-ink hover:shadow-sm transition-all cursor-pointer"
+            >
+              {c.coverUrl && (
+                <img src={c.coverUrl} alt="" className="w-full aspect-square object-cover border border-line/60 rounded-xs mb-1 bg-bg" />
+              )}
+              <p className="text-meta font-bold truncate">{c.title || <span className="text-ink-muted italic">(untitled)</span>}</p>
+              <div className="flex items-center gap-1 mt-1 flex-wrap">
+                <span className={`text-[9px] tracking-[0.12em] uppercase font-bold px-1 py-0.5 rounded-xs ${STATUS_COLOR[c.status] ?? 'bg-line text-ink-muted'}`}>
+                  {STATUS_LABEL[c.status] ?? c.status}
+                </span>
+                {c.platform && <span className="text-[9px] text-ink-muted">· {c.platform}</span>}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ============================================================
+// Manage campaigns modal — minimal CRUD
+// ============================================================
+function ManageCampaignsModal({
+  ownerId,
+  campaigns,
+  onClose,
+  onChange,
+}: {
+  ownerId: string
+  campaigns: Campaign[]
+  onClose: () => void
+  onChange: () => void
+}) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [colour, setColour] = useState('#2563EB')
+  const [busy, setBusy] = useState(false)
+
+  async function add() {
+    if (!name.trim()) return
+    setBusy(true)
+    try {
+      await createCampaign({
+        ownerId,
+        name: name.trim(),
+        description: description || null,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        status: 'active',
+        colour,
+      })
+      setName(''); setDescription(''); setStartDate(''); setEndDate('')
+      onChange()
+    } finally { setBusy(false) }
+  }
+
+  async function setStatus(id: string, status: Campaign['status']) {
+    await updateCampaign(id, { status })
+    onChange()
+  }
+  async function rename(id: string, name: string) {
+    await updateCampaign(id, { name })
+    onChange()
+  }
+  async function remove(id: string) {
+    if (!confirm('Delete campaign? Linked posts will be unassigned.')) return
+    await deleteCampaign(id)
+    onChange()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
+      <div className="bg-paper rounded-md shadow-pop w-full max-w-[640px] max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <header className="px-6 h-14 flex items-center gap-3 border-b border-line">
+          <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Campaigns</h2>
+          <button onClick={onClose} className="ml-auto text-ink-muted hover:text-ink"><X size={16} /></button>
+        </header>
+        <div className="px-6 py-5 grid gap-5">
+          <div className="grid gap-2">
+            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">New campaign</p>
+            <div className="grid gap-2">
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Campaign name"
+                className="input"
+              />
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Brief / objective"
+                rows={2}
+                className="input"
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input" aria-label="Start date" />
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input" aria-label="End date" />
+                <div className="flex items-center gap-2">
+                  <input type="color" value={colour} onChange={e => setColour(e.target.value)} className="w-10 h-9 border border-line rounded" aria-label="Colour" />
+                  <span className="text-meta text-ink-muted">{colour}</span>
+                </div>
+              </div>
+              <button onClick={add} disabled={!name.trim() || busy} className="btn-primary self-start disabled:opacity-40">
+                <Plus size={13} strokeWidth={2.5} /> Add campaign
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">Existing · {campaigns.length}</p>
+            {campaigns.length === 0 && (
+              <p className="text-meta text-ink-muted">No campaigns yet.</p>
+            )}
+            {campaigns.map(c => (
+              <div key={c.id} className="border border-line rounded-md p-3 flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.colour ?? '#94A3B8' }} aria-hidden />
+                <input
+                  defaultValue={c.name}
+                  onBlur={e => { if (e.target.value !== c.name) rename(c.id, e.target.value) }}
+                  className="flex-1 bg-transparent text-body font-bold border-none outline-none focus:bg-bg px-1 rounded-sm"
+                />
+                <select
+                  value={c.status}
+                  onChange={e => setStatus(c.id, e.target.value as Campaign['status'])}
+                  className="input !w-auto !h-8 !py-1 text-[11px]"
+                >
+                  {(['planned', 'active', 'completed', 'archived'] as Campaign['status'][]).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => remove(c.id)}
+                  className="text-red-600 hover:text-red-700"
+                  title="Delete"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

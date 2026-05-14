@@ -57,6 +57,7 @@ const contentRow = (r: Record<string, unknown>): ContentItem => ({
   kpi: (r.kpi as string | null) ?? null,
   platform: (r.platform as string | null) ?? null,
   monthKey: (r.month_key as string | null) ?? null,
+  campaignId: (r.campaign_id as string | null) ?? null,
   id: r.id as string,
   ownerId: r.owner_id as string,
   type: r.type as ContentItem['type'],
@@ -134,6 +135,7 @@ export async function createContent(input: Partial<ContentItem> & { ownerId: str
   if (input.kpi !== undefined) row.kpi = input.kpi
   if (input.platform !== undefined) row.platform = input.platform
   if (input.monthKey !== undefined) row.month_key = input.monthKey
+  if (input.campaignId !== undefined) row.campaign_id = input.campaignId
   const { data, error } = await supabase().from('content_items').insert(row).select('*').single()
   if (error) throw error
   return contentRow(data as Record<string, unknown>)
@@ -169,6 +171,7 @@ export async function updateContent(id: string, patch: Partial<ContentItem>): Pr
   if (patch.kpi !== undefined) row.kpi = patch.kpi
   if (patch.platform !== undefined) row.platform = patch.platform
   if (patch.monthKey !== undefined) row.month_key = patch.monthKey
+  if (patch.campaignId !== undefined) row.campaign_id = patch.campaignId
   const { error } = await supabase().from('content_items').update(row).eq('id', id)
   if (error) throw error
 }
