@@ -928,6 +928,15 @@ const LINE_STATUS_DOT: Record<DealLineStatus, string> = {
   declined: 'bg-red-500',
   completed: 'bg-green-700',
 }
+// Pill background + border for the inline status chip on each line.
+const LINE_STATUS_CHIP: Record<DealLineStatus, string> = {
+  pending:   'border-line bg-paper text-ink-muted',
+  offered:   'border-blue-200 bg-blue-50 text-blue-700',
+  countered: 'border-amber-200 bg-amber-50 text-amber-700',
+  agreed:    'border-emerald-200 bg-emerald-50 text-emerald-700',
+  declined:  'border-red-200 bg-red-50 text-red-700',
+  completed: 'border-green-300 bg-green-100 text-green-800',
+}
 
 function TotalRow({
   label, value, muted, highlight, color,
@@ -1007,16 +1016,20 @@ function DealLineSection({
                       )
                     })()}
                   </div>
-                  <select
-                    value={l.lineStatus}
-                    onChange={e => onPatch(l.id, { lineStatus: e.target.value as DealLineStatus })}
-                    className="text-meta tracking-[0.12em] uppercase border border-line rounded-xs bg-paper px-1.5 py-0.5"
-                  >
-                    {(['pending', 'offered', 'countered', 'agreed', 'declined', 'completed'] as const).map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => onRemove(l.id)} className="text-red-600 hover:text-red-700">
+                  {/* Colored status chip — same control, visual emphasis */}
+                  <label className={`inline-flex items-center gap-1.5 text-meta tracking-[0.12em] uppercase font-bold border rounded-xs px-2 py-1 cursor-pointer ${LINE_STATUS_CHIP[l.lineStatus] ?? 'border-line bg-paper text-ink-muted'}`}>
+                    <span className={`w-2 h-2 rounded-full ${LINE_STATUS_DOT[l.lineStatus]}`} />
+                    <select
+                      value={l.lineStatus}
+                      onChange={e => onPatch(l.id, { lineStatus: e.target.value as DealLineStatus })}
+                      className="bg-transparent border-0 outline-none uppercase tracking-[0.12em] font-bold cursor-pointer pr-3 appearance-none"
+                    >
+                      {(['pending', 'offered', 'countered', 'agreed', 'declined', 'completed'] as const).map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button onClick={() => onRemove(l.id)} className="text-red-600 hover:text-red-700" title="Remove line">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -1065,27 +1078,35 @@ function DealLineSection({
                         className="input !h-8 !px-1.5 text-[11px]"
                       />
                     </LineField>
-                    {l.mode === 'rent' && (
-                      <>
-                        <LineField label="Term (mo)">
-                          <input
-                            type="number"
-                            value={l.rentTermMonths ?? ''}
-                            onChange={e => onPatch(l.id, { rentTermMonths: e.target.value ? Number(e.target.value) : null })}
-                            className="input !h-8 !px-1.5 text-[11px]"
-                          />
-                        </LineField>
-                        <LineField label="€ / month">
-                          <input
-                            type="number"
-                            value={l.rentMonthly ?? ''}
-                            onChange={e => onPatch(l.id, { rentMonthly: e.target.value ? Number(e.target.value) : null })}
-                            className="input !h-8 !px-1.5 text-[11px]"
-                          />
-                        </LineField>
-                      </>
-                    )}
                   </div>
+                )}
+                {/* Rent fields are grouped under their own subtle card so
+                    sale-mode lines don't look spartan and rent lines feel
+                    structured rather than tacked-on. */}
+                {l.mode === 'rent' && !isSwap && (
+                  <fieldset className="border border-line/60 rounded-sm p-3">
+                    <legend className="text-[9px] tracking-[0.14em] uppercase text-ink-muted px-1.5 font-bold">
+                      Rent terms
+                    </legend>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <LineField label="Term (mo)">
+                        <input
+                          type="number"
+                          value={l.rentTermMonths ?? ''}
+                          onChange={e => onPatch(l.id, { rentTermMonths: e.target.value ? Number(e.target.value) : null })}
+                          className="input !h-8 !px-1.5 text-[11px]"
+                        />
+                      </LineField>
+                      <LineField label="€ / month">
+                        <input
+                          type="number"
+                          value={l.rentMonthly ?? ''}
+                          onChange={e => onPatch(l.id, { rentMonthly: e.target.value ? Number(e.target.value) : null })}
+                          className="input !h-8 !px-1.5 text-[11px]"
+                        />
+                      </LineField>
+                    </div>
+                  </fieldset>
                 )}
                 {/* Negotiation rounds — append-only ledger of every offer */}
                 {!isSwap && (
