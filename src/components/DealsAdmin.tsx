@@ -14,7 +14,7 @@ import {
   listDealArtworks,
   updateDealArtwork,
 } from '@/lib/db/dealArtworks'
-import type { Activity, ActivityType, Artwork, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage, OfferRound } from '@/types'
+import type { Activity, ActivityType, Artwork, ArtworkOwnershipStatus, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage, OfferRound } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
@@ -989,29 +989,50 @@ function DealLineSection({
                   <div className="flex-1 min-w-0">
                     <p className="text-body font-bold truncate">{a.title}</p>
                     <p className="text-meta text-ink-muted truncate">{a.artist}{a.price != null ? ` · list € ${a.price.toLocaleString()}` : ''}</p>
-                    {/* Owner + net-to-artist hint — only meaningful on out lines with a price */}
+                    {/* Ownership badge — always visible per Thomas. Pulls
+                        from artwork.ownershipStatus; falls back if unset. */}
                     {!isSwap && (() => {
                       const owner = a.ownerContactId ? contactById.get(a.ownerContactId) : null
-                      const price = l.agreedPrice ?? l.counterOffer ?? l.offerPrice ?? l.listPrice ?? a.price ?? 0
-                      const commission = l.commissionPct ?? a.commissionPct ?? 0
-                      const net = Math.max(0, price * (1 - commission / 100))
-                      if (!owner && price === 0) return null
+                      const status: ArtworkOwnershipStatus =
+                        (a.ownershipStatus as ArtworkOwnershipStatus) ||
+                        (owner?.isArtist ? 'artist' : (owner ? 'collector' : 'dealer'))
+                      const label =
+                        status === 'dealer' ? 'Owned by us'
+                        : status === 'artist' ? `Artist: ${owner?.name || owner?.email || '—'}`
+                        : `Collector: ${owner?.name || owner?.email || '—'}`
+                      const tone =
+                        status === 'dealer' ? 'bg-ink/5 text-ink border-line'
+                        : status === 'artist' ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                        : 'bg-amber-100 text-amber-700 border-amber-200'
                       return (
-                        <div className="flex items-center gap-2 mt-1 text-meta text-ink-muted">
-                          {owner && (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-indigo-100 text-indigo-700">
-                                Owner
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap text-meta text-ink-muted">
+                          <span className={`inline-flex items-center text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs border ${tone}`}>
+                            {label}
+                          </span>
+                          {/* Per-line econ glance */}
+                          {(() => {
+                            const price = l.agreedPrice ?? l.counterOffer ?? l.offerPrice ?? a.price ?? 0
+                            if (price <= 0) return null
+                            if (status === 'dealer') {
+                              const purchase = Number(a.costBasis ?? 0)
+                              const profit = price - purchase
+                              if (purchase <= 0) return null
+                              return (
+                                <span className="ml-auto">
+                                  Profit: <span className="font-bold text-ink tabular-nums">€ {Math.round(profit).toLocaleString()}</span>
+                                </span>
+                              )
+                            }
+                            const commission = l.commissionPct ?? a.commissionPct ?? 0
+                            if (commission <= 0) return null
+                            const net = Math.max(0, price * (1 - commission / 100))
+                            return (
+                              <span className="ml-auto">
+                                Net to owner: <span className="font-bold text-ink tabular-nums">€ {Math.round(net).toLocaleString()}</span>
+                                <span className="text-ink-muted/70"> ({(100 - commission).toFixed(0)}%)</span>
                               </span>
-                              <span>{owner.name || owner.email}</span>
-                            </span>
-                          )}
-                          {price > 0 && commission > 0 && (
-                            <span className="ml-auto">
-                              Net to owner: <span className="font-bold text-ink tabular-nums">€ {Math.round(net).toLocaleString()}</span>
-                              <span className="text-ink-muted/70"> ({(100 - commission).toFixed(0)}%)</span>
-                            </span>
-                          )}
+                            )
+                          })()}
                         </div>
                       )
                     })()}
@@ -1059,25 +1080,35 @@ function DealLineSection({
                         <option value="rent">Rent</option>
                       </select>
                     </LineField>
-                    {/* List price — snapshot of artwork price at time the line
-                        was added. Editable per-deal; defaults to artwork.price. */}
+                    {/* List price — read-only, locked to artwork.price.
+                        Editing the artwork's price elsewhere updates here. */}
                     <LineField label="List price (€)">
-                      <input
-                        type="number"
-                        value={l.listPrice ?? a.price ?? ''}
-                        onChange={e => onPatch(l.id, { listPrice: e.target.value ? Number(e.target.value) : null })}
-                        className="input !h-8 !px-1.5 text-[11px]"
-                        placeholder={a.price != null ? String(a.price) : '—'}
-                      />
+                      <div className="input !h-8 !px-1.5 text-[11px] flex items-center bg-bg text-ink tabular-nums select-text cursor-default">
+                        {a.price != null ? a.price.toLocaleString() : '—'}
+                      </div>
                     </LineField>
-                    <LineField label="Comm %">
-                      <input
-                        type="number"
-                        value={l.commissionPct ?? ''}
-                        onChange={e => onPatch(l.id, { commissionPct: e.target.value ? Number(e.target.value) : null })}
-                        className="input !h-8 !px-1.5 text-[11px]"
-                      />
-                    </LineField>
+                    {/* Commission field — only meaningful when artwork is
+                        owned by an artist or collector. For dealer-owned
+                        stock the purchase price + profit live in the
+                        ownership badge above; no per-line commission % to
+                        capture in the deal. */}
+                    {((a.ownershipStatus ?? 'dealer') !== 'dealer') && (
+                      <LineField label="Our commission %">
+                        <input
+                          type="number"
+                          value={l.commissionPct ?? a.commissionPct ?? ''}
+                          onChange={e => onPatch(l.id, { commissionPct: e.target.value ? Number(e.target.value) : null })}
+                          className="input !h-8 !px-1.5 text-[11px]"
+                        />
+                      </LineField>
+                    )}
+                    {(a.ownershipStatus === 'dealer' || a.ownershipStatus == null) && (
+                      <LineField label="Purchase price (€)">
+                        <div className="input !h-8 !px-1.5 text-[11px] flex items-center bg-bg text-ink tabular-nums select-text cursor-default">
+                          {a.costBasis != null ? a.costBasis.toLocaleString() : '—'}
+                        </div>
+                      </LineField>
+                    )}
                   </div>
                 )}
                 {/* Rent fields are grouped under their own subtle card so
@@ -1191,6 +1222,16 @@ function NegotiationRounds({
     })
   }
 
+  // Revert an accepted line so the negotiation can continue. Keeps the
+  // rounds history intact; just clears agreed_price + drops status back
+  // to 'countered'.
+  function reopen() {
+    onPatch(line.id, {
+      agreedPrice: null,
+      lineStatus: 'countered',
+    })
+  }
+
   const accepted = line.lineStatus === 'agreed' || line.lineStatus === 'completed'
 
   return (
@@ -1200,7 +1241,15 @@ function NegotiationRounds({
           Negotiation · {rounds.length} round{rounds.length === 1 ? '' : 's'}
         </p>
         <div className="ml-auto flex gap-1 flex-wrap">
-          {!accepted && rounds.length > 0 && (
+          {accepted ? (
+            <button
+              onClick={reopen}
+              className="btn-outline !h-7 text-meta !text-amber-700 !border-amber-300 hover:!bg-amber-50"
+              title="Reopen negotiation — clears agreed price, drops status back to countered"
+            >
+              ← Reopen
+            </button>
+          ) : rounds.length > 0 ? (
             <button
               onClick={() => accept(rounds[rounds.length - 1])}
               className="btn-outline !h-7 text-meta !text-emerald-700 !border-emerald-300 hover:!bg-emerald-50"
@@ -1208,7 +1257,7 @@ function NegotiationRounds({
             >
               ✓ Accept final
             </button>
-          )}
+          ) : null}
           <button
             onClick={() => { setBy('company'); setShowForm(true) }}
             className="btn-outline !h-7 text-meta"
