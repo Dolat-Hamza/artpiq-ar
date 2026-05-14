@@ -29,8 +29,13 @@ const LAYOUTS: { id: PresentationLayout; label: string; desc: string; noPrice?: 
   {
     id: 'rental-proposal',
     label: 'Rental proposal',
-    desc: '3 columns: 12 / 24 / 36 month monthly rental rates.',
+    desc: '12 / 24 / 36 month rates with subtotal + grand total.',
     noPrice: true,
+  },
+  {
+    id: 'sale-proposal',
+    label: 'Sale proposal',
+    desc: 'Itemised offer with subtotal, work count, total.',
   },
   {
     id: 'press-kit',

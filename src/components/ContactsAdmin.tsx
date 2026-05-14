@@ -395,15 +395,18 @@ export default function ContactsAdmin() {
                       <th className="text-left py-2 px-3 cursor-pointer hover:text-ink" onClick={() => toggleSort('name')}>
                         Name{sortKey === 'name' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
                       </th>
+                      {/* Stage — promoted to the central, always-visible column */}
+                      <th className="text-left py-2 px-3 cursor-pointer hover:text-ink" onClick={() => toggleSort('lifecycle')}>
+                        Stage{sortKey === 'lifecycle' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
+                      </th>
                       <th className="text-left py-2 px-3 hidden md:table-cell cursor-pointer hover:text-ink" onClick={() => toggleSort('email')}>
                         Email{sortKey === 'email' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
-                      </th>
-                      <th className="text-left py-2 px-3 hidden lg:table-cell cursor-pointer hover:text-ink" onClick={() => toggleSort('lifecycle')}>
-                        Stage{sortKey === 'lifecycle' && (sortDir === 'asc' ? ' ▲' : ' ▼')}
                       </th>
                       <th className="text-left py-2 px-3 hidden xl:table-cell">Organisation</th>
                       <th className="text-left py-2 px-3 hidden lg:table-cell">Country</th>
                       <th className="text-right py-2 px-3 hidden lg:table-cell">Deals</th>
+                      <th className="text-right py-2 px-3 hidden lg:table-cell">Purchases</th>
+                      <th className="text-right py-2 px-3 hidden md:table-cell">Total purchased</th>
                       <th className="text-right py-2 px-3 hidden xl:table-cell">Pipeline</th>
                       <th className="text-right py-2 px-3 hidden xl:table-cell">Last activity</th>
                       <th className="text-right py-2 px-3"></th>
@@ -412,7 +415,10 @@ export default function ContactsAdmin() {
                   <tbody>
                     {sorted.map(c => {
                       const contactDeals = allDeals.filter(d => d.contactId === c.id)
-                      const pipeline = contactDeals.filter(d => d.stage !== 'lost').reduce((s, d) => s + (d.amount ?? 0), 0)
+                      const wonDeals = contactDeals.filter(d => d.stage === 'won')
+                      const totalPurchased = wonDeals.reduce((s, d) => s + (d.amount ?? 0), 0)
+                      const purchaseCount = wonDeals.length
+                      const pipeline = contactDeals.filter(d => d.stage !== 'lost' && d.stage !== 'won').reduce((s, d) => s + (d.amount ?? 0), 0)
                       const lastAct = allActivities.filter(a => a.contactId === c.id).sort((a, b) => (b.occurredAt ?? '').localeCompare(a.occurredAt ?? ''))[0]
                       const org = c.organizationId ? orgs.find(o => o.id === c.organizationId) : null
                       return (
@@ -443,10 +449,9 @@ export default function ContactsAdmin() {
                         </td>
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-2">
-                            {/* Avatar with deterministic colour from name */}
+                            {/* Neutral initial chip — colour now lives on the Stage pill */}
                             <span
-                              className="w-8 h-8 rounded-full grid place-items-center text-paper text-[11px] font-bold uppercase shrink-0"
-                              style={{ background: avatarColour(c.name || c.email || c.id) }}
+                              className="w-8 h-8 rounded-full bg-line text-ink-muted grid place-items-center text-[11px] font-bold uppercase shrink-0"
                               aria-hidden="true"
                             >
                               {(c.name?.[0] || c.email?.[0] || '?').toUpperCase()}
@@ -457,24 +462,24 @@ export default function ContactsAdmin() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-2 px-3 text-ink-muted hidden md:table-cell">{c.email}</td>
-                        <td className="py-2 px-3 hidden lg:table-cell">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {c.lifecycleStage && (
-                              <span className={`text-meta tracking-[0.12em] uppercase px-2 py-0.5 rounded-xs ${LIFECYCLE_COLOR[c.lifecycleStage] ?? 'bg-line text-ink-muted'}`}>
+                        {/* Stage — promoted, prominent, drives the row's identity */}
+                        <td className="py-2 px-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {c.lifecycleStage ? (
+                              <span className={`text-meta tracking-[0.12em] uppercase font-bold px-2.5 py-1 rounded-xs ${LIFECYCLE_COLOR[c.lifecycleStage] ?? 'bg-line text-ink-muted'}`}>
                                 {c.lifecycleStage}
                               </span>
+                            ) : (
+                              <span className="text-meta tracking-[0.12em] uppercase text-ink-muted">—</span>
                             )}
                             {c.isArtist && (
                               <span className="text-[9px] tracking-[0.14em] uppercase font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-xs">
                                 Artist
                               </span>
                             )}
-                            {c.category && c.category !== 'Other' && (
-                              <span className="text-meta text-ink-muted">· {c.category}</span>
-                            )}
                           </div>
                         </td>
+                        <td className="py-2 px-3 text-ink-muted hidden md:table-cell">{c.email}</td>
                         <td className="py-2 px-3 text-ink-muted text-meta hidden xl:table-cell">
                           {org ? (
                             <span className="inline-flex items-center gap-1 truncate">
@@ -487,6 +492,16 @@ export default function ContactsAdmin() {
                         <td className="py-2 px-3 text-right hidden lg:table-cell">
                           {contactDeals.length > 0 ? (
                             <span className="font-bold text-ink">{contactDeals.length}</span>
+                          ) : <span className="text-ink-muted">—</span>}
+                        </td>
+                        <td className="py-2 px-3 text-right hidden lg:table-cell">
+                          {purchaseCount > 0 ? (
+                            <span className="font-bold text-emerald-700 tabular-nums">{purchaseCount}</span>
+                          ) : <span className="text-ink-muted">—</span>}
+                        </td>
+                        <td className="py-2 px-3 text-right hidden md:table-cell text-meta">
+                          {totalPurchased > 0 ? (
+                            <span className="font-bold tabular-nums text-emerald-700">€ {Math.round(totalPurchased).toLocaleString()}</span>
                           ) : <span className="text-ink-muted">—</span>}
                         </td>
                         <td className="py-2 px-3 text-right hidden xl:table-cell text-meta">
@@ -1088,27 +1103,6 @@ function AddContactModal({
   )
 }
 
-/**
- * Deterministic colour for contact avatars (HubSpot-style colourful pills).
- * Uses a fixed-size palette + hashed-string index so same name = same colour.
- */
-const AVATAR_PALETTE = [
-  '#2563EB', // indigo accent
-  '#1EAC99', // teal
-  '#E0233C', // red
-  '#7C3AED', // violet
-  '#F59E0B', // amber
-  '#0EA5E9', // sky
-  '#EC4899', // pink
-  '#10B981', // emerald
-  '#6366F1', // indigo lighter
-  '#F97316', // orange
-]
-function avatarColour(seed: string): string {
-  let hash = 0
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length]
-}
 
 function relativeTime(iso: string | null | undefined): string {
   if (!iso) return '—'

@@ -344,6 +344,7 @@ export type PresentationLayout =
   | 'portfolio'         // Large image, minimal text, no price — artist/gallery focus
   | 'price-list'        // Compact table with price, dims, medium — sales tool
   | 'rental-proposal'   // Table with 12/24/36-month rental tier pricing
+  | 'sale-proposal'     // Itemised sale offer with subtotal + total
   | 'press-kit'         // Full description + details, no price — press release
   | 'catalogue'         // Grid cover + per-artwork pages with optional price
 
@@ -484,9 +485,104 @@ function RentalProposalPdf({
             </View>
           )
         })}
+        {/* Totals — monthly subtotals + 12/24/36 month grand totals */}
+        {(() => {
+          const cur = artworks[0]?.currency || 'EUR'
+          const sum = (k: 'rent12' | 'rent24' | 'rent36') =>
+            artworks.reduce((s, a) => s + (rentalTiers[a.id]?.[k] ?? 0), 0)
+          const m12 = sum('rent12')
+          const m24 = sum('rent24')
+          const m36 = sum('rent36')
+          const t12 = m12 * 12
+          const t24 = m24 * 24
+          const t36 = m36 * 36
+          const f = (n: number) => `${cur} ${n.toLocaleString()}`
+          return (
+            <>
+              <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: '#000', paddingTop: 8, marginTop: 4 }}>
+                <Text style={{ flex: 1, fontSize: 8, letterSpacing: 1.4, textTransform: 'uppercase', color: '#000' }}>Monthly subtotal</Text>
+                <Text style={{ width: 60, fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>{f(m12)}</Text>
+                <Text style={{ width: 60, fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>{f(m24)}</Text>
+                <Text style={{ width: 60, fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>{f(m36)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', paddingTop: 4 }}>
+                <Text style={{ flex: 1, fontSize: 8, letterSpacing: 1.4, textTransform: 'uppercase', color: '#666' }}>Total over term</Text>
+                <Text style={{ width: 60, fontSize: 9, color: '#666', textAlign: 'right' }}>{f(t12)}</Text>
+                <Text style={{ width: 60, fontSize: 9, color: '#666', textAlign: 'right' }}>{f(t24)}</Text>
+                <Text style={{ width: 60, fontSize: 9, color: '#666', textAlign: 'right' }}>{f(t36)}</Text>
+              </View>
+            </>
+          )
+        })()}
         <Text style={{ fontSize: 7, color: '#999', marginTop: 16, lineHeight: 1.5 }}>
           Rental prices shown are per calendar month. Longer rental terms typically reduce the monthly rate.
           All rentals include condition reports, insurance during transit, and installation guidance.
+        </Text>
+        <Text style={{ ...styles.footer, bottom: 18 }}>artpiq.com</Text>
+      </Page>
+    </Document>
+  )
+}
+
+// Sale proposal — itemised offer table with subtotal + total
+function SaleProposalPdf({ title, artworks }: { title: string; artworks: Artwork[] }) {
+  const cur = artworks[0]?.currency || 'EUR'
+  const subtotal = artworks.reduce((s, a) => s + (a.price ?? 0), 0)
+  const fmt = (n: number) => `${cur} ${n.toLocaleString()}`
+  return (
+    <Document>
+      <Page size="A4" style={{ ...styles.page, padding: 40 }}>
+        <Text style={{ fontSize: 8, letterSpacing: 2, color: '#999', textTransform: 'uppercase', marginBottom: 4 }}>{title}</Text>
+        <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>Sale Proposal</Text>
+        <Text style={{ fontSize: 8, color: '#999', marginBottom: 20 }}>{new Date().toLocaleDateString('en-GB', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+        <View style={{ borderBottomWidth: 1, borderColor: '#E5E5E5', marginBottom: 12 }} />
+        {/* Header row */}
+        <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+          <Text style={{ width: 50, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Image</Text>
+          <Text style={{ flex: 1, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Title / Artist</Text>
+          <Text style={{ width: 90, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Medium / Year</Text>
+          <Text style={{ width: 70, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999' }}>Dimensions</Text>
+          <Text style={{ width: 80, fontSize: 7, letterSpacing: 1.4, textTransform: 'uppercase', color: '#999', textAlign: 'right' }}>Price</Text>
+        </View>
+        {artworks.map(a => (
+          <View key={a.id} style={{ flexDirection: 'row', borderBottomWidth: 0.6, borderColor: '#F0F0F0', paddingVertical: 8, alignItems: 'center' }}>
+            <View style={{ width: 50 }}>
+              {a.image && <Image src={a.image} style={{ width: 40, height: 40, objectFit: 'contain', backgroundColor: '#F5F5F5' }} />}
+            </View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{a.title}</Text>
+              <Text style={{ fontSize: 9, color: '#666' }}>{a.artist || '—'}</Text>
+            </View>
+            <View style={{ width: 90, paddingRight: 4 }}>
+              <Text style={{ fontSize: 8, color: '#666' }}>{a.medium || '—'}</Text>
+              <Text style={{ fontSize: 8, color: '#666' }}>{a.year || ''}</Text>
+            </View>
+            <Text style={{ width: 70, fontSize: 8, color: '#666' }}>
+              {a.widthCm} × {a.heightCm}{a.depthCm ? ` × ${a.depthCm}` : ''} cm
+            </Text>
+            <Text style={{ width: 80, fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>
+              {a.price != null ? fmt(a.price) : 'POA'}
+            </Text>
+          </View>
+        ))}
+        {/* Summary block */}
+        <View style={{ marginTop: 18, borderTopWidth: 1, borderColor: '#000', paddingTop: 10 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingVertical: 2 }}>
+            <Text style={{ width: 120, fontSize: 8, letterSpacing: 1.4, textTransform: 'uppercase', color: '#666' }}>Subtotal</Text>
+            <Text style={{ width: 100, fontSize: 11, textAlign: 'right' }}>{fmt(subtotal)}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingVertical: 2 }}>
+            <Text style={{ width: 120, fontSize: 8, letterSpacing: 1.4, textTransform: 'uppercase', color: '#666' }}>Number of works</Text>
+            <Text style={{ width: 100, fontSize: 11, textAlign: 'right' }}>{artworks.length}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingVertical: 6, borderTopWidth: 0.6, borderColor: '#E5E5E5', marginTop: 4 }}>
+            <Text style={{ width: 120, fontSize: 10, letterSpacing: 1.4, textTransform: 'uppercase', fontFamily: 'Helvetica-Bold' }}>Total offer</Text>
+            <Text style={{ width: 100, fontSize: 16, fontFamily: 'Helvetica-Bold', textAlign: 'right' }}>{fmt(subtotal)}</Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 7, color: '#999', marginTop: 18, lineHeight: 1.5 }}>
+          Prices shown are exclusive of applicable VAT and any shipping, insurance, or installation costs.
+          Offer valid for 14 days from the date of this proposal. Subject to availability and final agreement.
         </Text>
         <Text style={{ ...styles.footer, bottom: 18 }}>artpiq.com</Text>
       </Page>
@@ -541,6 +637,8 @@ export async function exportPresentation(options: PresentationOptions): Promise<
     doc = <PriceListPdf title={title} artworks={hw} />
   } else if (layout === 'rental-proposal') {
     doc = <RentalProposalPdf title={title} artworks={hw} rentalTiers={rentalTiers ?? {}} />
+  } else if (layout === 'sale-proposal') {
+    doc = <SaleProposalPdf title={title} artworks={hw} />
   } else if (layout === 'press-kit') {
     doc = <PressKitPdf title={title} artworks={hw} />
   } else {
