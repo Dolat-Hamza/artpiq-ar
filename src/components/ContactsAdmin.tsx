@@ -610,7 +610,28 @@ function ContactDetail({
     setContactPres(prev => prev.filter(p => p.id !== id))
   }
 
-  const interestedArtworks = allArtworks.filter(a => (contact.interestedArtworkIds ?? []).includes(a.id))
+  // Three relationship buckets derived from existing data (no schema change).
+  // owned_by:    artwork's ownerContactId === this contact
+  // sold_to:     artwork is linked to a won deal for this contact
+  // interested:  manually flagged on the contact OR linked to an open deal
+  const ownedArtworks = allArtworks.filter(a => a.ownerContactId === contact.id)
+  const wonArtworkIds = new Set<string>()
+  const openArtworkIds = new Set<string>()
+  for (const d of deals) {
+    for (const id of d.artworkIds ?? []) {
+      if (d.stage === 'won') wonArtworkIds.add(id)
+      else if (d.stage !== 'lost') openArtworkIds.add(id)
+    }
+  }
+  const soldArtworks = allArtworks.filter(a => wonArtworkIds.has(a.id) && a.ownerContactId !== contact.id)
+  const interestedIdSet = new Set<string>([
+    ...(contact.interestedArtworkIds ?? []),
+    ...openArtworkIds,
+  ])
+  // De-dupe: don't show interested if already owned or sold
+  for (const a of ownedArtworks) interestedIdSet.delete(a.id)
+  for (const a of soldArtworks) interestedIdSet.delete(a.id)
+  const interestedArtworks = allArtworks.filter(a => interestedIdSet.has(a.id))
   const filteredArtworkPicker = artworkSearch.trim()
     ? allArtworks.filter(a => [a.title, a.artist].join(' ').toLowerCase().includes(artworkSearch.toLowerCase()))
     : allArtworks
@@ -891,33 +912,35 @@ function ContactDetail({
           </div>
         )}
 
-        {/* Artworks tab — interested artworks */}
+        {/* Artworks tab — three relationship buckets */}
         {tab === 'artworks' && (
-          <div className="p-4 grid gap-3">
+          <div className="p-4 grid gap-4">
+            {ownedArtworks.length > 0 && (
+              <ArtworkBucket
+                label="Owned by"
+                tone="indigo"
+                artworks={ownedArtworks}
+              />
+            )}
+            {soldArtworks.length > 0 && (
+              <ArtworkBucket
+                label="Sold to"
+                tone="emerald"
+                artworks={soldArtworks}
+              />
+            )}
             {interestedArtworks.length > 0 && (
-              <div>
-                <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
-                  Interested in · {interestedArtworks.length}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {interestedArtworks.map(a => (
-                    <div key={a.id} className="relative group">
-                      <div className="aspect-[4/5] bg-bg border border-line/60 overflow-hidden">
-                        {a.thumb && <img src={a.thumb} alt={a.title} className="w-full h-full object-cover" />}
-                      </div>
-                      <p className="text-meta font-bold truncate mt-1">{a.title}</p>
-                      <p className="text-meta text-ink-muted truncate">{a.artist}</p>
-                      <button
-                        onClick={() => toggleInterest(a.id)}
-                        className="absolute top-1 right-1 w-5 h-5 grid place-items-center bg-paper/90 backdrop-blur rounded-full text-red-600 opacity-0 group-hover:opacity-100"
-                        title="Remove"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ArtworkBucket
+                label="Interested in"
+                tone="amber"
+                artworks={interestedArtworks}
+                onRemove={(contact.interestedArtworkIds ?? []).length ? toggleInterest : undefined}
+              />
+            )}
+            {ownedArtworks.length === 0 && soldArtworks.length === 0 && interestedArtworks.length === 0 && (
+              <p className="text-meta text-ink-muted text-center py-4">
+                No artworks linked yet. Mark interest below, or set this contact as the owner of an artwork.
+              </p>
             )}
             <div className="border-t border-line pt-3">
               <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
@@ -1103,6 +1126,52 @@ function AddContactModal({
   )
 }
 
+
+// Renders one relationship bucket (Owned / Sold / Interested) of attached artworks
+function ArtworkBucket({
+  label,
+  tone,
+  artworks,
+  onRemove,
+}: {
+  label: string
+  tone: 'indigo' | 'emerald' | 'amber'
+  artworks: Artwork[]
+  onRemove?: (id: string) => void
+}) {
+  const toneClass =
+    tone === 'indigo' ? 'bg-indigo-100 text-indigo-700'
+    : tone === 'emerald' ? 'bg-emerald-100 text-emerald-700'
+    : 'bg-amber-100 text-amber-700'
+  return (
+    <div>
+      <p className="text-meta uppercase tracking-[0.14em] font-bold mb-2 inline-flex items-center gap-2">
+        <span className={`px-2 py-0.5 rounded-xs ${toneClass}`}>{label}</span>
+        <span className="text-ink-muted">· {artworks.length}</span>
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {artworks.map(a => (
+          <div key={a.id} className="relative group">
+            <div className="aspect-[4/5] bg-bg border border-line/60 overflow-hidden">
+              {a.thumb && <img src={a.thumb} alt={a.title} className="w-full h-full object-cover" />}
+            </div>
+            <p className="text-meta font-bold truncate mt-1">{a.title}</p>
+            <p className="text-meta text-ink-muted truncate">{a.artist}</p>
+            {onRemove && (
+              <button
+                onClick={() => onRemove(a.id)}
+                className="absolute top-1 right-1 w-5 h-5 grid place-items-center bg-paper/90 backdrop-blur rounded-full text-red-600 opacity-0 group-hover:opacity-100"
+                title="Remove"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function relativeTime(iso: string | null | undefined): string {
   if (!iso) return '—'

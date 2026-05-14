@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createDeal, deleteDeal, listDeals, updateDeal } from '@/lib/db/crm'
+import { listContacts } from '@/lib/db/contacts'
 import { listMyArtworks } from '@/lib/db/artworks'
 import {
   addDealArtwork,
@@ -13,7 +14,7 @@ import {
   listDealArtworks,
   updateDealArtwork,
 } from '@/lib/db/dealArtworks'
-import type { Artwork, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage } from '@/types'
+import type { Artwork, Contact, Deal, DealArtwork, DealLineMode, DealLineStatus, DealStage } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
@@ -34,7 +35,7 @@ export default function DealsAdmin() {
   const { user, loading } = useAuth()
   const [list, setList] = useState<Deal[]>([])
   const [artworks, setArtworks] = useState<Artwork[]>([])
-  const [view, setView] = useState<'kanban' | 'list'>('kanban')
+  const [contacts, setContacts] = useState<Contact[]>([])
   const [adding, setAdding] = useState<false | DealStage>(false)
   const [editing, setEditing] = useState<Deal | null>(null)
   const confirm = useConfirm()
@@ -78,6 +79,7 @@ export default function DealsAdmin() {
     if (!user) return
     refresh()
     listMyArtworks(user.id).then(setArtworks).catch(() => {})
+    listContacts(user.id).then(setContacts).catch(() => {})
   }, [user])
 
   // Universal Create deep-link: ?new=1 from sidebar Create menu
@@ -117,13 +119,6 @@ export default function DealsAdmin() {
         title="Deals"
         actions={
           <>
-            <div className="hidden md:inline-flex items-center gap-1 mr-2">
-              {(['kanban', 'list'] as const).map(v => (
-                <button key={v} onClick={() => setView(v)} data-active={view === v} className="ap-nav !rounded-md !py-1.5 !px-3 text-meta uppercase tracking-[0.14em]">
-                  {v}
-                </button>
-              ))}
-            </div>
             <button data-tour="new-deal" onClick={() => setAdding('enquiry')} className="btn-primary">
               <Plus size={14} strokeWidth={2.5} /> New deal
             </button>
@@ -137,8 +132,12 @@ export default function DealsAdmin() {
           </>
         }
       />
-      <main className="px-6 md:px-10 py-6">
-        {view === 'kanban' ? (
+      <main className="px-6 md:px-10 py-6 grid gap-6">
+        {/* Top summary metrics — sales volume + count by period */}
+        <DealMetrics deals={list} />
+        {/* Kanban — visual pipeline */}
+        <div>
+          <p className="font-display text-[14px] tracking-[0.18em] uppercase text-ink-muted mb-3">Pipeline</p>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             {STAGES.map(stage => {
               const col = list.filter(d => d.stage === stage)
@@ -208,42 +207,61 @@ export default function DealsAdmin() {
               )
             })}
           </div>
-        ) : (
+        </div>
+        {/* Detailed table — CRM-style, sortable scan-friendly */}
+        <div>
+          <p className="font-display text-[14px] tracking-[0.18em] uppercase text-ink-muted mb-3">All deals</p>
           <div className="bg-paper border border-line rounded-md overflow-hidden">
             <table className="w-full text-body">
               <thead className="border-b border-line bg-bg text-meta uppercase tracking-[0.14em] text-ink-muted">
                 <tr>
                   <th className="text-left py-2 px-3">Title</th>
                   <th className="text-left py-2 px-3">Stage</th>
-                  <th className="text-left py-2 px-3">Amount</th>
-                  <th className="text-left py-2 px-3">Probability</th>
-                  <th className="text-left py-2 px-3">Close date</th>
+                  <th className="text-left py-2 px-3 hidden md:table-cell">Customer</th>
+                  <th className="text-right py-2 px-3">Amount</th>
+                  <th className="text-right py-2 px-3 hidden lg:table-cell">Probability</th>
+                  <th className="text-right py-2 px-3 hidden xl:table-cell">Close date</th>
                   <th className="text-right py-2 px-3"></th>
                 </tr>
               </thead>
               <tbody>
-                {list.map(d => (
-                  <tr key={d.id} className="border-b border-line/60 hover:bg-bg">
-                    <td className="py-2 px-3 font-bold">{d.title}</td>
-                    <td className="py-2 px-3">
-                      <span className={`inline-block px-2 py-0.5 rounded-xs text-meta tracking-[0.14em] uppercase ${STAGE_COLOR[d.stage]}`}>
-                        {d.stage}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-ink-muted">{d.amount ? `€ ${d.amount.toLocaleString()}` : '—'}</td>
-                    <td className="py-2 px-3 text-ink-muted">{d.probability ?? '—'}%</td>
-                    <td className="py-2 px-3 text-ink-muted text-[11px]">{d.expectedCloseDate || '—'}</td>
-                    <td className="py-2 px-3 text-right">
-                      <button onClick={() => rm(d.id)} className="text-red-600 hover:text-red-700"><Trash2 size={14} /></button>
-                    </td>
+                {list.map(d => {
+                  const c = d.contactId ? contacts.find(x => x.id === d.contactId) : null
+                  return (
+                    <tr
+                      key={d.id}
+                      className="border-b border-line/60 hover:bg-bg cursor-pointer"
+                      onClick={() => setEditing(d)}
+                    >
+                      <td className="py-2 px-3 font-bold">{d.title}</td>
+                      <td className="py-2 px-3">
+                        <span className={`inline-block px-2 py-0.5 rounded-xs text-meta tracking-[0.14em] uppercase ${STAGE_COLOR[d.stage]}`}>
+                          {d.stage}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 hidden md:table-cell text-ink-muted">
+                        {c ? <span className="text-ink">{c.name || c.email}</span> : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums">{d.amount ? `€ ${d.amount.toLocaleString()}` : '—'}</td>
+                      <td className="py-2 px-3 text-right hidden lg:table-cell text-ink-muted">{d.probability ?? '—'}%</td>
+                      <td className="py-2 px-3 text-right hidden xl:table-cell text-ink-muted text-[11px]">{d.expectedCloseDate || '—'}</td>
+                      <td className="py-2 px-3 text-right" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => rm(d.id)} className="text-red-600 hover:text-red-700"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {list.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-ink-muted text-meta">No deals yet. Click + New deal to start.</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-        )}
+        </div>
       </main>
-      {adding && <AddDealModal ownerId={user.id} initialStage={adding} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
+      {adding && <AddDealModal ownerId={user.id} initialStage={adding} contacts={contacts} onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); refresh() }} />}
       <AnimatePresence mode="wait">
         {editing && (
           <DealEditModal
@@ -264,14 +282,83 @@ export default function DealsAdmin() {
   )
 }
 
+// ──────────────────────────────────────────────────────────────
+// Sales summary metrics — sits above the kanban as the dashboard.
+// Won deals only, grouped by created/updated timestamp window.
+// ──────────────────────────────────────────────────────────────
+function DealMetrics({ deals }: { deals: Deal[] }) {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+  const yearStart = new Date(now.getFullYear(), 0, 1)
+  const isInRange = (iso: string | undefined, start: Date) =>
+    !!iso && new Date(iso) >= start
+  const won = deals.filter(d => d.stage === 'won')
+  const wonInRange = (start: Date) => won.filter(d => isInRange(d.updatedAt ?? d.createdAt, start))
+  const fmt = (n: number) => `€ ${Math.round(n).toLocaleString()}`
+  const sum = (xs: Deal[]) => xs.reduce((s, d) => s + (d.amount ?? 0), 0)
+
+  const monthDeals = wonInRange(monthStart)
+  const quarterDeals = wonInRange(quarterStart)
+  const yearDeals = wonInRange(yearStart)
+  const open = deals.filter(d => d.stage !== 'lost' && d.stage !== 'won')
+
+  return (
+    <section className="bg-paper border border-line rounded-md p-5">
+      <div className="flex items-baseline mb-4">
+        <p className="font-display text-[14px] inline-flex items-center gap-2">Sales summary</p>
+        <p className="ml-auto text-meta uppercase tracking-[0.14em] text-ink-muted">
+          Won deals · updated this period
+        </p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard label="This month" amount={fmt(sum(monthDeals))} count={monthDeals.length} tone="accent" />
+        <MetricCard label="This quarter" amount={fmt(sum(quarterDeals))} count={quarterDeals.length} />
+        <MetricCard label="Year to date" amount={fmt(sum(yearDeals))} count={yearDeals.length} />
+        <MetricCard label="Open pipeline" amount={fmt(sum(open))} count={open.length} tone="muted" />
+      </div>
+    </section>
+  )
+}
+
+function MetricCard({
+  label,
+  amount,
+  count,
+  tone,
+}: {
+  label: string
+  amount: string
+  count: number
+  tone?: 'accent' | 'muted'
+}) {
+  const accent =
+    tone === 'accent'
+      ? 'border-line hover:border-ink'
+      : tone === 'muted'
+      ? 'border-line'
+      : 'border-line'
+  return (
+    <div className={`border rounded-md p-4 bg-paper ${accent}`}>
+      <p className="text-meta uppercase tracking-[0.14em] text-ink-muted">{label}</p>
+      <p className="font-display text-[24px] leading-none tabular-nums mt-3">{amount}</p>
+      <p className="text-meta text-ink-muted mt-1">
+        <span className="font-bold text-ink">{count}</span> {count === 1 ? 'deal' : 'deals'}
+      </p>
+    </div>
+  )
+}
+
 function AddDealModal({
   ownerId,
   initialStage,
+  contacts,
   onCancel,
   onSaved,
 }: {
   ownerId: string
   initialStage?: DealStage
+  contacts: Contact[]
   onCancel: () => void
   onSaved: () => void
 }) {
@@ -280,8 +367,17 @@ function AddDealModal({
   const [amount, setAmount] = useState('')
   const [probability, setProbability] = useState(50)
   const [expectedCloseDate, setExpectedCloseDate] = useState('')
+  const [contactId, setContactId] = useState<string>('')
+  const [contactSearch, setContactSearch] = useState('')
   const [busy, setBusy] = useState(false)
+  const filtered = useMemo(() => {
+    const q = contactSearch.trim().toLowerCase()
+    if (!q) return contacts.slice(0, 50)
+    return contacts.filter(c => `${c.name ?? ''} ${c.email ?? ''}`.toLowerCase().includes(q)).slice(0, 50)
+  }, [contacts, contactSearch])
+  const selectedContact = contacts.find(c => c.id === contactId)
   async function save() {
+    if (!contactId) return // hard-required
     setBusy(true)
     try {
       await createDeal({
@@ -292,15 +388,55 @@ function AddDealModal({
         probability,
         expectedCloseDate: expectedCloseDate || null,
         currency: 'EUR',
+        contactId,
       })
       onSaved()
     } finally { setBusy(false) }
   }
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onCancel}>
-      <div className="bg-paper rounded-md shadow-pop p-6 w-full max-w-[480px]" onClick={e => e.stopPropagation()}>
+      <div className="bg-paper rounded-md shadow-pop p-6 w-full max-w-[520px] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <h2 className="font-display text-[14px] tracking-[0.18em] uppercase mb-4">New deal</h2>
         <div className="grid gap-3">
+          {/* Customer picker — REQUIRED. A deal without a counterparty has no meaning. */}
+          <div>
+            <label className="text-meta uppercase tracking-[0.14em] text-ink-muted block mb-1">Customer <span className="text-red-600">*</span></label>
+            {selectedContact ? (
+              <div className="flex items-center justify-between border border-line rounded-md px-3 py-2 bg-bg">
+                <div className="min-w-0">
+                  <p className="font-bold truncate">{selectedContact.name || '—'}</p>
+                  <p className="text-meta text-ink-muted truncate">{selectedContact.email}</p>
+                </div>
+                <button onClick={() => setContactId('')} className="text-meta text-ink-muted hover:text-ink underline">Change</button>
+              </div>
+            ) : (
+              <>
+                <input
+                  placeholder="Search contacts by name or email…"
+                  value={contactSearch}
+                  onChange={e => setContactSearch(e.target.value)}
+                  className="input"
+                  autoFocus
+                />
+                <div className="mt-1 max-h-[180px] overflow-y-auto border border-line rounded-sm divide-y divide-line bg-paper">
+                  {filtered.length === 0 ? (
+                    <p className="px-3 py-2 text-meta text-ink-muted">No contacts. Add one in CRM first.</p>
+                  ) : (
+                    filtered.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setContactId(c.id); setContactSearch('') }}
+                        className="w-full text-left px-3 py-2 hover:bg-bg"
+                      >
+                        <p className="font-bold truncate text-body">{c.name || <span className="text-ink-muted italic">No name</span>}</p>
+                        <p className="text-meta text-ink-muted truncate">{c.email || '—'}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
           <input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="input" />
           <select value={stage} onChange={e => setStage(e.target.value as DealStage)} className="input">
             {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -311,7 +447,14 @@ function AddDealModal({
           <input type="date" value={expectedCloseDate} onChange={e => setExpectedCloseDate(e.target.value)} className="input" />
           <div className="flex justify-end gap-2 mt-2">
             <button onClick={onCancel} className="btn-outline">Cancel</button>
-            <button onClick={save} disabled={!title || busy} className="btn-primary disabled:opacity-40">Save</button>
+            <button
+              onClick={save}
+              disabled={!title || !contactId || busy}
+              title={!contactId ? 'Attach a customer first' : undefined}
+              className="btn-primary disabled:opacity-40"
+            >
+              Save
+            </button>
           </div>
         </div>
       </div>
@@ -706,7 +849,7 @@ function DealLineSection({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Offer (€)</label>
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Customer offer (€)</label>
                       <input
                         type="number"
                         value={l.offerPrice ?? ''}
@@ -715,7 +858,7 @@ function DealLineSection({
                       />
                     </div>
                     <div>
-                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Counter (€)</label>
+                      <label className="block text-[9px] tracking-[0.14em] uppercase text-ink-muted mb-0.5">Company offer (€)</label>
                       <input
                         type="number"
                         value={l.counterOffer ?? ''}
