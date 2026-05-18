@@ -824,6 +824,10 @@ function ComposerModal({
   const [commentText, setCommentText] = useState('')
   const [commentBusy, setCommentBusy] = useState(false)
   const [modalTab, setModalTab] = useState<'edit' | 'comments'>('edit')
+  // Composer is itself split into two tabs: the approver-friendly
+  // 'content' (title + caption + hashtags + images) and 'details'
+  // (type, brief, matrix, campaign, schedule).
+  const [composerTab, setComposerTab] = useState<'content' | 'details'>('content')
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
 
@@ -1009,7 +1013,56 @@ function ComposerModal({
         ) : (
 
         <div className="px-6 py-5 grid gap-4">
-          {/* Type + status workflow */}
+          {/* Composer tabs: Content for the approver (image / title /
+              caption / hashtags / variant images); Details for matrix,
+              brief, campaign, schedule — all the planning metadata. */}
+          <div className="border-b border-line -mx-6 px-6">
+            <nav className="flex gap-1 -mb-px" aria-label="Composer sections">
+              {(['content', 'details'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setComposerTab(t)}
+                  className={`inline-flex items-center gap-1.5 px-3 h-10 text-meta uppercase tracking-[0.14em] transition-colors border-b-2 ${
+                    composerTab === t
+                      ? 'border-ink text-ink font-bold'
+                      : 'border-transparent text-ink-muted hover:text-ink hover:border-line'
+                  }`}
+                  aria-current={composerTab === t ? 'page' : undefined}
+                >
+                  {t === 'content' ? 'Content' : 'Details'}
+                </button>
+              ))}
+              <span className="ml-auto self-center inline-flex items-center gap-2 text-meta">
+                <select
+                  value={item.status ?? 'draft'}
+                  onChange={e => setStatus(e.target.value as ContentStatus)}
+                  className="input !h-8 !py-1 !w-auto text-[11px]"
+                  aria-label="Status"
+                >
+                  {(['draft','in_progress','submitted_for_review','changes_requested','approved','scheduled','published','archived'] as ContentStatus[]).map(s => (
+                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                  ))}
+                </select>
+              </span>
+            </nav>
+          </div>
+
+        {composerTab === 'content' && (
+          <>
+            {/* Title — top of the approver view */}
+            <Field label="Title">
+              <input
+                value={item.title ?? ''}
+                onChange={e => set('title', e.target.value)}
+                placeholder="What is this content about"
+                className="input"
+              />
+            </Field>
+          </>
+        )}
+        {composerTab === 'details' && (<>
+          {/* Type only — status moved up to the tab bar so it lives
+              alongside the approver-visible controls. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="Type">
               <select
@@ -1022,17 +1075,6 @@ function ComposerModal({
                 ))}
               </select>
             </Field>
-            <Field label="Status">
-              <select
-                value={item.status ?? 'draft'}
-                onChange={e => setStatus(e.target.value as ContentStatus)}
-                className="input"
-              >
-                {(['draft','in_progress','submitted_for_review','changes_requested','approved','scheduled','published','archived'] as ContentStatus[]).map(s => (
-                  <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-                ))}
-              </select>
-            </Field>
           </div>
 
           {/* Loomly Brief — Thomas's Google Sheets framework */}
@@ -1040,14 +1082,6 @@ function ComposerModal({
             <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">
               Brief
             </legend>
-            <Field label="Title / internal name">
-              <input
-                value={item.title ?? ''}
-                onChange={e => set('title', e.target.value)}
-                placeholder="What is this content about (internal)"
-                className="input"
-              />
-            </Field>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Purpose">
                 <input
@@ -1110,8 +1144,8 @@ function ComposerModal({
             </Field>
           </fieldset>
 
-          {/* Matrix — moved to end per Thomas: image, title, hashtags come first */}
-          <fieldset data-matrix-fieldset className="border border-line rounded-md p-4 grid gap-3 order-last">
+          {/* Matrix — planning metadata, stays in Details tab */}
+          <fieldset data-matrix-fieldset className="border border-line rounded-md p-4 grid gap-3">
             <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">
               Matrix
             </legend>
@@ -1213,7 +1247,9 @@ function ComposerModal({
               </Field>
             </div>
           </fieldset>
+        </>)}
 
+        {composerTab === 'content' && (<>
           {/* Copy / body — with AI generator */}
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -1254,7 +1290,9 @@ function ComposerModal({
               />
             </Field>
           )}
+        </>)}
 
+        {composerTab === 'details' && (<>
           {/* Campaign — Upfluence-style grouping */}
           <Field label="Campaign">
             <select
@@ -1300,7 +1338,9 @@ function ComposerModal({
               />
             </Field>
           )}
+        </>)}
 
+        {composerTab === 'content' && (<>
           {/* Cover image + gallery */}
           <fieldset className="border border-line rounded-md p-4 grid gap-3">
             <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">Images</legend>
@@ -1362,6 +1402,7 @@ function ComposerModal({
               </p>
             </div>
           </fieldset>
+        </>)}
         </div>
         )}
       </div>

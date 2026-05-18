@@ -282,7 +282,17 @@ export default function DealsAdmin() {
           initialContactId={prefillContactId}
           contacts={contacts}
           onCancel={() => { setAdding(false); setPrefillContactId(null) }}
-          onSaved={() => { setAdding(false); setPrefillContactId(null); refresh() }}
+          onSaved={async (created) => {
+            setAdding(false)
+            setPrefillContactId(null)
+            // Refresh list, then open the freshly created deal in the
+            // rich slide-over drawer so the user lands in the workspace
+            // instead of staring at a flat row. Same pattern HubSpot uses.
+            const updated = await listDeals(user.id)
+            setList(updated)
+            const fresh = updated.find(d => d.id === created.id) ?? created
+            setEditing(fresh)
+          }}
         />
       )}
       <AnimatePresence mode="wait">
@@ -386,7 +396,7 @@ function AddDealModal({
   initialContactId?: string | null
   contacts: Contact[]
   onCancel: () => void
-  onSaved: () => void
+  onSaved: (created: Deal) => void
 }) {
   const [title, setTitle] = useState('')
   const [stage, setStage] = useState<DealStage>(initialStage ?? 'enquiry')
@@ -406,7 +416,7 @@ function AddDealModal({
     if (!contactId) return // hard-required
     setBusy(true)
     try {
-      await createDeal({
+      const created = await createDeal({
         ownerId,
         title,
         stage,
@@ -416,7 +426,7 @@ function AddDealModal({
         currency: 'EUR',
         contactId,
       })
-      onSaved()
+      onSaved(created)
     } finally { setBusy(false) }
   }
   return (
@@ -479,7 +489,7 @@ function AddDealModal({
               title={!contactId ? 'Attach a customer first' : undefined}
               className="btn-primary disabled:opacity-40"
             >
-              Save
+              Create & open
             </button>
           </div>
         </div>
