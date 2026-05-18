@@ -1314,6 +1314,59 @@ function ComposerModal({
         </>)}
 
         {composerTab === 'content' && (<>
+          {/* Type-specific extras shown above the caption/body */}
+          {item.type === 'newsletter' && (
+            <div className="grid gap-3">
+              <Field label="Subject line">
+                <input
+                  value={item.subjectLine ?? ''}
+                  onChange={e => set('subjectLine', e.target.value || null)}
+                  placeholder="What lands in the inbox subject"
+                  className="input"
+                  maxLength={120}
+                />
+                <p className="mt-1 text-meta text-ink-muted">
+                  {(item.subjectLine?.length ?? 0)} / 120 chars · keep under 60 for mobile previews
+                </p>
+              </Field>
+              <Field label="Preview text">
+                <input
+                  value={item.previewText ?? ''}
+                  onChange={e => set('previewText', e.target.value || null)}
+                  placeholder="Inbox preview line — the one after the subject"
+                  className="input"
+                  maxLength={140}
+                />
+                <p className="mt-1 text-meta text-ink-muted">
+                  {(item.previewText?.length ?? 0)} / 140 chars
+                </p>
+              </Field>
+            </div>
+          )}
+          {(item.type === 'reel' || (item.type === 'post' && item.platform === 'youtube')) && (
+            <Field label="Video URL">
+              <input
+                value={item.videoUrl ?? ''}
+                onChange={e => set('videoUrl', e.target.value || null)}
+                placeholder="https://… (mp4, YouTube, Vimeo)"
+                className="input"
+              />
+            </Field>
+          )}
+          {item.type === 'blog' && (
+            <Field label="Tags">
+              <input
+                value={(item.tags ?? []).join(', ')}
+                onChange={e => set('tags', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                placeholder="contemporary art, sculpture, collector"
+                className="input"
+              />
+              <p className="mt-1 text-meta text-ink-muted">
+                Comma-separated · {(item.tags ?? []).length} tag{(item.tags ?? []).length === 1 ? '' : 's'}
+              </p>
+            </Field>
+          )}
+
           {/* Copy / body — type & platform-aware: each social network has
               its own ceiling and tone. Composer shows the limit + a live
               counter so the approver knows it'll publish cleanly. */}

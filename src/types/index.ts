@@ -357,6 +357,11 @@ export interface ContentItem {
   platform?: string | null            // instagram | x | linkedin | facebook | tiktok
   monthKey?: string | null            // '2026-05' for monthly plan grouping
   campaignId?: string | null          // optional Upfluence-style campaign grouping
+  // Type-specific extras
+  subjectLine?: string | null         // newsletter
+  previewText?: string | null         // newsletter inbox preview
+  videoUrl?: string | null            // reel / youtube
+  tags?: string[] | null              // blog tags (distinct from social hashtags)
   createdAt?: string
   updatedAt?: string
 }

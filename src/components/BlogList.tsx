@@ -266,6 +266,17 @@ function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void 
             placeholder="Cover image URL"
             className="input"
           />
+          <div>
+            <input
+              value={(draft.tags ?? []).join(', ')}
+              onChange={e => setDraft(s => ({ ...s, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))}
+              placeholder="Tags — comma-separated (e.g. sculpture, collector, sale)"
+              className="input"
+            />
+            <p className="mt-1 text-meta text-ink-muted">
+              {(draft.tags ?? []).length} tag{(draft.tags ?? []).length === 1 ? '' : 's'}
+            </p>
+          </div>
           <input
             type="datetime-local"
             value={draft.scheduledAt ? new Date(draft.scheduledAt).toISOString().slice(0, 16) : ''}

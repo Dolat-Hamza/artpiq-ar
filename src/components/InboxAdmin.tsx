@@ -7,7 +7,8 @@ import {
   downloadSubscribersCsv,
   listSubscribers,
 } from '@/lib/db/subscribers'
-import { Subscriber } from '@/types'
+import { listContent } from '@/lib/db/social'
+import { ContentItem, Subscriber } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 
@@ -16,6 +17,10 @@ export default function InboxAdmin() {
   const [list, setList] = useState<Subscriber[]>([])
   const [busy, setBusy] = useState(false)
   const [embedShown, setEmbedShown] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [newsletters, setNewsletters] = useState<ContentItem[]>([])
+  const [pickedId, setPickedId] = useState<string>('')
 
   useEffect(() => {
     if (!user) return
@@ -45,22 +50,36 @@ export default function InboxAdmin() {
   const embedSnippet = `<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/newsletter.js" data-owner="${user.id}"></script>`
   const active = list.filter(s => !s.optedOutAt).length
 
+  async function openSendPicker() {
+    if (!user) return
+    const all = await listContent(user.id, { type: 'newsletter' })
+    setNewsletters(all)
+    setPickedId(all[0]?.id ?? '')
+    setPickerOpen(true)
+  }
+
   async function sendNewsletter() {
-    const contentId = prompt('Paste the newsletter content ID from Social Calendar → newsletter item')?.trim()
-    if (!contentId) return
-    const ok = confirm(`Send to ${active} active subscribers?`)
+    if (!pickedId || !user) return
+    const picked = newsletters.find(n => n.id === pickedId)
+    const ok = confirm(`Send "${picked?.subjectLine || picked?.title || 'newsletter'}" to ${active} active subscribers?`)
     if (!ok) return
+    setSending(true)
     try {
       const res = await fetch('/api/newsletter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentId, ownerId: user?.id }),
+        body: JSON.stringify({ contentId: pickedId, ownerId: user.id }),
       })
       const json = await res.json()
       if (!res.ok) alert(`Error: ${json.error}`)
-      else alert(`Sent ${json.sent} · Failed ${json.failed}`)
+      else {
+        alert(`Sent ${json.sent} · Failed ${json.failed}`)
+        setPickerOpen(false)
+      }
     } catch (e) {
       alert('Send failed: ' + String(e))
+    } finally {
+      setSending(false)
     }
   }
 
@@ -77,7 +96,7 @@ export default function InboxAdmin() {
               <Code2 size={13} /> {embedShown ? 'Hide embed' : 'Embed snippet'}
             </button>
             <button
-              onClick={sendNewsletter}
+              onClick={openSendPicker}
               disabled={!active}
               className="btn-outline disabled:opacity-40"
               title="Send a newsletter campaign via Resend (requires RESEND_API_KEY)"
@@ -169,6 +188,62 @@ export default function InboxAdmin() {
           </div>
         )}
       </main>
+      {pickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={() => setPickerOpen(false)}>
+          <div className="bg-paper rounded-md shadow-pop w-full max-w-[560px]" onClick={e => e.stopPropagation()}>
+            <header className="px-6 h-14 flex items-center gap-3 border-b border-line">
+              <Send size={14} className="text-ink-muted" />
+              <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Send newsletter</h2>
+            </header>
+            <div className="px-6 py-5 grid gap-3">
+              {newsletters.length === 0 ? (
+                <p className="text-body text-ink-muted text-center py-3">
+                  No newsletters drafted yet. Create one in Social Calendar → Newsletter column first.
+                </p>
+              ) : (
+                <>
+                  <label className="block">
+                    <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Newsletter</span>
+                    <select
+                      value={pickedId}
+                      onChange={e => setPickedId(e.target.value)}
+                      className="input"
+                    >
+                      {newsletters.map(n => (
+                        <option key={n.id} value={n.id}>
+                          {n.subjectLine || n.title || '(untitled)'} — {n.status}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {(() => {
+                    const picked = newsletters.find(n => n.id === pickedId)
+                    if (!picked) return null
+                    return (
+                      <div className="border border-line rounded-md p-3 bg-bg/40 grid gap-1">
+                        <p className="text-meta uppercase tracking-[0.14em] text-ink-muted">Preview</p>
+                        <p className="font-bold text-body">{picked.subjectLine || picked.title}</p>
+                        {picked.previewText && <p className="text-meta text-ink-muted">{picked.previewText}</p>}
+                        <p className="text-meta text-ink-muted mt-1">→ {active} active subscriber{active === 1 ? '' : 's'}</p>
+                      </div>
+                    )
+                  })()}
+                </>
+              )}
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setPickerOpen(false)} className="btn-outline">Cancel</button>
+                <button
+                  onClick={sendNewsletter}
+                  disabled={!pickedId || sending}
+                  className="btn-primary disabled:opacity-40"
+                >
+                  {sending ? 'Sending…' : `Send to ${active}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
