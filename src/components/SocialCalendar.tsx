@@ -9,6 +9,7 @@ import {
   FileText,
   Mail,
   Megaphone,
+  Copy,
   MessageSquare,
   Plus,
   Trash2,
@@ -91,6 +92,7 @@ export default function SocialCalendar() {
   const [filterTo, setFilterTo] = useState<string>('')
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [manageCampaigns, setManageCampaigns] = useState(false)
+  const [duplicating, setDuplicating] = useState<ContentItem | null>(null)
   const [cursor, setCursor] = useState<Date>(startOfMonth(new Date()))
   const [editing, setEditing] = useState<ContentItem | null>(null)
   const [composing, setComposing] = useState<{ type: ContentType; date?: Date; platform?: string | null } | null>(null)
@@ -315,6 +317,7 @@ export default function SocialCalendar() {
             onItemClick={item => setEditing(item)}
             onNew={type => setComposing({ type })}
             onNewForGroup={g => setComposing({ type: g.newType, platform: g.newPlatform ?? null })}
+            onDuplicate={item => setDuplicating(item)}
           />
         )}
         {view === 'campaigns' && (
@@ -376,6 +379,14 @@ export default function SocialCalendar() {
           campaigns={campaigns}
           onClose={() => setManageCampaigns(false)}
           onChange={refreshCampaigns}
+        />
+      )}
+      {duplicating && (
+        <DuplicateModal
+          source={duplicating}
+          ownerId={user.id}
+          onClose={() => setDuplicating(null)}
+          onDone={() => { setDuplicating(null); refresh() }}
         />
       )}
     </div>
@@ -541,11 +552,13 @@ function PlatformView({
   onItemClick,
   onNew,
   onNewForGroup,
+  onDuplicate,
 }: {
   items: ContentItem[]
   onItemClick: (item: ContentItem) => void
   onNew: (type: ContentType) => void
   onNewForGroup: (group: PlatformGroup) => void
+  onDuplicate: (item: ContentItem) => void
 }) {
   // Show every group whose match function ever triggers OR that has
   // items. Empty columns stay visible when they're "primary" platforms
@@ -590,10 +603,12 @@ function PlatformView({
               .map(c => (
                 <article
                   key={c.id}
-                  onClick={() => onItemClick(c)}
-                  className="border border-line rounded-sm p-2 bg-paper hover:border-ink hover:shadow-sm transition-all cursor-pointer"
+                  className="border border-line rounded-sm p-2 bg-paper hover:border-ink hover:shadow-sm transition-all group relative"
                 >
-                  <div className="flex items-start gap-2">
+                  <div
+                    className="flex items-start gap-2 cursor-pointer"
+                    onClick={() => onItemClick(c)}
+                  >
                     {c.coverUrl && (
                       <img
                         src={c.coverUrl}
@@ -615,6 +630,14 @@ function PlatformView({
                       </div>
                     </div>
                   </div>
+                  {/* Hover-revealed duplicate action */}
+                  <button
+                    onClick={e => { e.stopPropagation(); onDuplicate(c) }}
+                    title="Duplicate to other platforms"
+                    className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-sm bg-paper/90 backdrop-blur border border-line text-ink-muted hover:text-ink hover:border-ink opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Copy size={11} />
+                  </button>
                 </article>
               ))}
           </div>
@@ -1291,46 +1314,115 @@ function ComposerModal({
         </>)}
 
         {composerTab === 'content' && (<>
-          {/* Copy / body — with AI generator */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted">
-                {item.type === 'blog' || item.type === 'newsletter' ? 'Body (markdown)' : 'Caption / copy'}
-              </label>
-              <button
-                type="button"
-                onClick={generateWithAI}
-                disabled={aiBusy}
-                className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80 disabled:opacity-40 inline-flex items-center gap-1"
-              >
-                {aiBusy ? 'Generating…' : '✦ Generate with AI'}
-              </button>
-            </div>
-            <textarea
-              value={(item.type === 'blog' || item.type === 'newsletter' ? item.bodyMd : item.copy) ?? ''}
-              onChange={e =>
-                item.type === 'blog' || item.type === 'newsletter'
-                  ? set('bodyMd', e.target.value)
-                  : set('copy', e.target.value)
-              }
-              rows={item.type === 'blog' || item.type === 'newsletter' ? 12 : 6}
-              className="input"
-              placeholder={item.type === 'blog' ? 'Full blog body…' : 'Caption…'}
-            />
-            {aiError && <p className="text-meta text-red-600 mt-1">{aiError}</p>}
-          </div>
+          {/* Copy / body — type & platform-aware: each social network has
+              its own ceiling and tone. Composer shows the limit + a live
+              counter so the approver knows it'll publish cleanly. */}
+          {(() => {
+            const platform = item.platform ?? null
+            const type = item.type ?? 'post'
+            const isLong = type === 'blog' || type === 'newsletter'
+            // Platform-specific copy ceilings, drawn from each network's
+            // public limit. Null when no meaningful cap.
+            const PLATFORM_LIMIT: Record<string, { max: number; label: string }> = {
+              x:         { max: 280,   label: 'X — 280 chars' },
+              threads:   { max: 500,   label: 'Threads — 500 chars' },
+              instagram: { max: 2200,  label: 'Instagram caption — 2,200 chars' },
+              facebook:  { max: 63206, label: 'Facebook — up to 63k chars' },
+              linkedin:  { max: 3000,  label: 'LinkedIn — 3,000 chars' },
+              tiktok:    { max: 2200,  label: 'TikTok caption — 2,200 chars' },
+              youtube:   { max: 5000,  label: 'YouTube description — 5,000 chars' },
+              pinterest: { max: 500,   label: 'Pinterest — 500 chars' },
+            }
+            const limit = platform ? PLATFORM_LIMIT[platform] : null
+            const label =
+              type === 'blog' ? 'Body (markdown)'
+              : type === 'newsletter' ? 'Newsletter body (markdown)'
+              : type === 'event_promo' ? 'Event description'
+              : type === 'story' ? 'Story caption'
+              : type === 'reel' ? 'Reel caption'
+              : 'Caption'
+            const placeholder =
+              type === 'blog' ? 'Full blog body — markdown supported'
+              : type === 'newsletter' ? 'Newsletter body — markdown supported'
+              : platform === 'x' ? 'Keep it tight. Hook + link.'
+              : platform === 'linkedin' ? 'Lead with insight. Short paragraphs read better.'
+              : platform === 'tiktok' ? 'Hook in the first line. Add a clear CTA.'
+              : platform === 'youtube' ? 'Hook in line one; details below; timestamps + links at the bottom.'
+              : platform === 'instagram' ? 'Caption. Line breaks help readability.'
+              : 'Caption…'
+            const value = (isLong ? item.bodyMd : item.copy) ?? ''
+            const count = value.length
+            const over = limit && count > limit.max
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                  <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted">{label}</label>
+                  <button
+                    type="button"
+                    onClick={generateWithAI}
+                    disabled={aiBusy}
+                    className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80 disabled:opacity-40 inline-flex items-center gap-1"
+                  >
+                    {aiBusy ? 'Generating…' : '✦ Generate with AI'}
+                  </button>
+                </div>
+                <textarea
+                  value={value}
+                  onChange={e =>
+                    isLong ? set('bodyMd', e.target.value) : set('copy', e.target.value)
+                  }
+                  rows={isLong ? 12 : (platform === 'x' || platform === 'threads' ? 4 : 6)}
+                  className={`input ${over ? '!border-red-400' : ''}`}
+                  placeholder={placeholder}
+                />
+                <div className="flex items-center justify-between mt-1 text-meta text-ink-muted">
+                  {aiError ? <span className="text-red-600">{aiError}</span> : <span />}
+                  {limit && (
+                    <span className={over ? 'text-red-600 font-bold' : ''}>
+                      {count.toLocaleString()} / {limit.max.toLocaleString()} · {limit.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
-          {/* Hashtags */}
-          {(item.type === 'post' || item.type === 'reel' || item.type === 'story') && (
-            <Field label="Hashtags">
-              <input
-                value={(item.hashtags ?? []).join(' ')}
-                onChange={e => set('hashtags', e.target.value.split(/\s+/).filter(Boolean))}
-                placeholder="#contemporaryart #collector"
-                className="input"
-              />
-            </Field>
-          )}
+          {/* Hashtags — count hint scales to the platform's sweet spot */}
+          {(item.type === 'post' || item.type === 'reel' || item.type === 'story') && (() => {
+            const platform = item.platform ?? null
+            const HASHTAG_MAX: Record<string, number> = {
+              instagram: 30,
+              tiktok: 30,
+              x: 5,
+              linkedin: 5,
+              facebook: 10,
+              threads: 10,
+              pinterest: 20,
+              youtube: 15,
+            }
+            const max = platform ? HASHTAG_MAX[platform] : null
+            const tags = item.hashtags ?? []
+            const over = max != null && tags.length > max
+            return (
+              <Field label="Hashtags">
+                <input
+                  value={tags.join(' ')}
+                  onChange={e => set('hashtags', e.target.value.split(/\s+/).filter(Boolean))}
+                  placeholder={
+                    platform === 'x' ? '1–2 well-placed tags work best on X'
+                    : platform === 'linkedin' ? 'Up to 5 niche tags'
+                    : '#contemporaryart #collector'
+                  }
+                  className={`input ${over ? '!border-red-400' : ''}`}
+                />
+                {max != null && (
+                  <p className={`mt-1 text-meta ${over ? 'text-red-600 font-bold' : 'text-ink-muted'}`}>
+                    {tags.length} / {max} on {platform}
+                  </p>
+                )}
+              </Field>
+            )
+          })()}
         </>)}
 
         {composerTab === 'details' && (<>
@@ -1698,6 +1790,137 @@ function ManageCampaignsModal({
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Duplicate modal — clone a post into one or more other platforms.
+// Same content (title, copy, hashtags, images), new platform tag,
+// status reset to draft so the approver re-reviews per channel.
+// ============================================================
+const DUPLICATE_TARGETS: { id: string; label: string; type: ContentType }[] = [
+  { id: 'instagram', label: 'Instagram', type: 'post' },
+  { id: 'facebook',  label: 'Facebook',  type: 'post' },
+  { id: 'x',         label: 'X',         type: 'post' },
+  { id: 'linkedin',  label: 'LinkedIn',  type: 'post' },
+  { id: 'threads',   label: 'Threads',   type: 'post' },
+  { id: 'pinterest', label: 'Pinterest', type: 'post' },
+  { id: 'tiktok',    label: 'TikTok',    type: 'reel' },
+  { id: 'youtube',   label: 'YouTube',   type: 'reel' },
+]
+function DuplicateModal({
+  source,
+  ownerId,
+  onClose,
+  onDone,
+}: {
+  source: ContentItem
+  ownerId: string
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [busy, setBusy] = useState(false)
+  function toggle(id: string) {
+    const next = new Set(picked)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    setPicked(next)
+  }
+  async function go() {
+    if (picked.size === 0) return
+    setBusy(true)
+    try {
+      await Promise.all(
+        Array.from(picked).map(id => {
+          const tgt = DUPLICATE_TARGETS.find(t => t.id === id)
+          if (!tgt) return Promise.resolve()
+          return createContent({
+            ownerId,
+            type: tgt.type,
+            status: 'draft',
+            title: source.title,
+            copy: source.copy,
+            hashtags: source.hashtags,
+            purpose: source.purpose,
+            postType: source.postType,
+            targetAudience: source.targetAudience,
+            hook: source.hook,
+            cta: source.cta,
+            ctaUrl: source.ctaUrl,
+            coverUrl: source.coverUrl,
+            mediaUrls: source.mediaUrls,
+            pillar: source.pillar,
+            funnelStage: source.funnelStage,
+            audienceSegment: source.audienceSegment,
+            format: source.format,
+            kpi: source.kpi,
+            campaignId: source.campaignId,
+            platform: tgt.id,
+          })
+        })
+      )
+      onDone()
+    } finally { setBusy(false) }
+  }
+  // Skip the platform the source already targets — duplicating to self
+  // would just create a confusing duplicate in the same column.
+  const targets = DUPLICATE_TARGETS.filter(t => t.id !== source.platform)
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
+      <div className="bg-paper rounded-md shadow-pop w-full max-w-[520px] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <header className="px-6 h-14 flex items-center gap-3 border-b border-line">
+          <Copy size={14} className="text-ink-muted" />
+          <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Duplicate post</h2>
+          <button onClick={onClose} className="ml-auto text-ink-muted hover:text-ink"><X size={16} /></button>
+        </header>
+        <div className="px-6 py-5 grid gap-4">
+          <div className="text-body">
+            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted">Source</p>
+            <p className="font-bold truncate">{source.title || <span className="text-ink-muted italic">(untitled)</span>}</p>
+            {source.platform && (
+              <p className="text-meta text-ink-muted mt-0.5">From <b className="capitalize">{source.platform}</b></p>
+            )}
+          </div>
+          <div>
+            <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold mb-2">
+              Duplicate to · {picked.size} selected
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {targets.map(t => {
+                const on = picked.has(t.id)
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggle(t.id)}
+                    aria-pressed={on}
+                    className={`flex items-center gap-2 border rounded-md px-3 h-10 transition-colors ${
+                      on
+                        ? 'border-accent bg-accent-soft text-ink'
+                        : 'border-line text-ink-muted hover:text-ink hover:border-ink'
+                    }`}
+                  >
+                    <span className={`w-4 h-4 rounded-xs border ${on ? 'bg-accent border-accent' : 'border-line'} grid place-items-center`}>
+                      {on && <Check size={11} className="text-paper" />}
+                    </span>
+                    <span className="text-body font-bold">{t.label}</span>
+                    <span className="text-meta text-ink-muted ml-auto">{t.type}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <p className="text-meta text-ink-muted">
+            Each copy starts as <b>Draft</b> with the same caption, hashtags and images. Status resets so the approver can review per channel.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="btn-outline">Cancel</button>
+            <button onClick={go} disabled={picked.size === 0 || busy} className="btn-primary disabled:opacity-40">
+              {busy ? 'Duplicating…' : `Duplicate to ${picked.size || ''}`}
+            </button>
           </div>
         </div>
       </div>
