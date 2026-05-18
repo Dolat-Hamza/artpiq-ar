@@ -58,6 +58,10 @@ const contentRow = (r: Record<string, unknown>): ContentItem => ({
   platform: (r.platform as string | null) ?? null,
   monthKey: (r.month_key as string | null) ?? null,
   campaignId: (r.campaign_id as string | null) ?? null,
+  subjectLine: (r.subject_line as string | null) ?? null,
+  previewText: (r.preview_text as string | null) ?? null,
+  videoUrl: (r.video_url as string | null) ?? null,
+  tags: (r.tags as string[] | null) ?? null,
   id: r.id as string,
   ownerId: r.owner_id as string,
   type: r.type as ContentItem['type'],
@@ -136,6 +140,10 @@ export async function createContent(input: Partial<ContentItem> & { ownerId: str
   if (input.platform !== undefined) row.platform = input.platform
   if (input.monthKey !== undefined) row.month_key = input.monthKey
   if (input.campaignId !== undefined) row.campaign_id = input.campaignId
+  if (input.subjectLine !== undefined) (row as Record<string, unknown>).subject_line = input.subjectLine
+  if (input.previewText !== undefined) (row as Record<string, unknown>).preview_text = input.previewText
+  if (input.videoUrl !== undefined) (row as Record<string, unknown>).video_url = input.videoUrl
+  if (input.tags !== undefined) (row as Record<string, unknown>).tags = input.tags
   const { data, error } = await supabase().from('content_items').insert(row).select('*').single()
   if (error) throw error
   return contentRow(data as Record<string, unknown>)
@@ -172,6 +180,10 @@ export async function updateContent(id: string, patch: Partial<ContentItem>): Pr
   if (patch.platform !== undefined) row.platform = patch.platform
   if (patch.monthKey !== undefined) row.month_key = patch.monthKey
   if (patch.campaignId !== undefined) row.campaign_id = patch.campaignId
+  if (patch.subjectLine !== undefined) (row as Record<string, unknown>).subject_line = patch.subjectLine
+  if (patch.previewText !== undefined) (row as Record<string, unknown>).preview_text = patch.previewText
+  if (patch.videoUrl !== undefined) (row as Record<string, unknown>).video_url = patch.videoUrl
+  if (patch.tags !== undefined) (row as Record<string, unknown>).tags = patch.tags
   const { error } = await supabase().from('content_items').update(row).eq('id', id)
   if (error) throw error
 }
