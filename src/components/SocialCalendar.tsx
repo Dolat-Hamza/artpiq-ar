@@ -93,7 +93,7 @@ export default function SocialCalendar() {
   const [manageCampaigns, setManageCampaigns] = useState(false)
   const [cursor, setCursor] = useState<Date>(startOfMonth(new Date()))
   const [editing, setEditing] = useState<ContentItem | null>(null)
-  const [composing, setComposing] = useState<{ type: ContentType; date?: Date } | null>(null)
+  const [composing, setComposing] = useState<{ type: ContentType; date?: Date; platform?: string | null } | null>(null)
   const confirm = useConfirm()
   const toast = useToast()
 
@@ -314,6 +314,7 @@ export default function SocialCalendar() {
             items={filteredList}
             onItemClick={item => setEditing(item)}
             onNew={type => setComposing({ type })}
+            onNewForGroup={g => setComposing({ type: g.newType, platform: g.newPlatform ?? null })}
           />
         )}
         {view === 'campaigns' && (
@@ -345,7 +346,11 @@ export default function SocialCalendar() {
         <ComposerModal
           ownerId={user.id}
           campaigns={campaigns}
-          initial={{ type: composing.type, scheduledAt: composing.date?.toISOString() ?? null }}
+          initial={{
+            type: composing.type,
+            scheduledAt: composing.date?.toISOString() ?? null,
+            platform: composing.platform ?? null,
+          }}
           onClose={() => setComposing(null)}
           onSaved={() => {
             setComposing(null)
@@ -505,33 +510,54 @@ function CalendarView({
 // Blog, Newsletter, Events). Reads like a publication board: one
 // column per channel, scannable images + status at a glance.
 // ============================================================
-const PLATFORM_GROUPS: { id: string; label: string; matches: (c: ContentItem) => boolean }[] = [
-  { id: 'instagram', label: 'Instagram', matches: c => c.platform === 'instagram' },
-  { id: 'tiktok',    label: 'TikTok',    matches: c => c.platform === 'tiktok' },
-  { id: 'facebook',  label: 'Facebook',  matches: c => c.platform === 'facebook' },
-  { id: 'x',         label: 'X',         matches: c => c.platform === 'x' },
-  { id: 'linkedin',  label: 'LinkedIn',  matches: c => c.platform === 'linkedin' },
-  { id: 'youtube',   label: 'YouTube',   matches: c => c.platform === 'youtube' },
-  { id: 'pinterest', label: 'Pinterest', matches: c => c.platform === 'pinterest' },
-  { id: 'threads',   label: 'Threads',   matches: c => c.platform === 'threads' },
-  { id: 'blog',      label: 'Blog',      matches: c => c.type === 'blog' && !c.platform },
-  { id: 'newsletter', label: 'Newsletter', matches: c => c.type === 'newsletter' && !c.platform },
-  { id: 'events',    label: 'Events',    matches: c => c.type === 'event_promo' && !c.platform },
+interface PlatformGroup {
+  id: string
+  label: string
+  matches: (c: ContentItem) => boolean
+  // Defaults used when the user clicks the "+" on this column.
+  // Lets each column spawn the right kind of post pre-tagged with its
+  // platform so the approver sees it in the same column.
+  newType: ContentType
+  newPlatform?: string | null
+}
+const PLATFORM_GROUPS: PlatformGroup[] = [
+  { id: 'instagram', label: 'Instagram', matches: c => c.platform === 'instagram', newType: 'post', newPlatform: 'instagram' },
+  { id: 'tiktok',    label: 'TikTok',    matches: c => c.platform === 'tiktok',    newType: 'reel', newPlatform: 'tiktok' },
+  { id: 'facebook',  label: 'Facebook',  matches: c => c.platform === 'facebook',  newType: 'post', newPlatform: 'facebook' },
+  { id: 'x',         label: 'X',         matches: c => c.platform === 'x',         newType: 'post', newPlatform: 'x' },
+  { id: 'linkedin',  label: 'LinkedIn',  matches: c => c.platform === 'linkedin',  newType: 'post', newPlatform: 'linkedin' },
+  { id: 'youtube',   label: 'YouTube',   matches: c => c.platform === 'youtube',   newType: 'reel', newPlatform: 'youtube' },
+  { id: 'pinterest', label: 'Pinterest', matches: c => c.platform === 'pinterest', newType: 'post', newPlatform: 'pinterest' },
+  { id: 'threads',   label: 'Threads',   matches: c => c.platform === 'threads',   newType: 'post', newPlatform: 'threads' },
+  { id: 'blog',      label: 'Blog',      matches: c => c.type === 'blog' && !c.platform, newType: 'blog' },
+  { id: 'newsletter', label: 'Newsletter', matches: c => c.type === 'newsletter' && !c.platform, newType: 'newsletter' },
+  { id: 'events',    label: 'Events',    matches: c => c.type === 'event_promo' && !c.platform, newType: 'event_promo' },
   { id: 'unassigned', label: 'Unassigned', matches: c =>
-      !c.platform && c.type !== 'blog' && c.type !== 'newsletter' && c.type !== 'event_promo' },
+      !c.platform && c.type !== 'blog' && c.type !== 'newsletter' && c.type !== 'event_promo', newType: 'post' },
 ]
 
 function PlatformView({
   items,
   onItemClick,
   onNew,
+  onNewForGroup,
 }: {
   items: ContentItem[]
   onItemClick: (item: ContentItem) => void
   onNew: (type: ContentType) => void
+  onNewForGroup: (group: PlatformGroup) => void
 }) {
-  const groups = PLATFORM_GROUPS.map(g => ({ ...g, items: items.filter(g.matches) })).filter(g => g.items.length > 0)
-  if (groups.length === 0) {
+  // Show every group whose match function ever triggers OR that has
+  // items. Empty columns stay visible when they're "primary" platforms
+  // so the user can use the column's + button to seed the first post.
+  const PRIMARY_IDS = new Set([
+    'instagram','tiktok','facebook','x','linkedin','youtube','pinterest','threads',
+    'blog','newsletter','events',
+  ])
+  const groups = PLATFORM_GROUPS
+    .map(g => ({ ...g, items: items.filter(g.matches) }))
+    .filter(g => g.items.length > 0 || PRIMARY_IDS.has(g.id))
+  if (items.length === 0) {
     return (
       <div className="bg-paper border border-line rounded-md p-8 text-center">
         <p className="text-body text-ink-muted">No content matches the current filter.</p>
@@ -545,9 +571,17 @@ function PlatformView({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {groups.map(g => (
         <section key={g.id} className="bg-paper border border-line rounded-md p-3 min-h-[240px]">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 gap-2">
             <p className="font-display text-meta uppercase tracking-[0.14em]">{g.label}</p>
-            <span className="text-meta tracking-[0.14em] text-ink-muted">{g.items.length}</span>
+            <span className="text-meta tracking-[0.14em] text-ink-muted ml-auto">{g.items.length}</span>
+            <button
+              onClick={() => onNewForGroup(g)}
+              title={`New ${g.label} post`}
+              aria-label={`New ${g.label} post`}
+              className="w-6 h-6 grid place-items-center rounded-sm border border-line text-ink-muted hover:border-ink hover:text-ink transition-colors"
+            >
+              <Plus size={12} strokeWidth={2.5} />
+            </button>
           </div>
           <div className="flex flex-col gap-2">
             {g.items
@@ -584,6 +618,13 @@ function PlatformView({
                 </article>
               ))}
           </div>
+          <button
+            onClick={() => onNewForGroup(g)}
+            className="mt-2 w-full inline-flex items-center justify-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink py-1.5 border border-dashed border-line rounded-sm hover:border-ink transition-colors"
+            title={`New ${g.label} post`}
+          >
+            <Plus size={11} /> Add
+          </button>
         </section>
       ))}
     </div>
