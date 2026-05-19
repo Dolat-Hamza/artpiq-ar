@@ -301,7 +301,142 @@ export default function SuperAdmin() {
             </table>
           </div>
         </section>
+
+        {/* Stock rooms — bulk-add sample wall photos */}
+        <StockRoomsPanel authedFetch={authedFetch} onError={setErr} />
       </main>
     </div>
+  )
+}
+
+// ============================================================
+// Stock rooms admin: bulk-add clean-wall sample photos so every user
+// has plenty of room mockups to drop artworks into.
+// ============================================================
+const WALL_PRESETS: { id: string; label: string; quad: number[][] }[] = [
+  { id: 'front-large',  label: 'Front-flat — large wall',  quad: [[0.06, 0.05], [0.94, 0.05], [0.94, 0.62], [0.06, 0.62]] },
+  { id: 'front-medium', label: 'Front-flat — medium wall', quad: [[0.12, 0.06], [0.88, 0.06], [0.88, 0.58], [0.12, 0.58]] },
+  { id: 'front-narrow', label: 'Front-flat — narrow wall', quad: [[0.22, 0.08], [0.78, 0.08], [0.78, 0.55], [0.22, 0.55]] },
+  { id: 'gallery-tall', label: 'Gallery — tall white wall', quad: [[0.08, 0.03], [0.92, 0.03], [0.92, 0.75], [0.08, 0.75]] },
+]
+
+const ROOM_CATEGORIES = [
+  'living', 'bedroom', 'office', 'gallery', 'hallway', 'dining', 'studio',
+  'kitchen', 'lobby', 'cafe', 'restaurant', 'plain',
+]
+
+function StockRoomsPanel({
+  authedFetch,
+  onError,
+}: {
+  authedFetch: (url: string, init?: RequestInit) => Promise<Response>
+  onError: (msg: string | null) => void
+}) {
+  const [category, setCategory] = useState('living')
+  const [presetId, setPresetId] = useState(WALL_PRESETS[1].id)
+  const [wallWidthCm, setWallWidthCm] = useState('350')
+  const [namePrefix, setNamePrefix] = useState('')
+  const [urls, setUrls] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [lastResult, setLastResult] = useState<string | null>(null)
+
+  async function submit() {
+    const lines = urls.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+    if (lines.length === 0) return
+    const preset = WALL_PRESETS.find(p => p.id === presetId) ?? WALL_PRESETS[1]
+    const prefix = namePrefix.trim() || `${category[0].toUpperCase() + category.slice(1)}`
+    // Build a request body matching the SQL function's expected shape.
+    const rooms = lines.map((url, i) => ({
+      name: `${prefix} ${i + 1}`,
+      category,
+      image_url: url,
+      wall_quad: preset.quad,
+      wall_width_cm: Number(wallWidthCm) || 350,
+      smart: false,
+    }))
+    setBusy(true)
+    onError(null)
+    try {
+      const res = await authedFetch('/api/superadmin/stock-rooms', {
+        method: 'POST',
+        body: JSON.stringify({ rooms }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        onError(json.error || 'Bulk add failed')
+        return
+      }
+      setLastResult(`${json.inserted} rooms added.`)
+      setUrls('')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="bg-paper border border-line rounded-md p-5">
+      <p className="font-display text-[14px] mb-3">Stock rooms — bulk add</p>
+      <p className="text-meta text-ink-muted mb-4">
+        Paste image URLs (one per line). Each becomes a room mockup with the chosen wall preset.
+        Free sources: <a className="underline" href="https://unsplash.com/s/photos/empty-wall-interior" target="_blank" rel="noopener noreferrer">Unsplash empty-wall</a> ·{' '}
+        <a className="underline" href="https://www.pexels.com/search/minimalist%20interior/" target="_blank" rel="noopener noreferrer">Pexels minimalist interior</a> ·{' '}
+        <a className="underline" href="https://www.pexels.com/search/empty%20wall/" target="_blank" rel="noopener noreferrer">Pexels empty wall</a>.
+      </p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+        <label className="block">
+          <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Category</span>
+          <select value={category} onChange={e => setCategory(e.target.value)} className="input">
+            {ROOM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Wall preset</span>
+          <select value={presetId} onChange={e => setPresetId(e.target.value)} className="input">
+            {WALL_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Wall width (cm)</span>
+          <input
+            value={wallWidthCm}
+            onChange={e => setWallWidthCm(e.target.value)}
+            inputMode="numeric"
+            className="input"
+          />
+        </label>
+        <label className="block">
+          <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Name prefix</span>
+          <input
+            value={namePrefix}
+            onChange={e => setNamePrefix(e.target.value)}
+            placeholder={`e.g. ${category}`}
+            className="input"
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Image URLs (one per line)</span>
+        <textarea
+          value={urls}
+          onChange={e => setUrls(e.target.value)}
+          rows={6}
+          placeholder={`https://images.unsplash.com/photo-…?w=1600&q=82\nhttps://images.pexels.com/photos/…/pexels-photo-….jpeg`}
+          className="input font-mono text-[12px]"
+        />
+      </label>
+      <div className="flex items-center justify-between mt-3 gap-3">
+        <p className="text-meta text-ink-muted">
+          {(urls.split('\n').map(s => s.trim()).filter(Boolean).length)} URL(s) ready
+          {lastResult && <span className="ml-2 text-emerald-700">· {lastResult}</span>}
+        </p>
+        <button
+          onClick={submit}
+          disabled={busy || urls.trim().length === 0}
+          className="btn-primary disabled:opacity-40"
+        >
+          {busy ? 'Adding…' : 'Bulk add rooms'}
+        </button>
+      </div>
+    </section>
   )
 }
