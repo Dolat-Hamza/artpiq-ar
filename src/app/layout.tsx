@@ -1,26 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { Cormorant_Garamond, Inter_Tight, PT_Sans } from 'next/font/google'
+import { PT_Sans } from 'next/font/google'
 import './globals.css'
 
-// Body sans — Inter Tight reads cleaner than PT Sans, especially in tables.
-const body = Inter_Tight({
-  subsets: ['latin'],
-  variable: '--font-body',
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-})
-
-// Display serif — Cormorant Garamond gives the editorial / monograph feel.
-const display = Cormorant_Garamond({
-  subsets: ['latin'],
-  variable: '--font-display',
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-})
-
-// Legacy PT Sans variable kept so older inline references (--font-pt-sans)
-// fall back gracefully during the visual refresh rollout.
 const sans = PT_Sans({
   subsets: ['latin'],
   variable: '--font-pt-sans',
@@ -42,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${body.variable} ${display.variable}`}>
+    <html lang="en" className={sans.variable}>
       <head>
         <meta name="referrer" content="no-referrer-when-downgrade" />
         {/* model-viewer script moved to ARLauncher (lazy-load only when AR opened) */}
