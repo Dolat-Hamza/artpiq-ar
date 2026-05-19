@@ -3,23 +3,19 @@
 @tailwind utilities;
 
 :root {
-  /* Editorial Monograph palette — warm cream paper, deep ink, burnt-ochre accent.
-     Replaces the cool slate/indigo system. Everything reads like a printed
-     catalogue rather than a generic Tailwind admin. */
-  --paper: #FAF8F3;            /* warm cream — primary surface */
-  --paper-elev: #FFFFFF;       /* white — for drawers/modals to feel lifted */
-  --bg: #F2EDDF;               /* deeper cream — page chrome / sidebar */
-  --ink: #14181C;              /* deep, slightly warm black */
-  --ink-soft: #34383D;
-  --ink-muted: #7C8189;
-  --rule: #D8D2C5;             /* warm hairline divider (not slate) */
-  --line: var(--rule);         /* alias — keeps old `border-line` working */
-  --line-strong: #BFB8A6;
-  --accent: #B45309;           /* burnt ochre — primary accent */
-  --accent-soft: #FEF3E2;
+  /* ArtPlacer-style layout/shape, our colors (white + indigo) */
+  --paper: #FFFFFF;
+  --bg: #FAFAFA;
+  --ink: #1E293B;
+  --ink-soft: #475569;
+  --ink-muted: #64748B;
+  --line: #F2F2F2;
+  --line-strong: #E5E5E5;
+  --accent: #2563EB;          /* our indigo */
+  --accent-soft: #DBEAFE;
   --accent-ink: #FFFFFF;
-  --accent-2: #3D5A3D;         /* gallery moss — secondary */
-  --surface: #EEE9DA;          /* legacy alias — soft cream block */
+  --accent-2: #1EAC99;
+  --surface: #F6F6F6;
 
   /* Composer-only surfaces */
   --surface-stage: #EDEDEA;
@@ -52,7 +48,7 @@ html {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-body), 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-pt-sans), 'PT Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px;
   font-weight: 400;
   min-height: 100dvh;
@@ -60,23 +56,13 @@ body {
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Tabular + lining numerals everywhere so columns of money/dates align */
-  font-feature-settings: "tnum" 1, "lnum" 1, "ss01" 1;
 }
 
-/* Headings: Cormorant Garamond — editorial display serif.
-   .font-display now reads as a serif everywhere it's used; reduce
-   tracking and let the type carry the weight. */
+/* Headings: PT Sans bold */
 .font-display {
-  font-family: var(--font-display), 'Cormorant Garamond', 'Times New Roman', serif;
-  font-weight: 600;
+  font-family: var(--font-pt-sans), 'PT Sans', sans-serif;
+  font-weight: 700;
   letter-spacing: 0;
-  font-feature-settings: "tnum" 1, "lnum" 1, "liga" 1, "dlig" 1;
-}
-
-/* Tabular utility — opt-in for code/log surfaces that should NOT shift */
-.font-mono-tab {
-  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
 .hairline { border-color: var(--line); }
@@ -97,20 +83,19 @@ body {
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Focus rings — warm ochre ring on cream paper */
+/* Focus rings — universal accessible focus indicator */
 *:focus { outline: none; }
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.45);
-  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.55);
+  border-radius: 3px;
   transition: box-shadow 120ms ease-out;
 }
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
-  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px rgba(180, 83, 9, 0.55);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px rgba(37,99,235,0.55);
 }
 
-/* Editorial primary — ink-on-cream, near-rectangular, fine letterspacing.
-   No drop shadows. Hover deepens ink; active drops 1px without scale. */
+/* ArtPlacer-style primary pill button */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -118,17 +103,17 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   gap: 8px;
   height: 36px;
   padding: 0 18px;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 2px;
-  font-family: var(--font-body), 'Inter Tight', sans-serif;
-  font-weight: 600;
+  background: #000;
+  color: #fff;
+  border-radius: 6px;
+  font-family: var(--font-pt-sans), 'PT Sans', sans-serif;
+  font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   transition: background 150ms ease-out, transform 80ms ease-out;
 }
-.btn-primary:hover { background: #000; }
+.btn-primary:hover { background: #1a1a1a; }
 .btn-primary:active { transform: translateY(1px); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -139,18 +124,17 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   gap: 8px;
   height: 36px;
   padding: 0 16px;
-  background: transparent;
+  background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--line-strong);
-  border-radius: 2px;
-  font-family: var(--font-body), 'Inter Tight', sans-serif;
-  font-weight: 600;
+  border-radius: 6px;
+  font-family: var(--font-pt-sans), 'PT Sans', sans-serif;
+  font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  transition: border-color 150ms ease-out, background 150ms ease-out;
+  letter-spacing: 0.04em;
+  transition: border-color 150ms ease-out;
 }
-.btn-outline:hover { border-color: var(--ink); background: rgba(20, 24, 28, 0.04); }
+.btn-outline:hover { border-color: var(--ink); }
 
 /* ArtPlacer-style sidebar item */
 .ap-nav {
@@ -158,28 +142,17 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  font-family: var(--font-body), 'Inter Tight', sans-serif;
+  font-family: var(--font-pt-sans), sans-serif;
   font-size: 12px;
   font-weight: 400;
   color: var(--ink);
   border-radius: 0;
-  position: relative;
   transition: background 100ms ease-out;
 }
-.ap-nav:hover { background: rgba(20, 24, 28, 0.04); }
+.ap-nav:hover { background: rgba(0,0,0,0.04); }
 .ap-nav[data-active="true"] {
-  background: rgba(20, 24, 28, 0.06);
-  font-weight: 600;
-}
-/* Active-item ledger mark: thin ochre rule at the left edge */
-.ap-nav[data-active="true"]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: var(--accent);
+  background: rgba(0,0,0,0.05);
+  font-weight: 700;
 }
 .ap-nav-section {
   padding: 16px 20px 6px;
@@ -219,21 +192,21 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   background: var(--on-dock);
 }
 
-/* Form input — paper-on-paper, hairline border, near-rectangular */
+/* Form input — ArtPlacer-style */
 .input {
   width: 100%;
   height: 36px;
   padding: 0 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 2px;
-  background: var(--paper-elev);
+  border-radius: 4px;
+  background: var(--paper);
   color: var(--ink);
   font-size: 13px;
-  font-family: var(--font-body), 'Inter Tight', sans-serif;
-  transition: border-color 120ms ease-out, background 120ms ease-out;
+  font-family: var(--font-pt-sans), 'PT Sans', sans-serif;
+  transition: border-color 120ms ease-out;
 }
-.input:hover { border-color: var(--ink); }
-.input:focus-visible { border-color: var(--ink); background: var(--paper-elev); }
+.input:hover { border-color: #B8B8B8; }
+.input:focus-visible { border-color: var(--accent); }
 textarea.input { height: auto; padding: 8px 10px; line-height: 1.5; }
 select.input { appearance: none; padding-right: 28px; background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%), linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%); background-position: calc(100% - 14px) 16px, calc(100% - 9px) 16px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
 
@@ -281,43 +254,32 @@ input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
 input[type="range"]::-moz-range-track { height: 4px; background: var(--line); border-radius: 2px; }
 input[type="range"]::-moz-range-thumb { height: 14px; width: 14px; border-radius: 50%; background: var(--accent); border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.2); cursor: pointer; }
 
-/* Status pill — hairline rectangle, uppercase, tabular numerals.
-   Removed coloured fills + dot in favour of a museum-label look. */
+/* Status pill */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 2px 8px;
-  border-radius: 2px;
-  border: 1px solid currentColor;
-  font-size: 9px;
-  letter-spacing: 0.14em;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  font-weight: 700;
-  background: transparent;
+  font-weight: 600;
+  background: var(--surface);
   color: var(--ink-muted);
 }
-.pill-sale { color: #0F7B5E; }
-.pill-sold { color: var(--ink-muted); }
-.pill-reserved { color: #A66B00; }
-.pill-rented { color: #6D28D9; }
-
-/* Card — flat surface with hairline border. Use bg-paper-elev for
-   "lifted" surfaces; no shadow needed since the cream paper provides
-   contrast against the deeper bg. */
-.card {
-  background: var(--paper-elev);
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  padding: 16px;
+.pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
 }
-
-/* Hairline divider helper */
-.hr-rule {
-  border: 0;
-  border-top: 1px solid var(--rule);
-  margin: 12px 0;
-}
+.pill-sale { color: #047857; background: #ECFDF5; }
+.pill-sold { color: #475569; background: #F1F5F9; }
+.pill-reserved { color: #B45309; background: #FFFBEB; }
+.pill-rented { color: #6D28D9; background: #F5F3FF; }
 
 /* Loading spinner */
 .spinner {

@@ -5,21 +5,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Editorial Monograph palette — warm cream paper, deep ink, burnt-ochre accent
-        paper: '#FAF8F3',             // primary surface (warm cream)
-        'paper-elev': '#FFFFFF',      // drawers / modals (slight lift)
-        bg: '#F2EDDF',                // page chrome / sidebar (deeper cream)
-        ink: '#14181C',
-        'ink-soft': '#34383D',
-        'ink-muted': '#7C8189',
-        line: '#D8D2C5',              // warm hairline divider
-        'line-strong': '#BFB8A6',
-        rule: '#D8D2C5',              // explicit alias for the warm rule
-        accent: '#B45309',            // burnt ochre
-        'accent-soft': '#FEF3E2',
+        // ArtPlacer LAYOUT/SHAPE, our COLORS (white + indigo)
+        paper: '#FFFFFF',
+        bg: '#FAFAFA',                // ArtPlacer body bg
+        ink: '#1E293B',
+        'ink-soft': '#475569',
+        'ink-muted': '#64748B',
+        line: '#F2F2F2',              // ArtPlacer border
+        'line-strong': '#E5E5E5',
+        accent: '#2563EB',            // our indigo (kept)
+        'accent-soft': '#DBEAFE',
         'accent-ink': '#FFFFFF',
-        'accent-2': '#3D5A3D',        // gallery moss (secondary)
-        surface: '#EEE9DA',
+        'accent-2': '#1EAC99',        // SMART badge teal
+        surface: '#F6F6F6',
 
         // Composer surfaces (kept for SampleRoom dock + stage)
         'surface-stage': '#EDEDEA',
@@ -48,25 +46,22 @@ const config: Config = {
         'slate-700': '#334155',
       },
       fontFamily: {
-        // Editorial Monograph stack
-        sans:    ['var(--font-body)', 'Inter Tight', '-apple-system', 'sans-serif'],
-        display: ['var(--font-display)', 'Cormorant Garamond', 'Times New Roman', 'serif'],
-        body:    ['var(--font-body)', 'Inter Tight', '-apple-system', 'sans-serif'],
+        // PT Sans matches ArtPlacer body type exactly
+        sans: ['var(--font-pt-sans)', 'PT Sans', '-apple-system', 'sans-serif'],
+        display: ['var(--font-pt-sans)', 'PT Sans', '-apple-system', 'sans-serif'],
       },
       fontSize: {
         meta:  ['10px', { lineHeight: '14px', letterSpacing: '0.10em' }],
         label: ['11px', { lineHeight: '15px', letterSpacing: '0.04em' }],
-        body:  ['13px', { lineHeight: '19px' }],
-        h3:    ['22px', { lineHeight: '28px', letterSpacing: '0' }],
-        h2:    ['30px', { lineHeight: '36px', letterSpacing: '-0.01em' }],
-        h1:    ['44px', { lineHeight: '50px', letterSpacing: '-0.015em' }],
+        body:  ['13px', { lineHeight: '18px' }],
+        h3:    ['20px', { lineHeight: '26px', letterSpacing: '0' }],
+        h2:    ['24px', { lineHeight: '30px', letterSpacing: '-0.005em' }],
       },
       boxShadow: {
-        // Almost-zero ink — depth comes from paper-vs-paper-elev contrast
-        card: '0 1px 0 rgba(20, 24, 28, 0.04)',
-        pop:  '0 6px 24px rgba(20, 24, 28, 0.06)',
-        dock: '0 -8px 24px rgba(0, 0, 0, 0.18)',
-        focus: '0 0 0 2px rgba(180, 83, 9, 0.50)',
+        card: '0 1px 2px rgba(0,0,0,0.04)',
+        pop:  '0 8px 24px rgba(0,0,0,0.10)',
+        dock: '0 -8px 24px rgba(0,0,0,0.18)',
+        focus: '0 0 0 2px rgba(224,35,60,0.50)',
       },
       borderRadius: {
         xs: '2px',
