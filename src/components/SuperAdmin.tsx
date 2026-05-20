@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/db/auth'
 import { useFeatures, type FeatureKey } from '@/lib/db/features'
 import AdminPageHeader from './ui/AdminPageHeader'
 import LoginForm from './LoginForm'
+import WallQuadEditor from './superadmin/WallQuadEditor'
 
 const FEATURE_LABELS: Record<FeatureKey, string> = {
   visualise: 'Visualise',
@@ -325,6 +326,16 @@ const ROOM_CATEGORIES = [
   'kitchen', 'lobby', 'cafe', 'restaurant', 'plain',
 ]
 
+interface StockRoom {
+  id: string
+  name: string
+  image_url: string
+  thumb_url?: string | null
+  wall_quad: number[][]
+  category: string
+  wall_width_cm?: number | null
+}
+
 function StockRoomsPanel({
   authedFetch,
   onError,
@@ -339,13 +350,34 @@ function StockRoomsPanel({
   const [urls, setUrls] = useState('')
   const [busy, setBusy] = useState(false)
   const [lastResult, setLastResult] = useState<string | null>(null)
+  // Gallery state — list of existing rooms + the one currently being edited.
+  const [rooms, setRooms] = useState<StockRoom[]>([])
+  const [editingRoom, setEditingRoom] = useState<StockRoom | null>(null)
+  const [galleryCategory, setGalleryCategory] = useState<string>('all')
+
+  async function refresh() {
+    try {
+      const r = await authedFetch('/api/superadmin/stock-rooms')
+      if (!r.ok) return
+      const json = await r.json()
+      setRooms(json.rooms || [])
+    } catch {}
+  }
+
+  useEffect(() => { refresh() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function remove(id: string) {
+    if (!confirm('Delete this stock room? Existing designs using it stay safe.')) return
+    const r = await authedFetch(`/api/superadmin/stock-rooms?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (r.ok) refresh()
+    else onError('Delete failed')
+  }
 
   async function submit() {
     const lines = urls.split('\n').map(s => s.trim()).filter(s => s.length > 0)
     if (lines.length === 0) return
     const preset = WALL_PRESETS.find(p => p.id === presetId) ?? WALL_PRESETS[1]
     const prefix = namePrefix.trim() || `${category[0].toUpperCase() + category.slice(1)}`
-    // Build a request body matching the SQL function's expected shape.
     const rooms = lines.map((url, i) => ({
       name: `${prefix} ${i + 1}`,
       category,
@@ -368,14 +400,85 @@ function StockRoomsPanel({
       }
       setLastResult(`${json.inserted} rooms added.`)
       setUrls('')
+      refresh()
     } finally {
       setBusy(false)
     }
   }
 
+  const filteredRooms = galleryCategory === 'all' ? rooms : rooms.filter(r => r.category === galleryCategory)
+
   return (
+    <>
     <section className="bg-paper border border-line rounded-md p-5">
-      <p className="font-display text-[14px] mb-3">Stock rooms — bulk add</p>
+      <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+        <p className="font-display text-[14px]">Stock rooms · {rooms.length}</p>
+        <select
+          value={galleryCategory}
+          onChange={e => setGalleryCategory(e.target.value)}
+          className="input !h-8 !py-1 !w-auto text-[11px]"
+        >
+          <option value="all">All categories</option>
+          {ROOM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      {filteredRooms.length === 0 ? (
+        <p className="text-meta text-ink-muted text-center py-6 border border-dashed border-line rounded-md">
+          No rooms in this category yet. Bulk-add below.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {filteredRooms.map(r => (
+            <article key={r.id} className="border border-line rounded-md overflow-hidden bg-paper">
+              <div className="relative bg-black aspect-[4/3]">
+                {/* Room photo with the saved wall quad overlaid so any
+                    misaligned rooms are obvious at a glance. */}
+                <img
+                  src={r.thumb_url || r.image_url}
+                  alt={r.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                {Array.isArray(r.wall_quad) && r.wall_quad.length === 4 && (
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polygon
+                      points={r.wall_quad.map(([x, y]) => `${x * 100},${y * 100}`).join(' ')}
+                      fill="rgba(180, 83, 9, 0.18)"
+                      stroke="#B45309"
+                      strokeWidth="0.4"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                )}
+              </div>
+              <div className="p-2.5 grid gap-1.5">
+                <p className="text-body font-bold truncate" title={r.name}>{r.name}</p>
+                <p className="text-meta uppercase tracking-[0.14em] text-ink-muted">{r.category}</p>
+                <div className="flex gap-1.5 mt-1">
+                  <button
+                    onClick={() => setEditingRoom(r)}
+                    className="btn-outline !h-7 !text-[10px] !px-2 flex-1"
+                    type="button"
+                  >
+                    Edit quad
+                  </button>
+                  <button
+                    onClick={() => remove(r.id)}
+                    className="btn-outline !h-7 !w-7 !p-0 grid place-items-center !text-red-600"
+                    title="Delete room"
+                    type="button"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+
+    <section className="bg-paper border border-line rounded-md p-5">
+      <p className="font-display text-[14px] mb-3">Bulk add rooms</p>
       <p className="text-meta text-ink-muted mb-4">
         Paste image URLs (one per line). Each becomes a room mockup with the chosen wall preset.
         Free sources: <a className="underline" href="https://unsplash.com/s/photos/empty-wall-interior" target="_blank" rel="noopener noreferrer">Unsplash empty-wall</a> ·{' '}
@@ -438,5 +541,15 @@ function StockRoomsPanel({
         </button>
       </div>
     </section>
+
+    {editingRoom && (
+      <WallQuadEditor
+        room={editingRoom}
+        authedFetch={authedFetch}
+        onClose={() => setEditingRoom(null)}
+        onSaved={() => { setEditingRoom(null); refresh() }}
+      />
+    )}
+    </>
   )
 }

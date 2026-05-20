@@ -16,6 +16,35 @@ interface BulkRoom {
   smart?: boolean
 }
 
+// Cast rpc to a loose signature — the generated Database['Functions']
+// list is one migration behind; safe since both functions are admin-gated.
+type LooseRpc = {
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+export async function GET(request: Request) {
+  const { client } = userClient(request)
+  const loose = client as unknown as LooseRpc
+  const { data, error } = await loose.rpc('superadmin_list_stock_rooms')
+  if (error) return rpcError(error)
+  return NextResponse.json({ rooms: data ?? [] })
+}
+
+export async function PATCH(request: Request) {
+  const body = (await request.json().catch(() => null)) as { id?: string; wall_quad?: number[][] } | null
+  if (!body?.id || !Array.isArray(body.wall_quad)) {
+    return NextResponse.json({ error: 'id + wall_quad required' }, { status: 400 })
+  }
+  const { client } = userClient(request)
+  const loose = client as unknown as LooseRpc
+  const { error } = await loose.rpc('superadmin_update_stock_room_quad', {
+    p_id: body.id,
+    p_quad: body.wall_quad,
+  })
+  if (error) return rpcError(error)
+  return NextResponse.json({ ok: true })
+}
+
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { rooms?: BulkRoom[] } | null
   if (!Array.isArray(body?.rooms) || body!.rooms.length === 0) {
