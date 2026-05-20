@@ -362,6 +362,7 @@ export interface ContentItem {
   previewText?: string | null         // newsletter inbox preview
   videoUrl?: string | null            // reel / youtube
   tags?: string[] | null              // blog tags (distinct from social hashtags)
+  slug?: string | null                // public URL slug for blog/newsletter
   createdAt?: string
   updatedAt?: string
 }

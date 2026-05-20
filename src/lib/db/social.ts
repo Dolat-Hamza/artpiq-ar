@@ -62,6 +62,7 @@ const contentRow = (r: Record<string, unknown>): ContentItem => ({
   previewText: (r.preview_text as string | null) ?? null,
   videoUrl: (r.video_url as string | null) ?? null,
   tags: (r.tags as string[] | null) ?? null,
+  slug: (r.slug as string | null) ?? null,
   id: r.id as string,
   ownerId: r.owner_id as string,
   type: r.type as ContentItem['type'],
@@ -144,6 +145,7 @@ export async function createContent(input: Partial<ContentItem> & { ownerId: str
   if (input.previewText !== undefined) (row as Record<string, unknown>).preview_text = input.previewText
   if (input.videoUrl !== undefined) (row as Record<string, unknown>).video_url = input.videoUrl
   if (input.tags !== undefined) (row as Record<string, unknown>).tags = input.tags
+  if (input.slug !== undefined) (row as Record<string, unknown>).slug = input.slug
   const { data, error } = await supabase().from('content_items').insert(row).select('*').single()
   if (error) throw error
   return contentRow(data as Record<string, unknown>)
@@ -232,4 +234,25 @@ export async function addComment(input: Omit<ContentComment, 'id' | 'createdAt' 
     .single()
   if (error) throw error
   return commentRow(data as Record<string, unknown>)
+}
+
+/**
+ * Resolve a public, published blog/newsletter post by slug. Returns null
+ * for any non-published item so drafts stay private even if the slug
+ * can be guessed. Backed by a SECURITY DEFINER RPC; safe to call from
+ * the anon client on public routes.
+ */
+export async function getPublishedContentBySlug(slug: string, type: 'blog' | 'newsletter'): Promise<ContentItem | null> {
+  // RPC not in generated Database['Functions'] yet — cast to bypass.
+  const client = supabase() as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>
+  }
+  const { data, error } = await client.rpc('get_published_content_by_slug', {
+    p_slug: slug,
+    p_type: type,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : null
+  if (!row) return null
+  return contentRow(row as Record<string, unknown>)
 }

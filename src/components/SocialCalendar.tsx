@@ -1005,6 +1005,20 @@ export function ComposerModal({
           >
             {STATUS_LABEL[(item.status ?? 'draft') as ContentStatus]}
           </span>
+          {/* Preview-live — only for published blog + newsletter with a slug. */}
+          {existing && existing.status === 'published' && existing.slug &&
+            (existing.type === 'blog' || existing.type === 'newsletter') && (
+              <a
+                href={`/${existing.type}/${existing.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
+                title="Open the public page in a new tab"
+              >
+                Preview live →
+              </a>
+            )
+          }
           {existing && (
             <div className="flex gap-1 ml-2 bg-bg/60 rounded-md p-0.5">
               {(['edit', 'comments'] as const).map(t => {

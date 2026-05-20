@@ -116,9 +116,23 @@ export default function BlogList() {
                       {it.scheduledAt ? new Date(it.scheduledAt).toLocaleString() : '—'}
                     </td>
                     <td className="py-2 px-3 text-right">
-                      <button onClick={e => { e.stopPropagation(); rm(it.id) }} className="text-red-600 hover:text-red-700">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="inline-flex items-center gap-3">
+                        {it.status === 'published' && it.slug && (
+                          <a
+                            href={`/blog/${it.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
+                            title="Open public page"
+                          >
+                            Preview
+                          </a>
+                        )}
+                        <button onClick={e => { e.stopPropagation(); rm(it.id) }} className="text-red-600 hover:text-red-700">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
