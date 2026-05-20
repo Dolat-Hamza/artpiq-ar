@@ -19,10 +19,12 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { listContent, updateContent } from '@/lib/db/social'
-import type { ContentItem, ContentStatus } from '@/types'
+import { listCampaigns } from '@/lib/db/campaigns'
+import type { Campaign, ContentItem, ContentStatus } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useToast } from './ui/toast'
+import { ComposerModal } from './SocialCalendar'
 
 // ============================================================
 // Marketing matrix (Thomas's framework)
@@ -83,6 +85,12 @@ export default function MarketingPortal() {
   const [busy, setBusy] = useState(false)
   const [cursor, setCursor] = useState<Date>(() => new Date())
   const [filterPlatform, setFilterPlatform] = useState<string>('all')
+  // KPI tiles double as filter chips — clicking one narrows the queue +
+  // platform grid below. Toggle: click again to clear.
+  const [kpiFilter, setKpiFilter] = useState<'all' | 'approved' | 'in_review' | 'draft'>('all')
+  // Composer for inline View action on approval cards.
+  const [viewing, setViewing] = useState<ContentItem | null>(null)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
 
   useEffect(() => { if (user) refresh() }, [user])
   async function refresh() {
@@ -90,7 +98,18 @@ export default function MarketingPortal() {
     setBusy(true)
     try {
       setList(await listContent(user.id))
+      setCampaigns(await listCampaigns(user.id).catch(() => []))
     } finally { setBusy(false) }
+  }
+
+  // KPI → status predicate. Used to filter queue + grid below the tiles.
+  function passKpi(c: ContentItem): boolean {
+    switch (kpiFilter) {
+      case 'all': return true
+      case 'approved': return c.status === 'approved' || c.status === 'scheduled' || c.status === 'published'
+      case 'in_review': return c.status === 'submitted_for_review'
+      case 'draft': return c.status === 'draft' || c.status === 'in_progress'
+    }
   }
 
   if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
@@ -102,12 +121,15 @@ export default function MarketingPortal() {
     (!c.monthKey && c.scheduledAt && c.scheduledAt.slice(0, 7) === mk)
   )
 
-  const platformFiltered = filterPlatform === 'all'
+  const platformFiltered = (filterPlatform === 'all'
     ? thisMonth
     : thisMonth.filter(c => c.platform === filterPlatform || (!c.platform && filterPlatform === 'unset'))
+  ).filter(passKpi)
 
-  // Approval queue: submitted_for_review across all months
-  const approvalQueue = list.filter(c => c.status === 'submitted_for_review')
+  // Approval queue: submitted_for_review across all months. KPI filter
+  // also narrows this so clicking Draft hides the queue when nothing in
+  // it matches.
+  const approvalQueue = list.filter(c => c.status === 'submitted_for_review').filter(passKpi)
 
   async function approve(id: string) {
     await updateContent(id, { status: 'approved', approvedAt: new Date().toISOString() })
@@ -159,26 +181,39 @@ export default function MarketingPortal() {
       />
 
       <main className="px-6 md:px-10 py-6 grid gap-6">
-        {/* Stat row */}
+        {/* Stat row — each tile is a clickable filter chip. Re-click to clear. */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatTile label="Total pieces" value={thisMonth.length} hint="all content types" tone="indigo" />
+          <StatTile
+            label="Total pieces"
+            value={thisMonth.length}
+            hint="click to clear filter"
+            tone="indigo"
+            active={kpiFilter === 'all'}
+            onClick={() => setKpiFilter('all')}
+          />
           <StatTile
             label="Approved"
             value={thisMonth.filter(c => c.status === 'approved' || c.status === 'scheduled' || c.status === 'published').length}
             hint="ready to publish"
             tone="green"
+            active={kpiFilter === 'approved'}
+            onClick={() => setKpiFilter(kpiFilter === 'approved' ? 'all' : 'approved')}
           />
           <StatTile
             label="In review"
             value={thisMonth.filter(c => c.status === 'submitted_for_review').length}
             hint="awaiting client"
             tone="amber"
+            active={kpiFilter === 'in_review'}
+            onClick={() => setKpiFilter(kpiFilter === 'in_review' ? 'all' : 'in_review')}
           />
           <StatTile
             label="Draft"
             value={thisMonth.filter(c => c.status === 'draft' || c.status === 'in_progress').length}
             hint="not yet submitted"
             tone="grey"
+            active={kpiFilter === 'draft'}
+            onClick={() => setKpiFilter(kpiFilter === 'draft' ? 'all' : 'draft')}
           />
         </div>
 
@@ -212,6 +247,13 @@ export default function MarketingPortal() {
                       )}
                     </div>
                     <div className="flex flex-col gap-1 shrink-0">
+                      <button
+                        onClick={() => setViewing(c)}
+                        className="btn-outline !h-7 !text-[10px] !px-2"
+                        title="Open composer to review"
+                      >
+                        View
+                      </button>
                       <button
                         onClick={() => approve(c.id)}
                         className="btn-primary !h-7 !text-[10px] !px-2 !bg-emerald-700 hover:!bg-emerald-800"
@@ -312,6 +354,15 @@ export default function MarketingPortal() {
           </div>
         </section>
       </main>
+      {viewing && (
+        <ComposerModal
+          ownerId={user.id}
+          existing={viewing}
+          campaigns={campaigns}
+          onClose={() => setViewing(null)}
+          onSaved={() => { setViewing(null); refresh() }}
+        />
+      )}
     </div>
   )
 }
@@ -421,8 +472,15 @@ function BucketBar({ title, pcts, score }: { title: string; pcts: Record<string,
 }
 
 function StatTile({
-  label, value, hint, tone,
-}: { label: string; value: number; hint?: string; tone: 'indigo' | 'green' | 'amber' | 'grey' }) {
+  label, value, hint, tone, active, onClick,
+}: {
+  label: string
+  value: number
+  hint?: string
+  tone: 'indigo' | 'green' | 'amber' | 'grey'
+  active?: boolean
+  onClick?: () => void
+}) {
   const toneClass = {
     indigo: 'bg-accent-soft text-accent',
     green: 'bg-emerald-100 text-emerald-700',
@@ -430,7 +488,14 @@ function StatTile({
     grey: 'bg-line text-ink-muted',
   }[tone]
   return (
-    <div className="bg-paper border border-line rounded-md p-4">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`text-left bg-paper border rounded-md p-4 transition-all w-full ${
+        active ? 'border-ink shadow-card' : 'border-line hover:border-ink hover:shadow-card'
+      }`}
+    >
       <p className="text-meta uppercase tracking-[0.14em] text-ink-muted">{label}</p>
       <div className="flex items-baseline gap-2 mt-1">
         <span className="font-display text-[24px] tabular-nums">{value}</span>
@@ -438,7 +503,7 @@ function StatTile({
           {hint}
         </span>
       </div>
-    </div>
+    </button>
   )
 }
 

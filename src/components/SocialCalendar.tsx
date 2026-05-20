@@ -865,7 +865,7 @@ const PURPOSES = [
   'Sales',
 ]
 
-function ComposerModal({
+export function ComposerModal({
   ownerId,
   initial,
   existing,
