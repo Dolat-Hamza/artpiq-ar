@@ -339,10 +339,20 @@ export default function SocialCalendar() {
           />
         )}
         {view === 'kanban' && (
-          <KanbanView items={filteredList} onItemClick={item => setEditing(item)} onStatus={quickStatus} />
+          <KanbanView
+            items={filteredList}
+            onItemClick={item => setEditing(item)}
+            onStatus={quickStatus}
+            onDuplicate={item => setDuplicating(item)}
+          />
         )}
         {view === 'list' && (
-          <ListView items={filteredList} onItemClick={item => setEditing(item)} onDelete={remove} />
+          <ListView
+            items={filteredList}
+            onItemClick={item => setEditing(item)}
+            onDelete={remove}
+            onDuplicate={item => setDuplicating(item)}
+          />
         )}
       </main>
 
@@ -635,7 +645,7 @@ function PlatformView({
                   <button
                     onClick={e => { e.stopPropagation(); onDuplicate(c) }}
                     title="Duplicate to other platforms"
-                    className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-sm bg-paper/90 backdrop-blur border border-line text-ink-muted hover:text-ink hover:border-ink opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-sm bg-paper/90 backdrop-blur border border-line text-ink-muted hover:text-ink hover:border-ink transition-colors"
                   >
                     <Copy size={11} />
                   </button>
@@ -662,10 +672,12 @@ function KanbanView({
   items,
   onItemClick,
   onStatus,
+  onDuplicate,
 }: {
   items: ContentItem[]
   onItemClick: (item: ContentItem) => void
   onStatus: (item: ContentItem, status: ContentStatus) => void
+  onDuplicate?: (item: ContentItem) => void
 }) {
   const cols: ContentStatus[] = ['draft', 'in_progress', 'submitted_for_review', 'approved', 'scheduled', 'published']
   const [dragId, setDragId] = useState<string | null>(null)
@@ -724,11 +736,20 @@ function KanbanView({
                     onDragStart={e => onDragStart(e, it)}
                     onDragEnd={() => { setDragId(null); setDragOverCol(null) }}
                     onClick={() => onItemClick(it)}
-                    className={`border border-line rounded-sm p-2 bg-bg/50 cursor-grab active:cursor-grabbing hover:border-ink transition-opacity ${
+                    className={`relative border border-line rounded-sm p-2 bg-bg/50 cursor-grab active:cursor-grabbing hover:border-ink transition-opacity ${
                       isDragging ? 'opacity-40' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    {onDuplicate && (
+                      <button
+                        onClick={e => { e.stopPropagation(); onDuplicate(it) }}
+                        title="Duplicate to other platforms"
+                        className="absolute top-1 right-1 w-5 h-5 grid place-items-center rounded-sm bg-paper/90 border border-line text-ink-muted hover:text-ink hover:border-ink"
+                      >
+                        <Copy size={10} />
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap pr-6">
                       <Icon size={11} className="text-ink-muted" />
                       <span className="text-meta uppercase tracking-[0.14em] text-ink-muted">
                         {TYPE_LABEL[it.type]}
@@ -777,10 +798,12 @@ function ListView({
   items,
   onItemClick,
   onDelete,
+  onDuplicate,
 }: {
   items: ContentItem[]
   onItemClick: (item: ContentItem) => void
   onDelete: (id: string) => void
+  onDuplicate?: (item: ContentItem) => void
 }) {
   if (!items.length) {
     return (
@@ -836,12 +859,23 @@ function ListView({
                 {it.scheduledAt ? new Date(it.scheduledAt).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
               </td>
               <td className="py-2 px-3 text-right">
-                <button
-                  onClick={e => { e.stopPropagation(); onDelete(it.id) }}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="inline-flex items-center gap-2">
+                  {onDuplicate && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onDuplicate(it) }}
+                      className="text-ink-muted hover:text-ink"
+                      title="Duplicate to other platforms"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  )}
+                  <button
+                    onClick={e => { e.stopPropagation(); onDelete(it.id) }}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -1979,7 +2013,7 @@ const DUPLICATE_TARGETS: { id: string; label: string; type: ContentType }[] = [
   { id: 'tiktok',    label: 'TikTok',    type: 'reel' },
   { id: 'youtube',   label: 'YouTube',   type: 'reel' },
 ]
-function DuplicateModal({
+export function DuplicateModal({
   source,
   ownerId,
   onClose,
