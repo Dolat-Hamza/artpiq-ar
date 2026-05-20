@@ -31,6 +31,7 @@ import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
 import { useToast } from './ui/toast'
+import VideoPreview from './social/VideoPreview'
 
 const STATUS_LABEL: Record<ContentStatus, string> = {
   draft: 'Draft',
@@ -1005,21 +1006,29 @@ export function ComposerModal({
             {STATUS_LABEL[(item.status ?? 'draft') as ContentStatus]}
           </span>
           {existing && (
-            <div className="flex gap-1 ml-2">
-              {(['edit', 'comments'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setModalTab(t)}
-                  className={`ap-nav !rounded-md !py-1 !px-2.5 text-meta uppercase tracking-[0.12em] ${modalTab === t ? 'font-bold' : ''}`}
-                >
-                  {t === 'comments' ? (
-                    <span className="inline-flex items-center gap-1">
-                      <MessageSquare size={11} /> {comments.length > 0 ? comments.length : ''}
-                      {t}
-                    </span>
-                  ) : t}
-                </button>
-              ))}
+            <div className="flex gap-1 ml-2 bg-bg/60 rounded-md p-0.5">
+              {(['edit', 'comments'] as const).map(t => {
+                const isActive = modalTab === t
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setModalTab(t)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`!rounded-md !py-1 !px-3 text-meta uppercase tracking-[0.12em] font-bold transition-colors ${
+                      isActive
+                        ? 'bg-ink text-paper'
+                        : 'text-ink-muted hover:text-ink hover:bg-paper'
+                    }`}
+                  >
+                    {t === 'comments' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <MessageSquare size={11} /> {comments.length > 0 ? comments.length : ''}
+                        {t}
+                      </span>
+                    ) : t}
+                  </button>
+                )
+              })}
             </div>
           )}
           <div className="ml-auto flex gap-2">
@@ -1086,10 +1095,10 @@ export function ComposerModal({
                 <button
                   key={t}
                   onClick={() => setComposerTab(t)}
-                  className={`inline-flex items-center gap-1.5 px-3 h-10 text-meta uppercase tracking-[0.14em] transition-colors border-b-2 ${
+                  className={`inline-flex items-center gap-1.5 px-4 h-10 text-meta uppercase tracking-[0.14em] transition-colors border-b-2 -mb-px ${
                     composerTab === t
-                      ? 'border-ink text-ink font-bold'
-                      : 'border-transparent text-ink-muted hover:text-ink hover:border-line'
+                      ? 'border-ink text-ink font-bold bg-bg/40'
+                      : 'border-transparent text-ink-muted hover:text-ink hover:border-line hover:bg-bg/20'
                   }`}
                   aria-current={composerTab === t ? 'page' : undefined}
                 >
@@ -1113,6 +1122,40 @@ export function ComposerModal({
 
         {composerTab === 'content' && (
           <>
+            {/* Brief-at-a-glance strip — read-only mirror of planning fields
+                so the approver sees platform / hook / schedule / post type
+                without leaving the Content tab. Click 'Edit in Details' to
+                modify any of them. */}
+            <div className="bg-bg/40 border border-line rounded-md p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-meta">
+              <div>
+                <p className="uppercase tracking-[0.14em] text-ink-muted">Platform</p>
+                <p className="font-bold text-ink mt-0.5">{item.platform || <span className="text-ink-muted font-normal">— not set</span>}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-[0.14em] text-ink-muted">Schedule</p>
+                <p className="font-bold text-ink mt-0.5">
+                  {item.scheduledAt
+                    ? new Date(item.scheduledAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : <span className="text-ink-muted font-normal">— not scheduled</span>}
+                </p>
+              </div>
+              <div>
+                <p className="uppercase tracking-[0.14em] text-ink-muted">Post type</p>
+                <p className="font-bold text-ink mt-0.5">{item.postType || <span className="text-ink-muted font-normal">—</span>}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-[0.14em] text-ink-muted">Hook</p>
+                <p className="font-bold text-ink mt-0.5 truncate" title={item.hook ?? ''}>{item.hook || <span className="text-ink-muted font-normal">—</span>}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setComposerTab('details')}
+                className="md:col-span-4 text-left text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
+              >
+                Edit any of these in Details →
+              </button>
+            </div>
+
             {/* Title — top of the approver view */}
             <Field label="Title">
               <input
@@ -1351,6 +1394,7 @@ export function ComposerModal({
                 placeholder="https://… (mp4, YouTube, Vimeo)"
                 className="input"
               />
+              {item.videoUrl && <VideoPreview url={item.videoUrl} />}
             </Field>
           )}
           {item.type === 'blog' && (
@@ -1527,9 +1571,32 @@ export function ComposerModal({
         </>)}
 
         {composerTab === 'content' && (<>
-          {/* Cover image + gallery */}
+          {/* Images — hero cover above with prominent preview, variants
+              underneath as a thumb grid with promote-to-cover affordance. */}
           <fieldset className="border border-line rounded-md p-4 grid gap-3">
             <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">Images</legend>
+
+            {/* Hero cover preview — what the approver sees first */}
+            {item.coverUrl ? (
+              <div className="relative bg-bg border border-line rounded-md overflow-hidden">
+                <img src={item.coverUrl} alt="cover" className="w-full max-h-[360px] object-contain bg-black/5" />
+                <span className="absolute top-2 left-2 text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs bg-ink text-paper">
+                  Cover
+                </span>
+                <button
+                  onClick={() => set('coverUrl', null)}
+                  className="absolute top-2 right-2 w-7 h-7 grid place-items-center rounded-sm bg-paper/90 backdrop-blur border border-line text-ink-muted hover:text-ink hover:border-ink"
+                  title="Remove cover"
+                  type="button"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ) : (
+              <div className="border border-dashed border-line rounded-md p-6 text-center text-meta text-ink-muted">
+                No cover image yet. Paste a URL below or promote a variant to cover.
+              </div>
+            )}
             <Field label="Cover image URL">
               <input
                 value={item.coverUrl ?? ''}
@@ -1538,52 +1605,85 @@ export function ComposerModal({
                 className="input"
               />
             </Field>
-            {item.coverUrl && (
-              <img src={item.coverUrl} alt="cover" className="max-h-48 object-cover border border-line rounded-sm" />
-            )}
-            {/* Gallery — additional images for approval; reviewer picks the one to publish */}
+
+            {/* Variant gallery — 3-up thumbs with promote/remove */}
             <div>
-              <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">
-                Variant images for approval ({(item.mediaUrls ?? []).length})
-              </label>
-              <div className="grid gap-2">
-                {(item.mediaUrls ?? []).map((url, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <img
-                      src={url}
-                      alt={`variant ${i + 1}`}
-                      className="w-14 h-14 object-cover border border-line rounded-sm shrink-0 bg-bg"
-                    />
-                    <input
-                      value={url}
-                      onChange={e => {
-                        const arr = [...(item.mediaUrls ?? [])]
-                        arr[i] = e.target.value
-                        set('mediaUrls', arr)
-                      }}
-                      className="input flex-1"
-                    />
-                    <button
-                      onClick={() => {
-                        const arr = [...(item.mediaUrls ?? [])]
-                        arr.splice(i, 1)
-                        set('mediaUrls', arr)
-                      }}
-                      title="Remove"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
+              <div className="flex items-baseline justify-between mb-2">
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
+                  Variants ({(item.mediaUrls ?? []).length})
+                </label>
                 <button
                   onClick={() => set('mediaUrls', [...(item.mediaUrls ?? []), ''])}
-                  className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink py-1.5 border border-dashed border-line rounded-sm hover:border-ink"
+                  className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink"
+                  type="button"
                 >
-                  <Plus size={11} /> Add another image
+                  <Plus size={11} /> Add image
                 </button>
               </div>
-              <p className="text-meta text-ink-muted mt-1.5">
+              {(item.mediaUrls ?? []).length === 0 ? (
+                <p className="text-meta text-ink-muted text-center py-3 border border-dashed border-line rounded-md">
+                  No variants yet. Click <b>Add image</b> to paste an alternative cover for review.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {(item.mediaUrls ?? []).map((url, i) => (
+                    <div key={i} className="border border-line rounded-md p-2 bg-paper grid gap-1.5">
+                      {url ? (
+                        <img
+                          src={url}
+                          alt={`variant ${i + 1}`}
+                          className="w-full aspect-square object-cover border border-line/60 rounded-xs bg-bg"
+                        />
+                      ) : (
+                        <div className="w-full aspect-square border border-dashed border-line rounded-xs grid place-items-center text-ink-muted text-meta">
+                          paste URL
+                        </div>
+                      )}
+                      <input
+                        value={url}
+                        onChange={e => {
+                          const arr = [...(item.mediaUrls ?? [])]
+                          arr[i] = e.target.value
+                          set('mediaUrls', arr)
+                        }}
+                        placeholder="https://…"
+                        className="input !h-7 !px-1.5 text-[10px]"
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!url) return
+                            // Promote variant → cover. Demote current cover into the variant list.
+                            const arr = [...(item.mediaUrls ?? [])]
+                            arr.splice(i, 1)
+                            if (item.coverUrl) arr.unshift(item.coverUrl)
+                            set('coverUrl', url)
+                            set('mediaUrls', arr)
+                          }}
+                          disabled={!url}
+                          className="flex-1 text-[9px] tracking-[0.12em] uppercase font-bold border border-line rounded-xs px-1.5 py-1 hover:border-ink hover:text-ink disabled:opacity-30"
+                        >
+                          Set as cover
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const arr = [...(item.mediaUrls ?? [])]
+                            arr.splice(i, 1)
+                            set('mediaUrls', arr)
+                          }}
+                          title="Remove"
+                          className="w-7 h-7 grid place-items-center text-red-600 hover:text-red-700 border border-line rounded-xs"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-meta text-ink-muted mt-2">
                 Paste public image URLs. Reviewer can comment on each variant.
               </p>
             </div>
