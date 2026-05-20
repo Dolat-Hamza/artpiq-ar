@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   Facebook,
   Instagram,
   Linkedin,
@@ -24,7 +25,7 @@ import type { Campaign, ContentItem, ContentStatus } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
 import { useToast } from './ui/toast'
-import { ComposerModal } from './SocialCalendar'
+import { ComposerModal, DuplicateModal } from './SocialCalendar'
 
 // ============================================================
 // Marketing matrix (Thomas's framework)
@@ -90,6 +91,7 @@ export default function MarketingPortal() {
   const [kpiFilter, setKpiFilter] = useState<'all' | 'approved' | 'in_review' | 'draft'>('all')
   // Composer for inline View action on approval cards.
   const [viewing, setViewing] = useState<ContentItem | null>(null)
+  const [duplicating, setDuplicating] = useState<ContentItem | null>(null)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
 
   useEffect(() => { if (user) refresh() }, [user])
@@ -247,13 +249,22 @@ export default function MarketingPortal() {
                       )}
                     </div>
                     <div className="flex flex-col gap-1 shrink-0">
-                      <button
-                        onClick={() => setViewing(c)}
-                        className="btn-outline !h-7 !text-[10px] !px-2"
-                        title="Open composer to review"
-                      >
-                        View
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setViewing(c)}
+                          className="btn-outline !h-7 !text-[10px] !px-2 flex-1"
+                          title="Open composer to review"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => setDuplicating(c)}
+                          className="btn-outline !h-7 !w-7 !p-0 grid place-items-center"
+                          title="Duplicate to other platforms"
+                        >
+                          <Copy size={11} />
+                        </button>
+                      </div>
                       <button
                         onClick={() => approve(c.id)}
                         className="btn-primary !h-7 !text-[10px] !px-2 !bg-emerald-700 hover:!bg-emerald-800"
@@ -361,6 +372,14 @@ export default function MarketingPortal() {
           campaigns={campaigns}
           onClose={() => setViewing(null)}
           onSaved={() => { setViewing(null); refresh() }}
+        />
+      )}
+      {duplicating && (
+        <DuplicateModal
+          source={duplicating}
+          ownerId={user.id}
+          onClose={() => setDuplicating(null)}
+          onDone={() => { setDuplicating(null); refresh() }}
         />
       )}
     </div>
