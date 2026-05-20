@@ -362,7 +362,8 @@ export interface ContentItem {
   previewText?: string | null         // newsletter inbox preview
   videoUrl?: string | null            // reel / youtube
   tags?: string[] | null              // blog tags (distinct from social hashtags)
-  slug?: string | null                // public URL slug for blog/newsletter
+  slug?: string | null                // legacy — public URL slug (now unused)
+  publishedUrl?: string | null        // external blog/newsletter URL (Squarespace, Substack, Mailchimp…) supplied by mgmt team
   createdAt?: string
   updatedAt?: string
 }

@@ -1039,15 +1039,15 @@ export function ComposerModal({
           >
             {STATUS_LABEL[(item.status ?? 'draft') as ContentStatus]}
           </span>
-          {/* Preview-live — only for published blog + newsletter with a slug. */}
-          {existing && existing.status === 'published' && existing.slug &&
+          {/* Preview-live — opens the externally-hosted URL the management team uploaded. */}
+          {existing && existing.publishedUrl &&
             (existing.type === 'blog' || existing.type === 'newsletter') && (
               <a
-                href={`/${existing.type}/${existing.slug}`}
+                href={existing.publishedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
-                title="Open the public page in a new tab"
+                title="Open the published page in a new tab"
               >
                 Preview live →
               </a>
@@ -1405,6 +1405,38 @@ export function ComposerModal({
         </>)}
 
         {composerTab === 'content' && (<>
+          {/* Blog + newsletter live on external sites (Squarespace, Substack,
+              Mailchimp). Management team pastes the public URL — approver
+              clicks 'Preview live' to view it. No in-app render. */}
+          {(item.type === 'blog' || item.type === 'newsletter') && (
+            <fieldset className="border border-line rounded-md p-4 grid gap-3">
+              <legend className="text-meta uppercase tracking-[0.14em] text-ink-muted px-2 font-bold">
+                Published URL
+              </legend>
+              <Field label={item.type === 'blog' ? 'Live blog post URL' : 'Live newsletter URL'}>
+                <input
+                  value={item.publishedUrl ?? ''}
+                  onChange={e => set('publishedUrl', e.target.value || null)}
+                  placeholder="https://yoursite.com/journal/spring-show"
+                  className="input"
+                  type="url"
+                />
+                <p className="mt-1 text-meta text-ink-muted">
+                  Paste the public URL from your blog / newsletter provider. Approver clicks &ldquo;Preview live&rdquo; to review.
+                </p>
+              </Field>
+              {item.publishedUrl && (
+                <a
+                  href={item.publishedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center self-start text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
+                >
+                  Open published page →
+                </a>
+              )}
+            </fieldset>
+          )}
           {/* Type-specific extras shown above the caption/body */}
           {item.type === 'newsletter' && (
             <div className="grid gap-3">
@@ -1480,15 +1512,15 @@ export function ComposerModal({
             }
             const limit = platform ? PLATFORM_LIMIT[platform] : null
             const label =
-              type === 'blog' ? 'Body (markdown)'
-              : type === 'newsletter' ? 'Newsletter body (markdown)'
+              type === 'blog' ? 'Internal notes (the published version lives at the URL above)'
+              : type === 'newsletter' ? 'Internal notes (the published version lives at the URL above)'
               : type === 'event_promo' ? 'Event description'
               : type === 'story' ? 'Story caption'
               : type === 'reel' ? 'Reel caption'
               : 'Caption'
             const placeholder =
-              type === 'blog' ? 'Full blog body — markdown supported'
-              : type === 'newsletter' ? 'Newsletter body — markdown supported'
+              type === 'blog' ? 'Brief, angle, draft notes — for the team only'
+              : type === 'newsletter' ? 'Brief, angle, draft notes — for the team only'
               : platform === 'x' ? 'Keep it tight. Hook + link.'
               : platform === 'linkedin' ? 'Lead with insight. Short paragraphs read better.'
               : platform === 'tiktok' ? 'Hook in the first line. Add a clear CTA.'

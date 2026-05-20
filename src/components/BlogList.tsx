@@ -117,14 +117,14 @@ export default function BlogList() {
                     </td>
                     <td className="py-2 px-3 text-right">
                       <div className="inline-flex items-center gap-3">
-                        {it.status === 'published' && it.slug && (
+                        {it.publishedUrl && (
                           <a
-                            href={`/blog/${it.slug}`}
+                            href={it.publishedUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
                             className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
-                            title="Open public page"
+                            title="Open the published blog post in a new tab"
                           >
                             Preview
                           </a>

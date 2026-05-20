@@ -226,9 +226,9 @@ export default function InboxAdmin() {
                         {picked.previewText && <p className="text-meta text-ink-muted">{picked.previewText}</p>}
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-meta text-ink-muted">→ {active} active subscriber{active === 1 ? '' : 's'}</p>
-                          {picked.status === 'published' && picked.slug && (
+                          {picked.publishedUrl && (
                             <a
-                              href={`/newsletter/${picked.slug}`}
+                              href={picked.publishedUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
