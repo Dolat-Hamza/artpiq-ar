@@ -122,20 +122,34 @@ export interface DealTotals {
   grossOut: number          // sum of agreed/offer prices on 'out' lines
   swapInValue: number       // sum of swap_value on 'swap_in' lines (offsets gross)
   buyerNet: number          // grossOut - swapInValue (what buyer actually pays in cash)
-  commission: number        // sum of commission per line
+  commission: number        // sum of commission per line (= our cut for artist/collector lines, sales-rep cut for dealer)
   costBasis: number         // sum of artwork.cost_basis for 'out' lines (gallery cost)
   netProfit: number         // grossOut - commission - costBasis - swapInValue (gallery margin)
   marginPct: number         // netProfit / grossOut * 100
+  // Ownership-aware splits — what each party walks away with from this deal.
+  dealerNet: number         // gross from dealer-owned lines - purchase cost - sales commission on those lines
+  artistNet: number         // sum of (line price * (1 - commissionPct/100)) on artist-owned lines
+  collectorNet: number      // sum of (line price * (1 - commissionPct/100)) on collector-owned lines
+  salesCommission: number   // sum of (line price * salesCommissionPct/100) across out-lines (latest offer round)
+}
+
+export interface DealTotalsArtworkMeta {
+  costBasis?: number | null
+  ownershipStatus?: 'dealer' | 'artist' | 'collector' | null
 }
 
 export function computeDealTotals(
   lines: DealArtwork[],
-  artworksById: Map<string, { costBasis?: number | null }>,
+  artworksById: Map<string, DealTotalsArtworkMeta>,
 ): DealTotals {
   let grossOut = 0
   let swapInValue = 0
   let commission = 0
   let costBasis = 0
+  let dealerNet = 0
+  let artistNet = 0
+  let collectorNet = 0
+  let salesCommission = 0
 
   for (const l of lines) {
     const price = l.agreedPrice ?? l.counterOffer ?? l.offerPrice ?? l.listPrice ?? 0
@@ -146,8 +160,30 @@ export function computeDealTotals(
       grossOut += linePrice
       const pct = (l.commissionPct ?? 0) / 100
       commission += linePrice * pct
-      const cb = artworksById.get(l.artworkId)?.costBasis ?? 0
+      const meta = artworksById.get(l.artworkId)
+      const cb = meta?.costBasis ?? 0
       costBasis += cb ?? 0
+
+      // Sales-rep cut — pulled from the latest offer round if set on the line.
+      const salesPct = (l.offerRounds?.[l.offerRounds.length - 1]?.salesCommissionPct ?? 0) / 100
+      const lineSales = linePrice * salesPct
+      salesCommission += lineSales
+
+      // Ownership-aware split. Dealer-owned line: dealer keeps gross minus
+      // cost and sales rep. Artist/collector-owned: owner gets the
+      // non-commission portion, dealer keeps the commission minus the
+      // sales rep slice (handled aggregate in commission - salesCommission).
+      const status = meta?.ownershipStatus ?? (cb > 0 ? 'dealer' : null)
+      if (status === 'dealer') {
+        dealerNet += linePrice - cb - lineSales
+      } else if (status === 'artist') {
+        artistNet += linePrice * (1 - pct)
+      } else if (status === 'collector') {
+        collectorNet += linePrice * (1 - pct)
+      } else {
+        // Unknown ownership → fall through to dealer treatment so totals add up.
+        dealerNet += linePrice - cb - lineSales
+      }
     } else if (l.direction === 'swap_in') {
       swapInValue += l.swapValue ?? 0
     }
@@ -157,5 +193,8 @@ export function computeDealTotals(
   const netProfit = grossOut - commission - costBasis - swapInValue
   const marginPct = grossOut > 0 ? (netProfit / grossOut) * 100 : 0
 
-  return { grossOut, swapInValue, buyerNet, commission, costBasis, netProfit, marginPct }
+  return {
+    grossOut, swapInValue, buyerNet, commission, costBasis, netProfit, marginPct,
+    dealerNet, artistNet, collectorNet, salesCommission,
+  }
 }

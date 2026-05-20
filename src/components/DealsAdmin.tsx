@@ -597,8 +597,13 @@ function DealEditModal({
     : allArtworks
 
   const totals = useMemo(() => {
-    const byId = new Map<string, { costBasis?: number | null }>()
-    for (const [id, a] of artworkById) byId.set(id, { costBasis: a.costBasis ?? null })
+    const byId = new Map<string, { costBasis?: number | null; ownershipStatus?: 'dealer' | 'artist' | 'collector' | null }>()
+    for (const [id, a] of artworkById) {
+      byId.set(id, {
+        costBasis: a.costBasis ?? null,
+        ownershipStatus: a.ownershipStatus ?? null,
+      })
+    }
     return computeDealTotals(lines, byId)
   }, [lines, artworkById])
 
@@ -873,13 +878,27 @@ function DealEditModal({
               <TotalRow label="Buyer pays (cash)" value={totals.buyerNet} highlight />
             </div>
 
+            {/* Ownership-aware split — what each party walks away with. Only
+                shows rows that actually have a value so a dealer-stock-only
+                deal stays clean. */}
             <div className="border-t border-line pt-3">
-              <TotalRow label="Commission (you keep)" value={totals.commission} muted />
-              {/* Net to artists/owners = gross out − commission. Tells the seller
-                  how much they owe artists/owners across the deal. */}
-              <TotalRow label="Net to owners" value={Math.max(0, totals.grossOut - totals.commission)} muted />
+              <p className="text-meta uppercase tracking-[0.12em] text-ink-muted mb-1">Who keeps what</p>
+              {totals.dealerNet !== 0 && (
+                <TotalRow label="Dealer keeps" value={totals.dealerNet} muted />
+              )}
+              {totals.artistNet > 0 && (
+                <TotalRow label="Net to artists" value={totals.artistNet} muted />
+              )}
+              {totals.collectorNet > 0 && (
+                <TotalRow label="Net to collectors" value={totals.collectorNet} muted />
+              )}
+              {totals.salesCommission > 0 && (
+                <TotalRow label="Sales rep payout" value={totals.salesCommission} muted />
+              )}
               <TotalRow label="Cost basis" value={totals.costBasis} muted />
-              <TotalRow label="Swap value cost" value={totals.swapInValue} muted />
+              {totals.swapInValue > 0 && (
+                <TotalRow label="Swap value cost" value={totals.swapInValue} muted />
+              )}
             </div>
             <div className="border-t border-line pt-2">
               <TotalRow
@@ -919,6 +938,68 @@ function DealEditModal({
 // Compact labelled field used inside the per-line auto-fit grid. The
 // fixed-height label keeps inputs bottom-aligned even when labels wrap
 // to two lines on narrow columns.
+// Ownership badge + per-line econ glance. Pulls status from
+// artwork.ownership_status; falls back to owner.isArtist or the
+// presence of an owner contact. Reused on both sale and swap lines so
+// consigned-back works carry the same attribution as ones going out.
+function LineOwnershipBadge({
+  a,
+  l,
+  contactById,
+  isSwap,
+}: {
+  a: Artwork
+  l: DealArtwork
+  contactById: Map<string, Contact>
+  isSwap?: boolean
+}) {
+  const owner = a.ownerContactId ? contactById.get(a.ownerContactId) : null
+  const status: ArtworkOwnershipStatus =
+    (a.ownershipStatus as ArtworkOwnershipStatus) ||
+    (owner?.isArtist ? 'artist' : (owner ? 'collector' : 'dealer'))
+  const label =
+    status === 'dealer' ? 'Owned by us'
+    : status === 'artist' ? `Artist: ${owner?.name || owner?.email || '—'}`
+    : `Collector: ${owner?.name || owner?.email || '—'}`
+  const tone =
+    status === 'dealer' ? 'bg-ink/5 text-ink border-line'
+    : status === 'artist' ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+    : 'bg-amber-100 text-amber-700 border-amber-200'
+  const price = l.agreedPrice ?? l.counterOffer ?? l.offerPrice ?? a.price ?? 0
+  // Swap-in lines use the swap_value as their "price" for any glance.
+  const swapPrice = l.swapValue ?? 0
+  const refPrice = isSwap ? swapPrice : price
+  return (
+    <div className="flex items-center gap-2 mt-1.5 flex-wrap text-meta text-ink-muted">
+      <span className={`inline-flex items-center text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs border ${tone}`}>
+        {label}
+      </span>
+      {refPrice > 0 && (() => {
+        if (status === 'dealer') {
+          const purchase = Number(a.costBasis ?? 0)
+          if (purchase <= 0) return null
+          const profit = refPrice - purchase
+          return (
+            <span className="ml-auto">
+              {isSwap ? 'Take-in profit' : 'Profit'}:{' '}
+              <span className="font-bold text-ink tabular-nums">€ {Math.round(profit).toLocaleString()}</span>
+            </span>
+          )
+        }
+        const commission = l.commissionPct ?? a.commissionPct ?? 0
+        if (commission <= 0) return null
+        const net = Math.max(0, refPrice * (1 - commission / 100))
+        return (
+          <span className="ml-auto">
+            Net to owner: <span className="font-bold text-ink tabular-nums">€ {Math.round(net).toLocaleString()}</span>
+            <span className="text-ink-muted/70"> ({(100 - commission).toFixed(0)}%)</span>
+          </span>
+        )
+      })()}
+    </div>
+  )
+}
+
 function LineField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col">
@@ -999,53 +1080,10 @@ function DealLineSection({
                   <div className="flex-1 min-w-0">
                     <p className="text-body font-bold truncate">{a.title}</p>
                     <p className="text-meta text-ink-muted truncate">{a.artist}{a.price != null ? ` · list € ${a.price.toLocaleString()}` : ''}</p>
-                    {/* Ownership badge — always visible per Thomas. Pulls
-                        from artwork.ownershipStatus; falls back if unset. */}
-                    {!isSwap && (() => {
-                      const owner = a.ownerContactId ? contactById.get(a.ownerContactId) : null
-                      const status: ArtworkOwnershipStatus =
-                        (a.ownershipStatus as ArtworkOwnershipStatus) ||
-                        (owner?.isArtist ? 'artist' : (owner ? 'collector' : 'dealer'))
-                      const label =
-                        status === 'dealer' ? 'Owned by us'
-                        : status === 'artist' ? `Artist: ${owner?.name || owner?.email || '—'}`
-                        : `Collector: ${owner?.name || owner?.email || '—'}`
-                      const tone =
-                        status === 'dealer' ? 'bg-ink/5 text-ink border-line'
-                        : status === 'artist' ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
-                        : 'bg-amber-100 text-amber-700 border-amber-200'
-                      return (
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap text-meta text-ink-muted">
-                          <span className={`inline-flex items-center text-[9px] tracking-[0.14em] uppercase font-bold px-1.5 py-0.5 rounded-xs border ${tone}`}>
-                            {label}
-                          </span>
-                          {/* Per-line econ glance */}
-                          {(() => {
-                            const price = l.agreedPrice ?? l.counterOffer ?? l.offerPrice ?? a.price ?? 0
-                            if (price <= 0) return null
-                            if (status === 'dealer') {
-                              const purchase = Number(a.costBasis ?? 0)
-                              const profit = price - purchase
-                              if (purchase <= 0) return null
-                              return (
-                                <span className="ml-auto">
-                                  Profit: <span className="font-bold text-ink tabular-nums">€ {Math.round(profit).toLocaleString()}</span>
-                                </span>
-                              )
-                            }
-                            const commission = l.commissionPct ?? a.commissionPct ?? 0
-                            if (commission <= 0) return null
-                            const net = Math.max(0, price * (1 - commission / 100))
-                            return (
-                              <span className="ml-auto">
-                                Net to owner: <span className="font-bold text-ink tabular-nums">€ {Math.round(net).toLocaleString()}</span>
-                                <span className="text-ink-muted/70"> ({(100 - commission).toFixed(0)}%)</span>
-                              </span>
-                            )
-                          })()}
-                        </div>
-                      )
-                    })()}
+                    {/* Ownership badge + per-line econ glance. Shown for
+                        sale/rent lines AND swap-in lines so consignment
+                        artworks coming back in still attribute their owner. */}
+                    <LineOwnershipBadge a={a} l={l} contactById={contactById} isSwap={isSwap} />
                   </div>
                   {/* Colored status chip — same control, visual emphasis */}
                   <label className={`inline-flex items-center gap-1.5 text-meta tracking-[0.12em] uppercase font-bold border rounded-xs px-2 py-1 cursor-pointer ${LINE_STATUS_CHIP[l.lineStatus] ?? 'border-line bg-paper text-ink-muted'}`}>
@@ -1119,6 +1157,40 @@ function DealLineSection({
                         </div>
                       </LineField>
                     )}
+                    {/* Sales-rep commission — persisted into the latest
+                        offerRound so the totals sidebar's salesCommission
+                        sum stays accurate. New round inherits this value. */}
+                    {(() => {
+                      const rounds = l.offerRounds ?? []
+                      const last = rounds[rounds.length - 1]
+                      const current = last?.salesCommissionPct ?? ''
+                      function setLineSalesPct(next: number | null) {
+                        const newRounds = [...rounds]
+                        if (newRounds.length === 0) {
+                          newRounds.push({
+                            round: 1,
+                            by: 'company',
+                            amount: 0,
+                            salesCommissionPct: next,
+                            occurredAt: new Date().toISOString(),
+                          })
+                        } else {
+                          newRounds[newRounds.length - 1] = { ...last!, salesCommissionPct: next }
+                        }
+                        onPatch(l.id, { offerRounds: newRounds })
+                      }
+                      return (
+                        <LineField label="Sales rep %">
+                          <input
+                            type="number"
+                            value={current}
+                            onChange={e => setLineSalesPct(e.target.value ? Number(e.target.value) : null)}
+                            className="input !h-8 !px-1.5 text-[11px]"
+                            placeholder="0"
+                          />
+                        </LineField>
+                      )
+                    })()}
                   </div>
                 )}
                 {/* Rent fields are grouped under their own subtle card so
