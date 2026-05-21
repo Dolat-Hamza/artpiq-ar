@@ -8,6 +8,7 @@ import {
   listSubscribers,
 } from '@/lib/db/subscribers'
 import { listContent } from '@/lib/db/social'
+import { authedFetch } from '@/lib/db/authedFetch'
 import { ContentItem, Subscriber } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
@@ -69,9 +70,8 @@ export default function InboxAdmin() {
     if (!confirm(confirmMsg)) return
     setSending(true)
     try {
-      const res = await fetch('/api/newsletter/send', {
+      const res = await authedFetch('/api/newsletter/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contentId: pickedId, ownerId: user.id, dryRun }),
       })
       const json = await res.json()

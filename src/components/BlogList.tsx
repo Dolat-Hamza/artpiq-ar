@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Bold, Heading1, Heading2, Image as ImageIcon, Italic, Link2, List, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { createContent, deleteContent, listContent, updateContent } from '@/lib/db/social'
+import { authedFetch } from '@/lib/db/authedFetch'
 import type { ContentItem, ContentStatus } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
@@ -161,9 +162,8 @@ function BlogEditor({ item, onClose }: { item: ContentItem; onClose: () => void 
   async function generateAI() {
     setAiBusy(true)
     try {
-      const res = await fetch('/api/ai/generate-content', {
+      const res = await authedFetch('/api/ai/generate-content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'blog',
           brief: { title: draft.title, purpose: draft.purpose },

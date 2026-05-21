@@ -36,12 +36,18 @@ function rowToContact(r: Row): Contact {
   }
 }
 
-export async function listContacts(ownerId: string): Promise<Contact[]> {
+// Default cap. Galleries with >2k contacts should switch to .range()
+// pagination — Supabase's REST cap is 1000 anyway, but explicit beats
+// surprise.
+const LIST_CONTACT_DEFAULT_LIMIT = 1000
+
+export async function listContacts(ownerId: string, opts?: { limit?: number }): Promise<Contact[]> {
   const { data, error } = await supabase()
     .from('contacts')
     .select('*')
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
+    .limit(opts?.limit ?? LIST_CONTACT_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(rowToContact)
 }

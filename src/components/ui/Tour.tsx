@@ -244,19 +244,44 @@ export const TOURS = {
 } satisfies Record<string, TourSpec>
 
 const STORAGE_KEY = 'artpiq:tours:v1'
-function readDone(): Record<string, number> {
-  if (typeof window === 'undefined') return {}
+
+// In-memory fallback so the tour state still tracks across the current
+// session even when localStorage throws (Safari Private mode, sandboxed
+// iframes, browsers with storage disabled).
+let memoryFallback: Record<string, number> = {}
+
+function safeLocalStorage(): Storage | null {
+  if (typeof window === 'undefined') return null
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    // Probe — Safari Private mode throws on setItem.
+    const probe = '__artpiq_probe__'
+    window.localStorage.setItem(probe, '1')
+    window.localStorage.removeItem(probe)
+    return window.localStorage
   } catch {
-    return {}
+    return null
   }
 }
-function writeDone(d: Record<string, number>) {
-  if (typeof window === 'undefined') return
+
+function readDone(): Record<string, number> {
+  const ls = safeLocalStorage()
+  if (!ls) return { ...memoryFallback }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(d))
-  } catch {}
+    return JSON.parse(ls.getItem(STORAGE_KEY) || '{}')
+  } catch {
+    return { ...memoryFallback }
+  }
+}
+
+function writeDone(d: Record<string, number>) {
+  memoryFallback = { ...d }
+  const ls = safeLocalStorage()
+  if (!ls) return
+  try {
+    ls.setItem(STORAGE_KEY, JSON.stringify(d))
+  } catch {
+    // ignore — memoryFallback still tracks within the session
+  }
 }
 
 export function TourProvider({ children }: { children: React.ReactNode }) {

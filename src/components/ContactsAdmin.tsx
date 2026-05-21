@@ -46,6 +46,7 @@ import AdminPageHeader from './ui/AdminPageHeader'
 import { useConfirm } from './ui/ConfirmDialog'
 import { useToast } from './ui/toast'
 import { trackView } from '@/lib/recentlyViewed'
+import { authedFetch } from '@/lib/db/authedFetch'
 import { createCrmView, deleteCrmView, listCrmViews, type CrmView } from '@/lib/db/crmViews'
 import { Bookmark } from 'lucide-react'
 
@@ -640,9 +641,8 @@ function ContactDetail({
     setAiLoading(true)
     setAiSummary(null)
     try {
-      const res = await fetch('/api/ai/summarise-contact', {
+      const res = await authedFetch('/api/ai/summarise-contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contactId: contact.id, ownerId: userId }),
       })
       const json = await res.json()

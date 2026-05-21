@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { uploadContentMediaBatch } from '@/lib/db/storage'
+import { authedFetch } from '@/lib/db/authedFetch'
 import { useAuth } from '@/lib/db/auth'
 import {
   addComment,
@@ -943,9 +944,8 @@ export function ComposerModal({
     setAiBusy(true)
     setAiError(null)
     try {
-      const res = await fetch('/api/ai/generate-content', {
+      const res = await authedFetch('/api/ai/generate-content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: item.type ?? 'post',
           brief: {
