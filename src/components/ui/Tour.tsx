@@ -198,6 +198,49 @@ export const TOURS = {
       },
     ],
   },
+  social: {
+    id: 'social',
+    version: 1,
+    steps: [
+      {
+        id: 'social-intro',
+        title: 'Content calendar',
+        body:
+          'Plan and publish every post, blog and newsletter from one workspace. Five views to look at it: platforms, campaigns, calendar, kanban, list.',
+        route: '/admin/social',
+      },
+      {
+        id: 'social-views',
+        title: 'Five views, same posts',
+        body:
+          'Switch between Platforms (Instagram / X / etc.), Campaigns (group by launch), Calendar, Kanban (drag by status), List. Pick the lens that fits today\'s task.',
+        target: '[data-tour="social-views"]',
+        placement: 'bottom',
+      },
+      {
+        id: 'social-new',
+        title: 'New post',
+        body:
+          'Open the composer. Hook, caption, platform, schedule + photo upload — everything an approver needs to sign off.',
+        target: '[data-tour="social-new"]',
+        placement: 'left',
+      },
+      {
+        id: 'social-statuses',
+        title: 'Status pipeline',
+        body:
+          'Draft → In progress → Submitted for review → Approved → Scheduled → Published. Every step is auditable.',
+      },
+      {
+        id: 'social-duplicate',
+        title: 'Reuse across platforms',
+        body:
+          'Every post card has a duplicate icon — clone the same caption + images to Instagram, X, LinkedIn at once, each as its own draft.',
+        target: '[data-tour="social-duplicate"]',
+        placement: 'right',
+      },
+    ],
+  },
 } satisfies Record<string, TourSpec>
 
 const STORAGE_KEY = 'artpiq:tours:v1'

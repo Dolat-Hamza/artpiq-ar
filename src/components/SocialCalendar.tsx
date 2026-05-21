@@ -187,7 +187,7 @@ export default function SocialCalendar() {
         title="Social Calendar"
         actions={
           <>
-            <div className="hidden md:inline-flex items-center gap-1 mr-2">
+            <div data-tour="social-views" className="hidden md:inline-flex items-center gap-1 mr-2">
               {(['platforms', 'campaigns', 'calendar', 'kanban', 'list'] as const).map(v => (
                 <button
                   key={v}
@@ -202,7 +202,7 @@ export default function SocialCalendar() {
             <button onClick={() => setManageCampaigns(true)} className="btn-outline mr-2" title="Manage campaigns">
               Campaigns
             </button>
-            <div className="relative group">
+            <div data-tour="social-new" className="relative group">
               <button className="btn-primary">
                 <Plus size={14} strokeWidth={2.5} /> New
               </button>
@@ -643,8 +643,9 @@ function PlatformView({
                       </div>
                     </div>
                   </div>
-                  {/* Hover-revealed duplicate action */}
+                  {/* Always-visible duplicate-to-other-platforms action */}
                   <button
+                    data-tour="social-duplicate"
                     onClick={e => { e.stopPropagation(); onDuplicate(c) }}
                     title="Duplicate to other platforms"
                     className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-sm bg-paper/90 backdrop-blur border border-line text-ink-muted hover:text-ink hover:border-ink transition-colors"
