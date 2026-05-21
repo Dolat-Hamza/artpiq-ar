@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, RefreshCw, Shield, ShieldCheck, Trash2, X } from 'lucide-react'
 import { supabase } from '@/lib/db/client'
 import { useAuth } from '@/lib/db/auth'
@@ -444,6 +444,24 @@ interface StockRoom {
   wall_width_cm?: number | null
 }
 
+const ROOMS_PAGE_SIZE = 24
+
+function downloadRoomsTemplate(): void {
+  const csv = [
+    'name,category,image_url,wall_width_cm,wall_preset',
+    'Living room 1,living,https://images.unsplash.com/photo-…,350,front-medium',
+    'Tall gallery wall,gallery,https://images.unsplash.com/photo-…,450,gallery-tall',
+    'Narrow hallway,hallway,https://images.unsplash.com/photo-…,180,front-narrow',
+  ].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'artpiq-stock-rooms-template.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function StockRoomsPanel({
   authedFetch,
   onError,
@@ -462,6 +480,12 @@ function StockRoomsPanel({
   const [rooms, setRooms] = useState<StockRoom[]>([])
   const [editingRoom, setEditingRoom] = useState<StockRoom | null>(null)
   const [galleryCategory, setGalleryCategory] = useState<string>('all')
+  // Filter / paginate the gallery — important once the library grows past
+  // a couple of hundred rooms (Workstream D).
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const csvInputRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   async function refresh() {
     try {
@@ -514,29 +538,167 @@ function StockRoomsPanel({
     }
   }
 
-  const filteredRooms = galleryCategory === 'all' ? rooms : rooms.filter(r => r.category === galleryCategory)
+  const filteredRooms = rooms
+    .filter(r => galleryCategory === 'all' || r.category === galleryCategory)
+    .filter(r => {
+      if (!search.trim()) return true
+      const needle = search.toLowerCase()
+      return r.name.toLowerCase().includes(needle) || r.category.toLowerCase().includes(needle) || r.id.toLowerCase().includes(needle)
+    })
+  const pageCount = Math.max(1, Math.ceil(filteredRooms.length / ROOMS_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageRooms = filteredRooms.slice(safePage * ROOMS_PAGE_SIZE, (safePage + 1) * ROOMS_PAGE_SIZE)
+
+  // Reset to first page whenever the filter/search changes — avoids landing
+  // on an empty page after narrowing.
+  useEffect(() => { setPage(0) }, [galleryCategory, search])
+
+  // Parse a CSV with header row: name,category,image_url[,wall_width_cm,wall_preset].
+  // Lines without an image_url are skipped. Wall preset defaults to 'front-medium'.
+  async function importCsv(file: File) {
+    onError(null)
+    try {
+      const text = await file.text()
+      const rows = text.split(/\r?\n/).map(line => line.split(',').map(c => c.trim()))
+      if (rows.length < 2) {
+        onError('CSV needs a header row plus at least one data row.')
+        return
+      }
+      const head = rows[0].map(h => h.toLowerCase())
+      const idx = (k: string) => head.indexOf(k)
+      const need = (k: string) => {
+        const i = idx(k)
+        if (i < 0) throw new Error(`Missing required column "${k}"`)
+        return i
+      }
+      const cName = need('name')
+      const cCategory = need('category')
+      const cImage = need('image_url')
+      const cWidth = idx('wall_width_cm')
+      const cPreset = idx('wall_preset')
+      const toAdd = rows.slice(1)
+        .filter(r => r[cImage]?.trim())
+        .map(r => {
+          const preset = cPreset >= 0
+            ? (WALL_PRESETS.find(p => p.id === r[cPreset]) ?? WALL_PRESETS[1])
+            : WALL_PRESETS[1]
+          return {
+            name: r[cName] || 'Untitled room',
+            category: r[cCategory] || 'plain',
+            image_url: r[cImage],
+            wall_quad: preset.quad,
+            wall_width_cm: cWidth >= 0 ? Number(r[cWidth]) || 350 : 350,
+            smart: false,
+          }
+        })
+      if (!toAdd.length) {
+        onError('No usable rows in CSV (need at least name + category + image_url).')
+        return
+      }
+      setBusy(true)
+      const res = await authedFetch('/api/superadmin/stock-rooms', {
+        method: 'POST',
+        body: JSON.stringify({ rooms: toAdd }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        onError(json.error || 'CSV import failed')
+        return
+      }
+      setLastResult(`${json.inserted} rooms imported from CSV.`)
+      refresh()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'CSV import failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Upload device photos straight into the stock-rooms bucket, then register
+  // each as a room via the existing RPC. Keeps the operator from needing a
+  // public host (Unsplash/Pexels) for one-off photos.
+  async function uploadPhotos(filesList: FileList) {
+    const files = Array.from(filesList)
+    if (!files.length) return
+    setBusy(true)
+    onError(null)
+    try {
+      const preset = WALL_PRESETS.find(p => p.id === presetId) ?? WALL_PRESETS[1]
+      const widthN = Number(wallWidthCm) || 350
+      const uploaded: { url: string; baseName: string }[] = []
+      for (const file of files) {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+        const path = `${category}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+        const { error } = await supabase().storage.from('stock-rooms').upload(path, file, {
+          cacheControl: '86400',
+          upsert: false,
+          contentType: file.type || `image/${ext}`,
+        })
+        if (error) throw error
+        const { data } = supabase().storage.from('stock-rooms').getPublicUrl(path)
+        uploaded.push({ url: data.publicUrl, baseName: file.name.replace(/\.[^.]+$/, '') })
+      }
+      const prefix = namePrefix.trim()
+      const newRooms = uploaded.map((u, i) => ({
+        name: prefix ? `${prefix} ${i + 1}` : (u.baseName || `${category} ${i + 1}`),
+        category,
+        image_url: u.url,
+        wall_quad: preset.quad,
+        wall_width_cm: widthN,
+        smart: false,
+      }))
+      const res = await authedFetch('/api/superadmin/stock-rooms', {
+        method: 'POST',
+        body: JSON.stringify({ rooms: newRooms }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        onError(json.error || 'Photo upload failed at register step')
+        return
+      }
+      setLastResult(`${json.inserted} rooms registered from device upload.`)
+      refresh()
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Photo upload failed')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <>
     <section className="bg-paper border border-line rounded-md p-5">
       <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
-        <p className="font-display text-[14px]">Stock rooms · {rooms.length}</p>
-        <select
-          value={galleryCategory}
-          onChange={e => setGalleryCategory(e.target.value)}
-          className="input !h-8 !py-1 !w-auto text-[11px]"
-        >
-          <option value="all">All categories</option>
-          {ROOM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <p className="font-display text-[14px]">
+          Stock rooms · {rooms.length}
+          {(galleryCategory !== 'all' || search.trim()) && (
+            <span className="ml-2 text-meta text-ink-muted">({filteredRooms.length} match)</span>
+          )}
+        </p>
+        <div className="flex gap-2 items-center">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search name / id…"
+            className="input !h-8 !py-1 !w-[180px] text-[11px]"
+          />
+          <select
+            value={galleryCategory}
+            onChange={e => setGalleryCategory(e.target.value)}
+            className="input !h-8 !py-1 !w-auto text-[11px]"
+          >
+            <option value="all">All categories</option>
+            {ROOM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
       {filteredRooms.length === 0 ? (
         <p className="text-meta text-ink-muted text-center py-6 border border-dashed border-line rounded-md">
-          No rooms in this category yet. Bulk-add below.
+          {rooms.length === 0 ? 'No rooms yet. Bulk-add below.' : 'No rooms match this filter.'}
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {filteredRooms.map(r => (
+          {pageRooms.map(r => (
             <article key={r.id} className="border border-line rounded-md overflow-hidden bg-paper">
               <div className="relative bg-black aspect-[4/3]">
                 {/* Room photo with the saved wall quad overlaid so any
@@ -583,10 +745,84 @@ function StockRoomsPanel({
           ))}
         </div>
       )}
+      {pageCount > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-3 text-meta">
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+            className="btn-outline !h-7 !text-[10px] !px-2 disabled:opacity-40"
+          >
+            ‹ Prev
+          </button>
+          <span className="text-ink-muted tabular-nums">
+            Page {safePage + 1} / {pageCount}
+            <span className="ml-2">· {filteredRooms.length} rooms</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            disabled={safePage >= pageCount - 1}
+            className="btn-outline !h-7 !text-[10px] !px-2 disabled:opacity-40"
+          >
+            Next ›
+          </button>
+        </div>
+      )}
     </section>
 
     <section className="bg-paper border border-line rounded-md p-5">
-      <p className="font-display text-[14px] mb-3">Bulk add rooms</p>
+      <div className="flex items-baseline justify-between mb-3 gap-3 flex-wrap">
+        <p className="font-display text-[14px]">Bulk add rooms</p>
+        <div className="flex gap-3 items-center text-meta">
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={e => {
+              if (e.target.files?.[0]) importCsv(e.target.files[0])
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => csvInputRef.current?.click()}
+            disabled={busy}
+            className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80 disabled:opacity-40"
+            title="CSV header: name,category,image_url[,wall_width_cm,wall_preset]"
+          >
+            Import CSV…
+          </button>
+          <button
+            type="button"
+            onClick={downloadRoomsTemplate}
+            className="text-meta uppercase tracking-[0.12em] text-ink-muted underline hover:text-ink"
+          >
+            Template
+          </button>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={e => {
+              if (e.target.files) uploadPhotos(e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={busy}
+            className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80 disabled:opacity-40"
+            title="Upload room photos straight from your device (uses the chosen category + wall preset)"
+          >
+            Upload photos…
+          </button>
+        </div>
+      </div>
       <p className="text-meta text-ink-muted mb-4">
         Paste image URLs (one per line). Each becomes a room mockup with the chosen wall preset.
         Free sources: <a className="underline" href="https://unsplash.com/s/photos/empty-wall-interior" target="_blank" rel="noopener noreferrer">Unsplash empty-wall</a> ·{' '}
