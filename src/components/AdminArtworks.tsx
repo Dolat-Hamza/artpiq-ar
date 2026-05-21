@@ -106,11 +106,15 @@ export default function AdminArtworks() {
       setList(arts)
       setCollections(cols)
       setContacts(cs.map(c => ({ id: c.id, name: c.name ?? null, email: c.email ?? null, isArtist: c.isArtist })))
-      // Build collection membership map for filter
-      const m: Record<string, string[]> = {}
-      for (const c of cols) {
-        m[c.id] = await artworksInCollection(c.id)
-      }
+      // Build collection membership map for filter. Was a sequential
+      // for-await loop — 100 collections = 100 round-trips. Promise.all
+      // collapses to a single roundtrip-batch (Postgres + Supabase REST
+      // happily parallelise; we cap concurrency implicitly via the JS
+      // event loop on connections).
+      const members = await Promise.all(
+        cols.map(async c => [c.id, await artworksInCollection(c.id)] as const),
+      )
+      const m: Record<string, string[]> = Object.fromEntries(members)
       setCollectionMembership(m)
       setErr(null)
     } catch (e: unknown) {
