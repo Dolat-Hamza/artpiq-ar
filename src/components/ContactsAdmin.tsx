@@ -573,7 +573,7 @@ function ContactDetail({
   const [logType, setLogType] = useState<Activity['type']>('note')
   const [logBody, setLogBody] = useState('')
   const [logBusy, setLogBusy] = useState(false)
-  const [tab, setTab] = useState<'details' | 'activity' | 'deals' | 'artworks' | 'presentations'>('details')
+  const [tab, setTab] = useState<'details' | 'interests' | 'activity' | 'deals' | 'artworks' | 'presentations'>('details')
   const [aiSummary, setAiSummary] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   // Artworks attached (via interested_artwork_ids)
@@ -694,11 +694,15 @@ function ContactDetail({
 
       {/* Tabs */}
       <div className="flex border-b border-line shrink-0 overflow-x-auto no-scrollbar">
-        {(['details', 'activity', 'deals', 'artworks', 'presentations'] as const).map(t => {
+        {(['details', 'interests', 'activity', 'deals', 'artworks', 'presentations'] as const).map(t => {
           const count = t === 'activity' ? activities.length
             : t === 'deals' ? deals.length
             : t === 'artworks' ? (contact.interestedArtworkIds?.length ?? 0)
             : t === 'presentations' ? contactPres.length
+            : t === 'interests'
+              ? (contact.interestsMediums?.length ?? 0)
+                + (contact.interestsStyles?.length ?? 0)
+                + (contact.interestsArtists?.length ?? 0)
             : 0
           return (
             <button
@@ -805,6 +809,108 @@ function ContactDetail({
               >
                 Delete contact
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Interests tab — collector preferences (mediums / styles / favourite artists / budget) */}
+        {tab === 'interests' && (
+          <div className="p-4 grid gap-4">
+            <header>
+              <p className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">Collector preferences</p>
+              <p className="text-meta text-ink-muted mt-0.5">
+                Use these when matching artworks to contacts (e.g. &quot;Find clients who love sculpture under €20k&quot;).
+              </p>
+            </header>
+
+            <ChipInput
+              label="Mediums"
+              placeholder="painting, sculpture, photography…"
+              suggestions={['painting', 'sculpture', 'photography', 'video', 'print', 'mixed media', 'installation', 'drawing', 'digital']}
+              value={contact.interestsMediums ?? []}
+              onChange={v => onChange({ interestsMediums: v })}
+            />
+
+            <ChipInput
+              label="Styles"
+              placeholder="abstract, figurative, minimalism…"
+              suggestions={['abstract', 'figurative', 'minimalism', 'pop art', 'street art', 'conceptual', 'realism', 'surrealism', 'expressionism', 'contemporary']}
+              value={contact.interestsStyles ?? []}
+              onChange={v => onChange({ interestsStyles: v })}
+            />
+
+            <ChipInput
+              label="Favourite artists"
+              placeholder="Artist name, then Enter"
+              value={contact.interestsArtists ?? []}
+              onChange={v => onChange({ interestsArtists: v })}
+            />
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Budget min</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  defaultValue={contact.budgetMinEur ?? ''}
+                  onBlur={e => {
+                    const n = e.target.value === '' ? null : Number(e.target.value)
+                    onChange({ budgetMinEur: n != null && Number.isFinite(n) ? Math.round(n) : null })
+                  }}
+                  className="input tabular-nums"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Budget max</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  defaultValue={contact.budgetMaxEur ?? ''}
+                  onBlur={e => {
+                    const n = e.target.value === '' ? null : Number(e.target.value)
+                    onChange({ budgetMaxEur: n != null && Number.isFinite(n) ? Math.round(n) : null })
+                  }}
+                  className="input tabular-nums"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Currency</label>
+                <select
+                  value={contact.preferredCurrency ?? 'EUR'}
+                  onChange={e => onChange({ preferredCurrency: e.target.value })}
+                  className="input"
+                >
+                  {['EUR', 'USD', 'GBP', 'CHF', 'AED', 'AUD', 'CAD'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {(contact.budgetMinEur != null || contact.budgetMaxEur != null) && (
+              <p className="text-meta text-ink-muted">
+                Range: <span className="tabular-nums text-ink">
+                  {contact.preferredCurrency ?? 'EUR'} {(contact.budgetMinEur ?? 0).toLocaleString()} – {(contact.budgetMaxEur ?? 0).toLocaleString()}
+                </span>
+              </p>
+            )}
+
+            {/* Quick toggle: also flag this contact as an artist (existing field) */}
+            <div className="pt-3 border-t border-line">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={contact.isArtist ?? false}
+                  onChange={e => onChange({ isArtist: e.target.checked })}
+                />
+                <span className="text-body">This contact is an artist</span>
+              </label>
+              <p className="text-meta text-ink-muted mt-1">
+                Artist contacts show up in the &quot;Favourite artists&quot; autocomplete on other collectors.
+              </p>
             </div>
           </div>
         )}
@@ -1197,6 +1303,101 @@ function ArtworkBucket({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Chip-style multi-value text input with optional suggestion chips.
+// Adds on Enter or comma. Removes via the × on each chip.
+function ChipInput({
+  label,
+  placeholder,
+  value,
+  onChange,
+  suggestions,
+}: {
+  label: string
+  placeholder?: string
+  value: string[]
+  onChange: (next: string[]) => void
+  suggestions?: string[]
+}) {
+  const [draft, setDraft] = useState('')
+
+  function commit(raw: string) {
+    const next = raw
+      .split(/[,\n]/)
+      .map(s => s.trim())
+      .filter(Boolean)
+    if (!next.length) return
+    const merged = Array.from(new Set([...value.map(v => v.toLowerCase()), ...next.map(s => s.toLowerCase())]))
+    // Preserve original capitalisation for entries already present
+    const existingMap = new Map(value.map(v => [v.toLowerCase(), v]))
+    const out = merged.map(k => existingMap.get(k) ?? next.find(s => s.toLowerCase() === k) ?? k)
+    onChange(out)
+    setDraft('')
+  }
+
+  function remove(item: string) {
+    onChange(value.filter(v => v !== item))
+  }
+
+  const remainingSuggestions = (suggestions ?? []).filter(s =>
+    !value.some(v => v.toLowerCase() === s.toLowerCase()),
+  )
+
+  return (
+    <div>
+      <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">{label}</label>
+      <div className="border border-line rounded-sm bg-paper px-2 py-1.5 flex flex-wrap gap-1">
+        {value.map(item => (
+          <span
+            key={item}
+            className="inline-flex items-center gap-1 bg-ink/5 border border-line text-ink px-2 py-0.5 rounded-xs text-meta"
+          >
+            {item}
+            <button
+              type="button"
+              onClick={() => remove(item)}
+              className="text-ink-muted hover:text-red-600"
+              aria-label={`Remove ${item}`}
+            >
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              commit(draft)
+            }
+            if (e.key === 'Backspace' && !draft && value.length) {
+              remove(value[value.length - 1])
+            }
+          }}
+          onBlur={() => { if (draft.trim()) commit(draft) }}
+          placeholder={value.length ? '' : placeholder}
+          className="flex-1 min-w-[120px] bg-transparent text-body outline-none placeholder:text-ink-muted/60"
+        />
+      </div>
+      {remainingSuggestions.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          <span className="text-meta uppercase tracking-[0.12em] text-ink-muted/70 mr-1">Suggest:</span>
+          {remainingSuggestions.slice(0, 8).map(s => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => commit(s)}
+              className="text-meta text-ink-muted hover:text-ink border border-line hover:border-ink px-1.5 py-0.5 rounded-xs"
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
