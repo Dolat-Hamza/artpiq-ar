@@ -31,6 +31,11 @@ function rateLimitOk(ip: string, max = 5, windowMs = 60_000): boolean {
   return cur.n <= max
 }
 
+// Preflight handler — CORS headers are layered on by next.config.ts.
+export function OPTIONS() {
+  return new Response(null, { status: 204 })
+}
+
 export async function POST(req: Request) {
   if (!url || !key) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })

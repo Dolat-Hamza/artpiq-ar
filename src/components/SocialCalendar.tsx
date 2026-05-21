@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar as CalendarIcon,
   Check,
@@ -13,8 +13,10 @@ import {
   MessageSquare,
   Plus,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react'
+import { uploadContentMediaBatch } from '@/lib/db/storage'
 import { useAuth } from '@/lib/db/auth'
 import {
   addComment,
@@ -929,6 +931,12 @@ export function ComposerModal({
   const [composerTab, setComposerTab] = useState<'content' | 'details'>('content')
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+  // Image-upload state. We need a stable contentId for the storage path even
+  // before the row is saved; for unsaved drafts we mint a short nonce.
+  const [uploadBusy, setUploadBusy] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
+  const draftIdRef = useRef<string>(existing?.id ?? `draft-${Math.random().toString(36).slice(2, 10)}`)
 
   async function generateWithAI() {
     setAiBusy(true)
@@ -969,6 +977,44 @@ export function ComposerModal({
   }
   const set = <K extends keyof ContentItem>(k: K, v: ContentItem[K]) =>
     setItem(s => ({ ...s, [k]: v }))
+
+  async function handleFileUpload(filesList: FileList | File[]): Promise<void> {
+    const files = Array.from(filesList).filter(f => f.size > 0)
+    if (!files.length) return
+    const currentMedia = item.mediaUrls ?? []
+    const remainingSlots = 10 - currentMedia.length - (item.coverUrl ? 1 : 0)
+    if (remainingSlots <= 0) {
+      setUploadError('Max 10 images per post. Remove one to add more.')
+      return
+    }
+    const toUpload = files.slice(0, remainingSlots)
+    if (files.length > remainingSlots) {
+      setUploadError(`Only uploaded ${remainingSlots} of ${files.length} (10-image cap).`)
+    } else {
+      setUploadError(null)
+    }
+    setUploadBusy(true)
+    try {
+      const results = await uploadContentMediaBatch(toUpload, ownerId, draftIdRef.current)
+      const ok = results.filter(r => r.url).map(r => r.url!)
+      const failed = results.filter(r => r.error)
+      if (failed.length) {
+        setUploadError(`${failed.length} of ${results.length} failed: ${failed[0].error}`)
+      }
+      if (!ok.length) return
+      // First uploaded image becomes cover if there isn't one yet.
+      setItem(s => {
+        const nextCover = s.coverUrl ?? ok[0]
+        const rest = s.coverUrl ? ok : ok.slice(1)
+        const merged = [...(s.mediaUrls ?? []), ...rest]
+        return { ...s, coverUrl: nextCover, mediaUrls: merged }
+      })
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setUploadBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (existing?.id) listComments(existing.id).then(setComments)
@@ -1580,6 +1626,17 @@ export function ComposerModal({
             const max = platform ? HASHTAG_MAX[platform] : null
             const tags = item.hashtags ?? []
             const over = max != null && tags.length > max
+            // Pull #word tokens from the caption / body, surface ones not
+            // already in the dedicated hashtags field as one-click chips.
+            const normaliseTag = (t: string) => t.replace(/^#+/, '').toLowerCase()
+            const captionSources = [item.copy, item.bodyMd].filter(Boolean) as string[]
+            const inCaption = Array.from(new Set(
+              captionSources
+                .flatMap(text => text.match(/(?:^|\s)#([\p{L}\p{N}_]{2,40})/gu) ?? [])
+                .map(s => s.trim().replace(/^#/, '').toLowerCase()),
+            ))
+            const existingNorm = new Set(tags.map(normaliseTag))
+            const suggestions = inCaption.filter(t => !existingNorm.has(t)).slice(0, 8)
             return (
               <Field label="Hashtags">
                 <input
@@ -1596,6 +1653,21 @@ export function ComposerModal({
                   <p className={`mt-1 text-meta ${over ? 'text-red-600 font-bold' : 'text-ink-muted'}`}>
                     {tags.length} / {max} on {platform}
                   </p>
+                )}
+                {suggestions.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                    <span className="text-meta uppercase tracking-[0.12em] text-ink-muted/70">From caption:</span>
+                    {suggestions.map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => set('hashtags', [...tags, `#${t}`])}
+                        className="text-meta text-accent hover:text-accent/80 border border-line hover:border-ink px-1.5 py-0.5 rounded-xs"
+                      >
+                        + #{t}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </Field>
             )
@@ -1673,8 +1745,17 @@ export function ComposerModal({
                 </button>
               </div>
             ) : (
-              <div className="border border-dashed border-line rounded-md p-6 text-center text-meta text-ink-muted">
-                No cover image yet. Paste a URL below or promote a variant to cover.
+              <div className="border border-dashed border-line rounded-md p-6 text-center grid gap-2 place-items-center">
+                <p className="text-meta text-ink-muted">No cover image yet.</p>
+                <button
+                  type="button"
+                  onClick={() => uploadInputRef.current?.click()}
+                  disabled={uploadBusy}
+                  className="btn-outline disabled:opacity-40"
+                >
+                  <Upload size={12} /> {uploadBusy ? 'Uploading…' : 'Upload photos'}
+                </button>
+                <p className="text-meta text-ink-muted/70">JPEG, PNG, WebP or GIF · up to 5 MB each · max 10 per post</p>
               </div>
             )}
             <Field label="Cover image URL">
@@ -1686,20 +1767,46 @@ export function ComposerModal({
               />
             </Field>
 
+            {/* Hidden file input for the upload buttons below */}
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              className="hidden"
+              onChange={e => {
+                if (e.target.files) handleFileUpload(e.target.files)
+                e.target.value = ''
+              }}
+            />
+
             {/* Variant gallery — 3-up thumbs with promote/remove */}
             <div>
-              <div className="flex items-baseline justify-between mb-2">
+              <div className="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
                 <label className="block text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
                   Variants ({(item.mediaUrls ?? []).length})
                 </label>
-                <button
-                  onClick={() => set('mediaUrls', [...(item.mediaUrls ?? []), ''])}
-                  className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink"
-                  type="button"
-                >
-                  <Plus size={11} /> Add image
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => uploadInputRef.current?.click()}
+                    disabled={uploadBusy}
+                    className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-accent hover:text-accent/80 disabled:opacity-40"
+                  >
+                    <Upload size={11} /> {uploadBusy ? 'Uploading…' : 'Upload photos'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => set('mediaUrls', [...(item.mediaUrls ?? []), ''])}
+                    className="inline-flex items-center gap-1 text-meta uppercase tracking-[0.14em] text-ink-muted hover:text-ink"
+                  >
+                    <Plus size={11} /> Paste URL
+                  </button>
+                </div>
               </div>
+              {uploadError && (
+                <p className="text-meta text-red-600 mb-2">· {uploadError}</p>
+              )}
               {(item.mediaUrls ?? []).length === 0 ? (
                 <p className="text-meta text-ink-muted text-center py-3 border border-dashed border-line rounded-md">
                   No variants yet. Click <b>Add image</b> to paste an alternative cover for review.
@@ -1764,7 +1871,7 @@ export function ComposerModal({
                 </div>
               )}
               <p className="text-meta text-ink-muted mt-2">
-                Paste public image URLs. Reviewer can comment on each variant.
+                Upload photos straight from your device, or paste public URLs. Reviewer can comment on each variant.
               </p>
             </div>
           </fieldset>
