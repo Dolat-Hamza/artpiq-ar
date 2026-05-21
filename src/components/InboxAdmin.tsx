@@ -12,6 +12,8 @@ import { authedFetch } from '@/lib/db/authedFetch'
 import { ContentItem, Subscriber } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import { useConfirm } from './ui/ConfirmDialog'
+import { useToast } from './ui/toast'
 
 export default function InboxAdmin() {
   const { user, loading } = useAuth()
@@ -23,6 +25,8 @@ export default function InboxAdmin() {
   const [newsletters, setNewsletters] = useState<ContentItem[]>([])
   const [pickedId, setPickedId] = useState<string>('')
   const [dryRun, setDryRun] = useState(false)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     if (!user) return
@@ -41,9 +45,20 @@ export default function InboxAdmin() {
   }
 
   async function rm(id: string) {
-    if (!confirm('Remove subscriber?')) return
-    await deleteSubscriber(id)
-    refresh()
+    const ok = await confirm({
+      title: 'Remove subscriber?',
+      description: 'They will stop receiving newsletters immediately.',
+      destructive: true,
+      confirmLabel: 'Remove',
+    })
+    if (!ok) return
+    try {
+      await deleteSubscriber(id)
+      toast.success('Subscriber removed')
+      refresh()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Remove failed')
+    }
   }
 
   if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
@@ -64,10 +79,15 @@ export default function InboxAdmin() {
     if (!pickedId || !user) return
     const picked = newsletters.find(n => n.id === pickedId)
     const label = picked?.subjectLine || picked?.title || 'newsletter'
-    const confirmMsg = dryRun
-      ? `Dry run: preview the recipient list for "${label}" without actually sending?`
-      : `Send "${label}" to ${active} active subscribers? This cannot be undone.`
-    if (!confirm(confirmMsg)) return
+    const ok = await confirm({
+      title: dryRun ? 'Run preview?' : `Send to ${active} subscribers?`,
+      description: dryRun
+        ? `Preview the recipient list for "${label}" — no emails will go out.`
+        : `Send "${label}" to ${active} active subscribers. This cannot be undone.`,
+      destructive: !dryRun,
+      confirmLabel: dryRun ? 'Run preview' : `Send to ${active}`,
+    })
+    if (!ok) return
     setSending(true)
     try {
       const res = await authedFetch('/api/newsletter/send', {
@@ -76,18 +96,20 @@ export default function InboxAdmin() {
       })
       const json = await res.json()
       if (!res.ok) {
-        alert(`${res.status === 503 ? 'Email not configured: ' : 'Error: '}${json.error ?? 'Unknown error'}`)
+        toast.error(`${res.status === 503 ? 'Email not configured: ' : ''}${json.error ?? 'Unknown error'}`)
         return
       }
       if (json.dryRun) {
-        const sample = (json.sampleRecipients ?? []).join(', ')
-        alert(`Dry run OK · Would send to ${json.wouldSend} subscribers.\nSample: ${sample || '(none)'}\nNo emails actually sent.`)
+        const sample = (json.sampleRecipients ?? []).slice(0, 3).join(', ')
+        toast.success(
+          `Dry run OK — would send to ${json.wouldSend}. ${sample ? `Sample: ${sample}.` : ''} No emails sent.`,
+        )
       } else {
-        alert(`Sent ${json.sent} · Failed ${json.failed}`)
+        toast.success(`Sent ${json.sent}${json.failed ? ` · failed ${json.failed}` : ''}`)
         setPickerOpen(false)
       }
     } catch (e) {
-      alert('Send failed: ' + String(e))
+      toast.error('Send failed: ' + String(e))
     } finally {
       setSending(false)
     }
