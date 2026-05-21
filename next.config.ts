@@ -22,6 +22,18 @@ const nextConfig: NextConfig = {
           { key: 'Content-Security-Policy', value: "frame-ancestors *;" },
         ],
       },
+      {
+        // Public submit endpoints used by /embed/newsletter.js and embedded
+        // lead-capture forms. Permissive CORS so the script POSTs from any
+        // origin (Squarespace, partner sites). Rate-limited in the route.
+        source: '/api/(subscribe|leads)',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
+          { key: 'Access-Control-Max-Age', value: '86400' },
+        ],
+      },
     ]
   },
 }

@@ -305,8 +305,116 @@ export default function SuperAdmin() {
 
         {/* Stock rooms — bulk-add sample wall photos */}
         <StockRoomsPanel authedFetch={authedFetch} onError={setErr} />
+
+        {/* Demo content — seed ~12 realistic social/blog/newsletter rows */}
+        <DemoContentPanel users={users} currentUserId={user?.id} onError={setErr} />
       </main>
     </div>
+  )
+}
+
+// ============================================================
+// Demo content seeder — fills `content_items` with ~12 realistic posts so the
+// Social Calendar / Marketing Portal / Blog / Newsletter areas look alive in
+// a demo. Idempotent: re-running deletes prior demo rows first.
+// ============================================================
+function DemoContentPanel({
+  users,
+  currentUserId,
+  onError,
+}: {
+  users: ApiUser[]
+  currentUserId?: string
+  onError: (msg: string | null) => void
+}) {
+  const [targetOwner, setTargetOwner] = useState<string>(currentUserId ?? '')
+  const [busy, setBusy] = useState<null | 'seed' | 'wipe'>(null)
+  const [lastResult, setLastResult] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!targetOwner && currentUserId) setTargetOwner(currentUserId)
+  }, [currentUserId, targetOwner])
+
+  async function seed() {
+    if (!targetOwner) return
+    setBusy('seed')
+    onError(null)
+    setLastResult(null)
+    try {
+      const { data, error } = await supabase().rpc('superadmin_seed_demo_content', { target_owner: targetOwner })
+      if (error) throw error
+      setLastResult(`Seeded ${data} demo rows.`)
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function wipe() {
+    if (!targetOwner) return
+    if (!confirm('Delete all demo rows for the selected owner? Production content tagged "demo" will also be removed.')) return
+    setBusy('wipe')
+    onError(null)
+    setLastResult(null)
+    try {
+      const { data, error } = await supabase().rpc('superadmin_wipe_demo_content', { target_owner: targetOwner })
+      if (error) throw error
+      setLastResult(`Removed ${data} demo rows.`)
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="px-6 md:px-10 py-6 border-t border-line">
+      <header className="mb-3">
+        <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Demo content</h2>
+        <p className="text-meta text-ink-muted mt-1 max-w-[640px]">
+          Seed ~12 realistic-looking social, blog and newsletter rows for the chosen owner so the
+          Marketing area renders something other than empty columns. Idempotent: re-running clears
+          prior demo rows first. Wipe is also exposed below.
+        </p>
+      </header>
+      <div className="bg-paper border border-line rounded-md p-4 flex flex-wrap items-end gap-3">
+        <label className="grow min-w-[260px]">
+          <span className="block text-meta uppercase tracking-[0.14em] text-ink-muted mb-1">Target owner</span>
+          <select
+            value={targetOwner}
+            onChange={e => setTargetOwner(e.target.value)}
+            className="input"
+          >
+            <option value="">— pick owner —</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.email} {u.id === currentUserId ? ' (you)' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={seed}
+          disabled={!targetOwner || busy !== null}
+          className="btn-primary disabled:opacity-40"
+        >
+          {busy === 'seed' ? 'Seeding…' : 'Seed demo content'}
+        </button>
+        <button
+          type="button"
+          onClick={wipe}
+          disabled={!targetOwner || busy !== null}
+          className="btn-outline disabled:opacity-40 !text-red-600 !border-red-200"
+        >
+          {busy === 'wipe' ? 'Wiping…' : 'Wipe demo content'}
+        </button>
+        {lastResult && (
+          <span className="text-meta text-emerald-700 self-center">· {lastResult}</span>
+        )}
+      </div>
+    </section>
   )
 }
 

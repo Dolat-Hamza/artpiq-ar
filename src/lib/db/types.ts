@@ -1478,6 +1478,14 @@ export type Database = {
           plan: string
         }[]
       }
+      superadmin_seed_demo_content: {
+        Args: { target_owner: string }
+        Returns: number
+      }
+      superadmin_wipe_demo_content: {
+        Args: { target_owner: string }
+        Returns: number
+      }
       superadmin_set_user_features: {
         Args: {
           p_features: string[]

@@ -21,6 +21,7 @@ export default function InboxAdmin() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [newsletters, setNewsletters] = useState<ContentItem[]>([])
   const [pickedId, setPickedId] = useState<string>('')
+  const [dryRun, setDryRun] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -61,18 +62,27 @@ export default function InboxAdmin() {
   async function sendNewsletter() {
     if (!pickedId || !user) return
     const picked = newsletters.find(n => n.id === pickedId)
-    const ok = confirm(`Send "${picked?.subjectLine || picked?.title || 'newsletter'}" to ${active} active subscribers?`)
-    if (!ok) return
+    const label = picked?.subjectLine || picked?.title || 'newsletter'
+    const confirmMsg = dryRun
+      ? `Dry run: preview the recipient list for "${label}" without actually sending?`
+      : `Send "${label}" to ${active} active subscribers? This cannot be undone.`
+    if (!confirm(confirmMsg)) return
     setSending(true)
     try {
       const res = await fetch('/api/newsletter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentId: pickedId, ownerId: user.id }),
+        body: JSON.stringify({ contentId: pickedId, ownerId: user.id, dryRun }),
       })
       const json = await res.json()
-      if (!res.ok) alert(`Error: ${json.error}`)
-      else {
+      if (!res.ok) {
+        alert(`${res.status === 503 ? 'Email not configured: ' : 'Error: '}${json.error ?? 'Unknown error'}`)
+        return
+      }
+      if (json.dryRun) {
+        const sample = (json.sampleRecipients ?? []).join(', ')
+        alert(`Dry run OK · Would send to ${json.wouldSend} subscribers.\nSample: ${sample || '(none)'}\nNo emails actually sent.`)
+      } else {
         alert(`Sent ${json.sent} · Failed ${json.failed}`)
         setPickerOpen(false)
       }
@@ -242,15 +252,28 @@ export default function InboxAdmin() {
                   })()}
                 </>
               )}
-              <div className="flex justify-end gap-2">
-                <button onClick={() => setPickerOpen(false)} className="btn-outline">Cancel</button>
-                <button
-                  onClick={sendNewsletter}
-                  disabled={!pickedId || sending}
-                  className="btn-primary disabled:opacity-40"
-                >
-                  {sending ? 'Sending…' : `Send to ${active}`}
-                </button>
+              <div className="flex items-center gap-3">
+                <label className="inline-flex items-center gap-2 cursor-pointer text-meta uppercase tracking-[0.12em] text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={dryRun}
+                    onChange={e => setDryRun(e.target.checked)}
+                  />
+                  Dry run
+                </label>
+                <span className="text-meta text-ink-muted/70">
+                  {dryRun ? 'Preview recipients without sending' : 'Live send via Resend'}
+                </span>
+                <div className="ml-auto flex gap-2">
+                  <button onClick={() => setPickerOpen(false)} className="btn-outline">Cancel</button>
+                  <button
+                    onClick={sendNewsletter}
+                    disabled={!pickedId || sending}
+                    className="btn-primary disabled:opacity-40"
+                  >
+                    {sending ? (dryRun ? 'Checking…' : 'Sending…') : (dryRun ? 'Run preview' : `Send to ${active}`)}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
