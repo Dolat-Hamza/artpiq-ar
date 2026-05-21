@@ -1,7 +1,18 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { HelpCircle, Keyboard, Sparkles, X } from 'lucide-react'
-import { useTour } from './Tour'
+import { TOURS, useTour } from './Tour'
+
+// Map admin routes to the tour that explains that page. Keeps the help menu
+// contextual — open it on /admin/social and you get the social tour offered
+// first, with the welcome tour as a fallback.
+const ROUTE_TOUR: { match: RegExp; tour: keyof typeof TOURS; label: string }[] = [
+  { match: /^\/admin\/social/, tour: 'social', label: 'Social calendar tour' },
+  { match: /^\/admin\/contacts/, tour: 'crm', label: 'CRM tour' },
+  { match: /^\/admin\/deals/, tour: 'deals', label: 'Deals tour' },
+  { match: /^\/admin\/marketing/, tour: 'marketing', label: 'Marketing portal tour' },
+]
 
 /**
  * Floating help affordance pinned to bottom-right.
@@ -13,6 +24,8 @@ export default function HelpFab() {
   const [open, setOpen] = useState(false)
   const { startById } = useTour()
   const ref = useRef<HTMLDivElement | null>(null)
+  const pathname = usePathname() ?? ''
+  const pageTour = ROUTE_TOUR.find(r => r.match.test(pathname))
 
   useEffect(() => {
     if (!open) return
@@ -50,15 +63,25 @@ export default function HelpFab() {
       {open && (
         <div
           role="menu"
-          className="absolute bottom-12 right-0 w-[220px] bg-paper border border-line rounded-md shadow-pop py-1 mb-1"
+          className="absolute bottom-12 right-0 w-[240px] bg-paper border border-line rounded-md shadow-pop py-1 mb-1"
         >
+          {pageTour && (
+            <button
+              role="menuitem"
+              onClick={() => { setOpen(false); startById(pageTour.tour) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-body hover:bg-bg text-left border-b border-line"
+            >
+              <Sparkles size={14} className="text-accent" />
+              <span className="flex-1 font-bold">{pageTour.label}</span>
+            </button>
+          )}
           <button
             role="menuitem"
             onClick={replayTour}
             className="w-full flex items-center gap-2 px-3 py-2 text-body hover:bg-bg text-left"
           >
-            <Sparkles size={14} className="text-accent" />
-            <span className="flex-1">Replay welcome tour</span>
+            <Sparkles size={14} className={pageTour ? 'text-ink-muted' : 'text-accent'} />
+            <span className="flex-1">{pageTour ? 'Replay welcome tour' : 'Welcome tour'}</span>
           </button>
           <button
             role="menuitem"
