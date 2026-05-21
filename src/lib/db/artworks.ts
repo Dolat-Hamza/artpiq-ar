@@ -98,21 +98,29 @@ export function artworkToRow(a: Artwork, ownerId: string | null): Insert {
   }
 }
 
-export async function listArtworks(): Promise<Artwork[]> {
+// Default page cap. listArtworks() (no owner filter) is used by the public
+// sample-room page which expects a smaller curated set; callers needing more
+// should pass `limit` explicitly.
+const LIST_ARTWORK_DEFAULT_LIMIT = 500
+const LIST_ARTWORK_PUBLIC_LIMIT = 100
+
+export async function listArtworks(opts?: { limit?: number }): Promise<Artwork[]> {
   const { data, error } = await supabase()
     .from('artworks')
     .select('*')
     .order('created_at', { ascending: false })
+    .limit(opts?.limit ?? LIST_ARTWORK_PUBLIC_LIMIT)
   if (error) throw error
   return (data ?? []).map(rowToArtwork)
 }
 
-export async function listMyArtworks(ownerId: string): Promise<Artwork[]> {
+export async function listMyArtworks(ownerId: string, opts?: { limit?: number }): Promise<Artwork[]> {
   const { data, error } = await supabase()
     .from('artworks')
     .select('*')
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
+    .limit(opts?.limit ?? LIST_ARTWORK_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(rowToArtwork)
 }

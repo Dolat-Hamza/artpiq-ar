@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
+import { isUuid, requireAuth } from '../../_auth'
 
 type SendBody = {
   contentId?: string
@@ -12,9 +13,15 @@ export async function POST(request: Request) {
   const body: SendBody = await request.json().catch(() => ({} as SendBody))
   const { contentId, ownerId, dryRun } = body
 
-  if (!contentId || !ownerId) {
-    return NextResponse.json({ error: 'contentId and ownerId required' }, { status: 400 })
+  if (!isUuid(contentId) || !isUuid(ownerId)) {
+    return NextResponse.json({ error: 'contentId and ownerId must be UUIDs' }, { status: 400 })
   }
+
+  // Require the caller's JWT to match the ownerId. Without this, any
+  // unauthenticated request could spam another gallery's subscriber list or
+  // impersonate them in their newsletter.
+  const authResult = await requireAuth(request, { requireOwner: ownerId })
+  if (authResult instanceof NextResponse) return authResult
 
   // For real sends we need Resend. Dry run can proceed without it so the
   // operator can still inspect the recipient list before wiring billing.

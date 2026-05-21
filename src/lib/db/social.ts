@@ -95,11 +95,21 @@ const contentRow = (r: Record<string, unknown>): ContentItem => ({
   updatedAt: r.updated_at as string,
 })
 
-export async function listContent(ownerId: string, opts?: { type?: ContentItem['type']; status?: ContentItem['status'] }): Promise<ContentItem[]> {
+// Hard cap so we never hand the UI an unbounded list. Anyone scaling past
+// this should switch the caller to `.range()` pagination — Supabase's REST
+// default cap is 1000 anyway, but being explicit keeps payloads predictable.
+const LIST_CONTENT_DEFAULT_LIMIT = 500
+
+export async function listContent(
+  ownerId: string,
+  opts?: { type?: ContentItem['type']; status?: ContentItem['status']; limit?: number },
+): Promise<ContentItem[]> {
   let q = supabase().from('content_items').select('*').eq('owner_id', ownerId)
   if (opts?.type) q = q.eq('type', opts.type)
   if (opts?.status) q = q.eq('status', opts.status)
-  const { data, error } = await q.order('scheduled_at', { ascending: false, nullsFirst: false })
+  const { data, error } = await q
+    .order('scheduled_at', { ascending: false, nullsFirst: false })
+    .limit(opts?.limit ?? LIST_CONTENT_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(contentRow)
 }

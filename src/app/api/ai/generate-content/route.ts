@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAuth } from '../../_auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -68,9 +69,16 @@ function buildPrompt(body: Body): string {
 }
 
 export async function POST(request: Request) {
+  // AI content generation is a paid Anthropic call. Gating it to
+  // authenticated users prevents anyone with a curl from draining the
+  // budget — even without owner-scoping (any logged-in customer can
+  // generate copy for their own gallery).
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
+
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'AI generation is not configured.' }, { status: 503 })
   }
 
   let body: Body

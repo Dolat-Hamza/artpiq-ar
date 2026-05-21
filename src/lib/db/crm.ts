@@ -79,12 +79,20 @@ const dealRow = (r: Record<string, unknown>): Deal => ({
   updatedAt: r.updated_at as string,
 })
 
-export async function listDeals(ownerId: string): Promise<Deal[]> {
+// Default caps to keep UI responses predictable. Callers that need more
+// should pass `limit` explicitly; deep history should switch to .range()
+// pagination once a single owner exceeds these.
+const LIST_DEAL_DEFAULT_LIMIT = 500
+const LIST_ACTIVITY_DEFAULT_LIMIT = 500
+const LIST_TASK_DEFAULT_LIMIT = 500
+
+export async function listDeals(ownerId: string, opts?: { limit?: number }): Promise<Deal[]> {
   const { data, error } = await supabase()
     .from('deals')
     .select('*')
     .eq('owner_id', ownerId)
     .order('updated_at', { ascending: false })
+    .limit(opts?.limit ?? LIST_DEAL_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(dealRow)
 }
@@ -146,11 +154,16 @@ const activityRow = (r: Record<string, unknown>): Activity => ({
   createdAt: r.created_at as string,
 })
 
-export async function listActivities(ownerId: string, opts?: { contactId?: string; dealId?: string }): Promise<Activity[]> {
+export async function listActivities(
+  ownerId: string,
+  opts?: { contactId?: string; dealId?: string; limit?: number },
+): Promise<Activity[]> {
   let q = supabase().from('activities').select('*').eq('owner_id', ownerId)
   if (opts?.contactId) q = q.eq('contact_id', opts.contactId)
   if (opts?.dealId) q = q.eq('deal_id', opts.dealId)
-  const { data, error } = await q.order('occurred_at', { ascending: false })
+  const { data, error } = await q
+    .order('occurred_at', { ascending: false })
+    .limit(opts?.limit ?? LIST_ACTIVITY_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(activityRow)
 }
@@ -186,12 +199,13 @@ const taskRow = (r: Record<string, unknown>): Task => ({
   createdAt: r.created_at as string,
 })
 
-export async function listTasks(ownerId: string): Promise<Task[]> {
+export async function listTasks(ownerId: string, opts?: { limit?: number }): Promise<Task[]> {
   const { data, error } = await supabase()
     .from('tasks')
     .select('*')
     .eq('owner_id', ownerId)
     .order('due_at', { ascending: true, nullsFirst: false })
+    .limit(opts?.limit ?? LIST_TASK_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(taskRow)
 }

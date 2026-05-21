@@ -1,19 +1,25 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { isUuid, requireAuth } from '../../_auth'
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'AI summaries are not configured.' }, { status: 503 })
   }
 
   const body = await request.json().catch(() => ({}))
   const { contactId, ownerId } = body
 
-  if (!contactId || !ownerId) {
-    return NextResponse.json({ error: 'contactId and ownerId required' }, { status: 400 })
+  if (!isUuid(contactId) || !isUuid(ownerId)) {
+    return NextResponse.json({ error: 'contactId and ownerId must be UUIDs' }, { status: 400 })
   }
+
+  // Require the caller's JWT to match the ownerId in the body. Without this,
+  // any logged-in user could request summaries for any gallery's contacts.
+  const authResult = await requireAuth(request, { requireOwner: ownerId })
+  if (authResult instanceof NextResponse) return authResult
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
