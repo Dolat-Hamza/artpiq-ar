@@ -4,11 +4,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ARTWORK_STATUSES, Artwork, ArtworkOwnershipStatus, ArtworkStatus, Collection } from '@/types'
 import {
   artworksToCsv,
+  downloadImportTemplate,
   duplicateArtwork,
+  type ImportPreview,
   newArtwork,
   parseCsv,
-  rowsToArtworks,
+  rowsToImportPreview,
 } from '@/lib/artworkStore'
+import { findContactIdByEmail } from '@/lib/db/contacts'
 import {
   bulkUpsert,
   deleteArtwork,
@@ -83,6 +86,8 @@ export default function AdminArtworks() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
+  const [importBusy, setImportBusy] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -244,18 +249,38 @@ export default function AdminArtworks() {
       setBusy(true)
       const text = await f.text()
       const rows = parseCsv(text)
-      const imported = rowsToArtworks(rows)
-      if (!imported.length) {
-        alert('No rows imported. Need at least: title, widthCm, heightCm.')
+      const preview = await rowsToImportPreview(rows, async email =>
+        findContactIdByEmail(user.id, email),
+      )
+      if (!preview.totalRows) {
+        alert('No data rows found. The CSV needs a header row plus at least one data row.')
         return
       }
-      const n = await bulkUpsert(imported, user.id)
+      setImportPreview(preview)
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Import failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function commitImport() {
+    if (!user || !importPreview) return
+    const valid = importPreview.rows.filter(r => r.artwork && !r.errors.length).map(r => r.artwork!)
+    if (!valid.length) {
+      alert('Nothing to import — fix the errors first.')
+      return
+    }
+    try {
+      setImportBusy(true)
+      const n = await bulkUpsert(valid, user.id)
+      setImportPreview(null)
       alert(`Imported ${n} artworks.`)
       refresh()
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Import failed')
     } finally {
-      setBusy(false)
+      setImportBusy(false)
     }
   }
 
@@ -481,6 +506,122 @@ export default function AdminArtworks() {
           ownerOptions={contacts}
         />
       )}
+
+      {importPreview && (
+        <ImportPreviewModal
+          preview={importPreview}
+          busy={importBusy}
+          onCancel={() => setImportPreview(null)}
+          onConfirm={commitImport}
+        />
+      )}
+    </div>
+  )
+}
+
+function ImportPreviewModal({
+  preview,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  preview: ImportPreview
+  busy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onCancel}>
+      <div
+        className="bg-paper rounded-md shadow-pop w-full max-w-[760px] max-h-[88vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <header className="h-14 border-b border-line px-6 flex items-center gap-3 shrink-0">
+          <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Import preview</h2>
+          <span className="text-meta uppercase tracking-[0.14em] text-ink-muted">
+            {preview.validCount} valid · {preview.errorCount} blocked · {preview.totalRows} total
+          </span>
+        </header>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {preview.rows.length === 0 ? (
+            <p className="text-body text-ink-muted text-center py-10">No data rows found in the file.</p>
+          ) : (
+            <ul className="grid gap-2">
+              {preview.rows.map(r => (
+                <li
+                  key={r.rowNumber}
+                  className={`border rounded-md p-3 ${
+                    r.errors.length
+                      ? 'border-red-200 bg-red-50/40'
+                      : r.warnings.length
+                        ? 'border-amber-200 bg-amber-50/40'
+                        : 'border-line bg-paper'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-meta uppercase tracking-[0.14em] text-ink-muted font-bold">
+                      Row {r.rowNumber}
+                    </span>
+                    <span className="text-body font-bold truncate">
+                      {r.artwork?.title || <span className="italic text-ink-muted">No title</span>}
+                    </span>
+                    {r.artwork && (
+                      <span className="text-meta text-ink-muted tabular-nums">
+                        {r.artwork.widthCm}×{r.artwork.heightCm}cm
+                      </span>
+                    )}
+                    {r.ownerContactEmail && (
+                      <span className="text-meta text-ink-muted">→ {r.ownerContactEmail}</span>
+                    )}
+                    <span className="ml-auto text-meta uppercase tracking-[0.14em]">
+                      {r.errors.length ? (
+                        <span className="text-red-600 font-bold">Blocked</span>
+                      ) : r.warnings.length ? (
+                        <span className="text-amber-700 font-bold">Will import</span>
+                      ) : (
+                        <span className="text-emerald-700 font-bold">OK</span>
+                      )}
+                    </span>
+                  </div>
+                  {r.errors.length > 0 && (
+                    <ul className="mt-1.5 grid gap-0.5 text-meta text-red-700">
+                      {r.errors.map((e, i) => (
+                        <li key={i}>· {e}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {r.warnings.length > 0 && (
+                    <ul className="mt-1.5 grid gap-0.5 text-meta text-amber-800">
+                      {r.warnings.map((w, i) => (
+                        <li key={i}>· {w}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <footer className="border-t border-line px-6 h-14 flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={downloadImportTemplate}
+            className="text-meta uppercase tracking-[0.12em] text-accent underline hover:text-accent/80"
+          >
+            Download CSV template
+          </button>
+          <div className="ml-auto flex gap-2">
+            <button onClick={onCancel} className="btn-outline">Cancel</button>
+            <button
+              onClick={onConfirm}
+              disabled={busy || preview.validCount === 0}
+              className="btn-primary disabled:opacity-40"
+            >
+              {busy ? 'Importing…' : `Import ${preview.validCount} valid row${preview.validCount === 1 ? '' : 's'}`}
+            </button>
+          </div>
+        </footer>
+      </div>
     </div>
   )
 }
@@ -1439,6 +1580,7 @@ function ExportMenu({
           className="absolute right-0 top-full mt-1 z-30 bg-paper border border-line rounded-md shadow-pop min-w-[200px] py-1"
         >
           <MenuItem onClick={() => { onImport(); setOpen(false) }}>Import CSV…</MenuItem>
+          <MenuItem onClick={() => { downloadImportTemplate(); setOpen(false) }}>Download import template</MenuItem>
           <div className="my-1 border-t border-line" />
           <MenuItem disabled={disabled} onClick={() => { onExportCsv(); setOpen(false) }}>Export CSV</MenuItem>
           <MenuItem disabled={disabled} onClick={() => { onExportSqsp(); setOpen(false) }}>Export Squarespace CSV</MenuItem>

@@ -224,6 +224,13 @@ export interface Contact {
   interestedArtworkIds?: string[] | null   // artworks this contact has expressed interest in
   isArtist?: boolean                       // true if this contact represents an artist
   artistContactIds?: string[] | null       // contact ids of artists this contact follows / is linked to
+  // Interests taxonomy (free-text arrays; see /admin/crm → Interests tab)
+  interestsMediums?: string[] | null       // e.g. ['painting', 'sculpture', 'photography']
+  interestsStyles?: string[] | null        // e.g. ['abstract', 'figurative', 'minimalism']
+  interestsArtists?: string[] | null       // free-text artist names this contact loves (distinct from artistContactIds FK)
+  budgetMinEur?: number | null
+  budgetMaxEur?: number | null
+  preferredCurrency?: string | null        // ISO 4217. Defaults to 'EUR' server-side.
   createdAt?: string
   updatedAt?: string
 }
