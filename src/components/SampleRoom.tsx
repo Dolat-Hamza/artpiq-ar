@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Heart, X } from 'lucide-react'
 import { useStore } from '@/store'
 import { STOCK_ROOMS } from '@/lib/rooms'
+import { listStockRooms } from '@/lib/db/rooms'
 import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
 import { useAuth } from '@/lib/db/auth'
 import { addFavorite, listFavorites, removeFavorite } from '@/lib/db/favorites'
@@ -131,7 +132,29 @@ function composeShadow(
 
 export default function SampleRoom() {
   const { artworks, showToast } = useStore()
+  // `rooms` is the live library — initialised with the hardcoded fallback so
+  // the first render is non-empty, then replaced with the DB list (~86 rooms)
+  // on mount. STOCK_ROOMS is also used as the safety net if the DB call
+  // fails (network, RLS regression, etc.).
+  const [rooms, setRooms] = useState<StockRoom[]>(STOCK_ROOMS)
   const [room, setRoom] = useState<StockRoom>(STOCK_ROOMS[0])
+  useEffect(() => {
+    let cancelled = false
+    listStockRooms()
+      .then(list => {
+        if (cancelled || list.length === 0) return
+        // De-dupe by id so a hardcoded room with the same id as a DB row
+        // doesn't double up. DB wins on conflict.
+        const byId = new Map<string, StockRoom>()
+        for (const r of STOCK_ROOMS) byId.set(r.id, r)
+        for (const r of list) byId.set(r.id, r)
+        setRooms(Array.from(byId.values()))
+      })
+      .catch(e => {
+        console.warn('[SampleRoom] DB rooms fetch failed, using hardcoded library', e)
+      })
+    return () => { cancelled = true }
+  }, [])
   const [placed, setPlaced] = useState<Placed[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -158,9 +181,9 @@ export default function SampleRoom() {
     if (typeof window === 'undefined') return
     const rid = new URLSearchParams(window.location.search).get('room')
     if (!rid) return
-    const r = STOCK_ROOMS.find(x => x.id === rid)
+    const r = rooms.find(x => x.id === rid)
     if (r) setRoom(r)
-  }, [])
+  }, [rooms])
 
   // Restore an initial design from URL param ?design=<id> if any
   useEffect(() => {
@@ -171,7 +194,7 @@ export default function SampleRoom() {
       try {
         const d = await mod.getDesign(id)
         if (!d) return
-        const r = STOCK_ROOMS.find(x => x.id === d.roomId)
+        const r = rooms.find(x => x.id === d.roomId)
         if (r) setRoom(r)
         if (Array.isArray(d.placed)) setPlaced(d.placed as Placed[])
         if (d.lighting && typeof d.lighting === 'object') setLighting(d.lighting as LightingState)
@@ -428,7 +451,7 @@ export default function SampleRoom() {
 
   // Sequence helpers ---------------------------------------------------------
   function startSequence() {
-    const picked = STOCK_ROOMS.filter(r => sequencePicks.includes(r.id))
+    const picked = rooms.filter(r => sequencePicks.includes(r.id))
     if (picked.length < 1) return
     setSequence(picked)
     setSequenceIdx(0)
@@ -894,7 +917,7 @@ export default function SampleRoom() {
                 className="dock-tab"
               >
                 {t === 'artworks' && `Artworks · ${artworks.length}`}
-                {t === 'rooms' && `Rooms · ${STOCK_ROOMS.length}`}
+                {t === 'rooms' && `Rooms · ${rooms.length}`}
                 {t === 'frames' && 'Frames'}
                 {t === 'advanced' && 'Advanced'}
               </button>
@@ -939,7 +962,7 @@ export default function SampleRoom() {
                   </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                  {STOCK_ROOMS.filter(r => roomCat === 'all' || r.category === roomCat).map(r => (
+                  {rooms.filter(r => roomCat === 'all' || r.category === roomCat).map(r => (
                     <div key={r.id} className="shrink-0 relative group">
                       <button
                         onClick={() => setRoom(r)}
@@ -1277,6 +1300,7 @@ export default function SampleRoom() {
 
       {showRoomsModal && (
         <RoomsModal
+          rooms={rooms}
           currentRoom={room}
           favorites={favorites}
           onPickRoom={r => {
@@ -1303,7 +1327,7 @@ export default function SampleRoom() {
               Pick up to 10 rooms — artwork(s) will move through them
             </h2>
             <div className="grid grid-cols-3 gap-3 mb-4">
-              {STOCK_ROOMS.map(r => {
+              {rooms.map(r => {
                 const on = sequencePicks.includes(r.id)
                 const idx = sequencePicks.indexOf(r.id)
                 return (
@@ -1359,12 +1383,14 @@ export default function SampleRoom() {
 }
 
 function RoomsModal({
+  rooms,
   currentRoom,
   favorites,
   onPickRoom,
   onClose,
   onToggleFavorite,
 }: {
+  rooms: StockRoom[]
   currentRoom: StockRoom
   favorites: Set<string>
   onPickRoom: (r: StockRoom) => void
@@ -1373,16 +1399,16 @@ function RoomsModal({
 }) {
   const [tab, setTab] = useState<'suggested' | 'favorites' | 'all'>('suggested')
   const suggested = useMemo(() => {
-    return STOCK_ROOMS.filter(
+    return rooms.filter(
       r =>
         r.id !== currentRoom.id &&
         (r.orientation === currentRoom.orientation ||
           r.perspective === currentRoom.perspective ||
           r.category === currentRoom.category),
     )
-  }, [currentRoom])
+  }, [currentRoom, rooms])
   const list =
-    tab === 'all' ? STOCK_ROOMS : tab === 'favorites' ? STOCK_ROOMS.filter(r => favorites.has(r.id)) : suggested
+    tab === 'all' ? rooms : tab === 'favorites' ? rooms.filter(r => favorites.has(r.id)) : suggested
 
   // Escape close
   useEffect(() => {
@@ -1422,7 +1448,7 @@ function RoomsModal({
               >
                 {t === 'suggested' && `Suggested · ${suggested.length}`}
                 {t === 'favorites' && `Favorites · ${favorites.size}`}
-                {t === 'all' && `All · ${STOCK_ROOMS.length}`}
+                {t === 'all' && `All · ${rooms.length}`}
               </button>
             ))}
           </div>
