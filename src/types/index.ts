@@ -114,10 +114,14 @@ export type RoomPerspective = 'front' | 'angled' | 'corner'
 export type RoomOrientation = 'portrait' | 'landscape' | 'square'
 export type WallSize = 'small' | 'medium' | 'large'
 
+export type StockRoomCategory =
+  | 'living' | 'bedroom' | 'office' | 'kitchen' | 'gallery' | 'plain'
+  | 'hallway' | 'dining' | 'studio' | 'lobby' | 'cafe' | 'restaurant'
+
 export interface StockRoom {
   id: string
   name: string
-  category: 'living' | 'bedroom' | 'office' | 'kitchen' | 'gallery' | 'plain'
+  category: StockRoomCategory
   image: string         // 1600px+ JPEG
   thumb: string         // 400px
   // wall quad in normalized [0..1] image coords; clockwise from top-left
