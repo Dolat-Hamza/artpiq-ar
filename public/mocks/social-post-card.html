@@ -73,14 +73,47 @@
   .ig-sub{ font-size:11px; color:var(--muted) }
   .ig-more{ margin-left:auto; font-size:18px; color:var(--ink); cursor:pointer; padding:4px 8px }
 
-  .ig-media{ position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden }
-  .ig-media img{ width:100%; height:100%; object-fit:cover; display:block }
+  .ig-media{ position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; touch-action:pan-y; user-select:none }
+  .ig-media .track{
+    display:flex; width:100%; height:100%;
+    transition:transform .35s cubic-bezier(.2,.7,.2,1);
+    will-change:transform;
+  }
+  .ig-media .slide{ flex:0 0 100%; height:100%; position:relative }
+  .ig-media .slide img{ width:100%; height:100%; object-fit:cover; display:block }
   .ig-media .video-badge{
     position:absolute; top:10px; right:12px;
     background:rgba(0,0,0,.55); color:#fff;
     font-size:11px; padding:3px 8px; border-radius:4px;
-    backdrop-filter:blur(8px);
+    backdrop-filter:blur(8px); z-index:3;
   }
+  .ig-media .ver-counter{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,.6); color:#fff;
+    font-size:11px; padding:3px 9px; border-radius:999px;
+    backdrop-filter:blur(6px); z-index:3;
+    font-weight:600;
+  }
+  .ig-media .ver-arrow{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(255,255,255,.85); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; z-index:3; opacity:.85;
+  }
+  .ig-media .ver-arrow:hover{ opacity:1; background:#fff }
+  .ig-media .ver-arrow.left{ left:8px }
+  .ig-media .ver-arrow.right{ right:8px }
+  .ig-media .ver-arrow:disabled{ opacity:.3; cursor:default }
+  .ig-dots{
+    display:flex; gap:5px; justify-content:center; align-items:center;
+    padding:6px 0 2px;
+  }
+  .ig-dots span{
+    width:6px; height:6px; border-radius:50%;
+    background:#c7c7c7; transition:all .2s;
+  }
+  .ig-dots span.active{ background:var(--pri); width:7px; height:7px }
 
   .ig-actions{
     display:flex; align-items:center; gap:14px;
@@ -255,10 +288,14 @@
         <span class="ig-more">…</span>
       </div>
 
-      <div class="ig-media">
-        <img id="post-img" alt="post" />
+      <div class="ig-media" id="media">
+        <div class="ver-counter" id="ver-counter">A · 1 / 3</div>
         <div class="video-badge" id="vid-badge" style="display:none">▶ Reel</div>
+        <button class="ver-arrow left" id="ver-prev" aria-label="Previous version">‹</button>
+        <button class="ver-arrow right" id="ver-next" aria-label="Next version">›</button>
+        <div class="track" id="track"></div>
       </div>
+      <div class="ig-dots" id="dots"></div>
 
       <div class="ig-actions">
         <!-- heart -->
@@ -361,84 +398,108 @@
 </div>
 
 <script>
-  // Sample data — would come from the SocialCalendar table
+  // Sample data — versions now carry image+caption+hashtags so each
+  // 'version' is a full alternative look-and-feel.
   const POSTS = [
     {
       handle:'@artpiq.gallery', avatar:'A',
       channel:'Instagram', ch_class:'',
       when:'Tue, May 26 · 10:00', sched:'2026-05-26T10:00',
       likes:'1,248 likes',
-      caption:'New piece up this week — "Quiet Threshold" by Lena Park. Limited edition of 12.',
-      hashtags:'#contemporaryart #lenapark #gallery #newworks',
       comments:'View all 42 comments',
       time:'Scheduled · in 18 hours',
-      img:'https://images.unsplash.com/photo-1577720580479-7d839d829c73?w=1080&q=82',
+      isVideo:false,
       versions:[
-        'https://images.unsplash.com/photo-1577720580479-7d839d829c73?w=200&q=70',
-        'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=200&q=70',
-        'https://images.unsplash.com/photo-1604014237800-1c9102c219da?w=200&q=70',
+        {
+          img:'https://images.unsplash.com/photo-1577720580479-7d839d829c73?w=1080&q=82',
+          caption:'New piece up this week — "Quiet Threshold" by Lena Park. Limited edition of 12.',
+          hashtags:'#contemporaryart #lenapark #gallery #newworks',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1080&q=82',
+          caption:'Quiet Threshold — Lena Park\'s newest. Edition of 12, framed by the artist.',
+          hashtags:'#newwork #lenapark #limitededition #artcollector',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1604014237800-1c9102c219da?w=1080&q=82',
+          caption:'Twelve only. Quiet Threshold by Lena Park, in the gallery now.',
+          hashtags:'#availablework #lenapark #contemporaryart',
+        },
       ],
       activeVer:0,
       status:'pending',
-      isVideo:false,
     },
     {
       handle:'@artpiq.gallery', avatar:'A',
       channel:'Instagram Reel', ch_class:'',
       when:'Wed, May 27 · 18:30', sched:'2026-05-27T18:30',
       likes:'3,402 views',
-      caption:'Behind the scenes — installing "Northern Threshold". The crate is the easy part.',
-      hashtags:'#bts #installation #contemporaryart',
       comments:'View all 18 comments',
       time:'Scheduled · in 2 days',
-      img:'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1080&q=82',
+      isVideo:true,
       versions:[
-        'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=200&q=70',
-        'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&q=70',
+        {
+          img:'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1080&q=82',
+          caption:'Behind the scenes — installing "Northern Threshold". The crate is the easy part.',
+          hashtags:'#bts #installation #contemporaryart',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1080&q=82',
+          caption:'Install day. The walls were the easy part — wait for the wide shot.',
+          hashtags:'#bts #installday #artgallery',
+        },
       ],
       activeVer:0,
       status:'pending',
-      isVideo:true,
     },
     {
       handle:'@artpiq.gallery', avatar:'A',
       channel:'Twitter / X', ch_class:'tw',
       when:'Thu, May 28 · 09:00', sched:'2026-05-28T09:00',
       likes:'412 likes · 38 retweets',
-      caption:'Now booking private viewings of the spring collection. DM for slots.',
-      hashtags:'#privatecollection #artmarket',
       comments:'12 replies',
       time:'Scheduled · in 3 days',
-      img:'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1080&q=82',
+      isVideo:false,
       versions:[
-        'https://images.unsplash.com/photo-1497366216548-37526070297c?w=200&q=70',
+        {
+          img:'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1080&q=82',
+          caption:'Now booking private viewings of the spring collection. DM for slots.',
+          hashtags:'#privatecollection #artmarket',
+        },
       ],
       activeVer:0,
       status:'changes',
-      isVideo:false,
     },
     {
       handle:'@artpiq.gallery', avatar:'A',
       channel:'LinkedIn', ch_class:'ln',
       when:'Fri, May 29 · 11:00', sched:'2026-05-29T11:00',
       likes:'287 reactions',
-      caption:'We sat down with Lena Park to talk about her practice. Full feature on the blog.',
-      hashtags:'#artistinterview #contemporaryart',
       comments:'View all 24 comments',
       time:'Scheduled · in 4 days',
-      img:'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=1080&q=82',
+      isVideo:false,
       versions:[
-        'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=200&q=70',
-        'https://images.unsplash.com/photo-1535385793343-27dff1413c5a?w=200&q=70',
+        {
+          img:'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=1080&q=82',
+          caption:'We sat down with Lena Park to talk about her practice. Full feature on the blog.',
+          hashtags:'#artistinterview #contemporaryart',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1535385793343-27dff1413c5a?w=1080&q=82',
+          caption:'Read: a long-form sit-down with Lena Park on her process, materials, and what\'s next.',
+          hashtags:'#artistspotlight #studiovisit',
+        },
       ],
       activeVer:0,
       status:'approved',
-      isVideo:false,
     },
   ]
 
   let i = 0
   const card = document.getElementById('card')
+  const track = document.getElementById('track')
+  const media = document.getElementById('media')
+  const dotsEl = document.getElementById('dots')
 
   function flipCard(){ card.classList.toggle('flipped') }
 
@@ -447,49 +508,116 @@
     paint()
   }
 
+  // Pick active version's caption + hashtags + image to render IG-style
+  function currentVer(p){ return p.versions[p.activeVer] || p.versions[0] }
+
+  // Approve current version + auto-advance to next *pending* post (Thomas's
+  // requested flow). Falls back to next post if no pending left.
+  function approveAndNext(){
+    POSTS[i].status = 'approved'
+    flipCard()  // close back if open
+    // small delay so user sees the status pill flip
+    setTimeout(() => {
+      const start = i
+      let next = i
+      for (let step = 1; step <= POSTS.length; step++){
+        const cand = (start + step) % POSTS.length
+        if (POSTS[cand].status === 'pending'){ next = cand; break }
+        // if no pending found by end, just advance one
+        if (step === POSTS.length) next = (start + 1) % POSTS.length
+      }
+      i = next
+      paint()
+    }, 220)
+  }
+
+  // Build the carousel track (slides for each version)
+  function buildTrack(p){
+    track.innerHTML = ''
+    p.versions.forEach(v => {
+      const s = document.createElement('div')
+      s.className = 'slide'
+      const img = new Image()
+      img.src = v.img
+      img.alt = 'post version'
+      s.appendChild(img)
+      track.appendChild(s)
+    })
+    track.style.transform = `translateX(-${p.activeVer * 100}%)`
+  }
+  function buildDots(p){
+    dotsEl.innerHTML = ''
+    if (p.versions.length <= 1) return
+    p.versions.forEach((_, idx) => {
+      const d = document.createElement('span')
+      if (idx === p.activeVer) d.className = 'active'
+      dotsEl.appendChild(d)
+    })
+  }
+
   function paint(){
     const p = POSTS[i]
+    const v = currentVer(p)
+
+    // Header
     document.getElementById('handle').textContent = p.handle
     document.getElementById('caption-handle').textContent = p.handle
     document.getElementById('avatar-initial').textContent = p.avatar
     document.getElementById('ch-chip').textContent = p.channel
     document.getElementById('ch-chip').className = 'ch ' + p.ch_class
     document.getElementById('when').textContent = p.when
-    document.getElementById('post-img').src = p.versions[p.activeVer] ? p.versions[p.activeVer].replace('w=200&q=70','w=1080&q=82') : p.img
+
+    // Media carousel
+    buildTrack(p)
+    buildDots(p)
     document.getElementById('vid-badge').style.display = p.isVideo ? 'block' : 'none'
+    const verLetter = String.fromCharCode(65 + p.activeVer)
+    document.getElementById('ver-counter').textContent =
+      p.versions.length > 1
+        ? `Version ${verLetter} · ${p.activeVer+1} / ${p.versions.length}`
+        : 'Only version'
+    document.getElementById('ver-prev').disabled = p.activeVer === 0
+    document.getElementById('ver-next').disabled = p.activeVer === p.versions.length - 1
+    // Hide arrows entirely if single version
+    const showArrows = p.versions.length > 1
+    document.getElementById('ver-prev').style.display = showArrows ? 'flex' : 'none'
+    document.getElementById('ver-next').style.display = showArrows ? 'flex' : 'none'
+
+    // Caption etc — pulled from active version
     document.getElementById('likes').textContent = p.likes
-    document.getElementById('caption-body').textContent = p.caption + ' '
-    document.getElementById('hashtags').textContent = p.hashtags
+    document.getElementById('caption-body').textContent = v.caption + ' '
+    document.getElementById('hashtags').textContent = v.hashtags
     document.getElementById('comments-line').textContent = p.comments
     document.getElementById('time-line').textContent = p.time
 
+    // Back panel
     document.getElementById('back-channel').textContent = p.channel
     document.getElementById('sched').value = p.sched
-    document.getElementById('caption-edit').value = p.caption
-    document.getElementById('tags-edit').value = p.hashtags
+    document.getElementById('caption-edit').value = v.caption
+    document.getElementById('tags-edit').value = v.hashtags
 
-    // versions strip
-    const v = document.getElementById('versions')
-    v.innerHTML = ''
-    p.versions.forEach((src, idx) => {
+    // Back-side version strip
+    const vs = document.getElementById('versions')
+    vs.innerHTML = ''
+    p.versions.forEach((ver, idx) => {
       const d = document.createElement('div')
       d.className = 'ver' + (idx === p.activeVer ? ' active' : '')
-      d.innerHTML = '<img src="'+src+'"><div class="ver-label">'+String.fromCharCode(65+idx)+'</div>'
+      d.innerHTML = '<img src="'+ver.img+'"><div class="ver-label">'+String.fromCharCode(65+idx)+'</div>'
       d.onclick = () => { p.activeVer = idx; paint() }
-      v.appendChild(d)
+      vs.appendChild(d)
     })
 
-    // status pill
+    // Status pill
     const pill = document.getElementById('status-pill')
     const txt = document.getElementById('status-text')
     pill.className = 'approve-pill ' + (p.status === 'approved' ? 'approved' : p.status === 'changes' ? 'changes' : '')
-    txt.textContent = p.status === 'approved' ? 'Approved' : p.status === 'changes' ? 'Changes requested' : 'Pending'
+    txt.textContent = p.status === 'approved' ? `Approved · ver ${verLetter}` : p.status === 'changes' ? 'Changes requested' : 'Pending'
 
-    // nav count
+    // Bottom nav count
     document.getElementById('idx').textContent = (i+1)
     document.getElementById('total').textContent = POSTS.length
 
-    // top bar metrics
+    // Top bar metrics
     const counts = POSTS.reduce((a,p)=>{ a[p.status]=(a[p.status]||0)+1; return a },{})
     document.querySelector('.topbar .meta').innerHTML =
       '<b>'+(counts.pending||0)+'</b> pending · '+
@@ -497,29 +625,76 @@
       (counts.changes||0)+' changes'
   }
 
+  // Post navigation
   function go(d){
     if (card.classList.contains('flipped')) card.classList.remove('flipped')
     i = (i + d + POSTS.length) % POSTS.length
     paint()
   }
+  // Version cycling within current post
+  function cycleVer(d){
+    const p = POSTS[i]
+    const next = p.activeVer + d
+    if (next < 0 || next >= p.versions.length) return
+    p.activeVer = next
+    paint()
+  }
+
   document.getElementById('prev').onclick = () => go(-1)
   document.getElementById('next').onclick = () => go(1)
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft')  go(-1)
-    if (e.key === 'ArrowRight') go(1)
-    if (e.key === 'Escape' && card.classList.contains('flipped')) flipCard()
-    if (e.key === 'Enter'  && !card.classList.contains('flipped')) flipCard()
+  document.getElementById('ver-prev').onclick = () => cycleVer(-1)
+  document.getElementById('ver-next').onclick = () => cycleVer(1)
+
+  // Wire Approve / Request changes / Cancel
+  document.querySelectorAll('.back-actions .btn').forEach(b => {
+    const t = b.textContent.trim().toLowerCase()
+    if (t === 'approve') b.onclick = approveAndNext
+    if (t === 'request changes') b.onclick = () => { setStatus('changes'); flipCard() }
   })
 
-  // Swipe (mobile)
-  let touchX = null
-  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX })
-  document.addEventListener('touchend',   e => {
-    if (touchX === null) return
-    const dx = e.changedTouches[0].clientX - touchX
-    if (Math.abs(dx) > 60) go(dx > 0 ? -1 : 1)
-    touchX = null
+  // Keyboard:
+  //   ← / →  inside an open carousel = cycle versions, else = navigate posts
+  //   ↑ / ↓  always navigate posts
+  //   Enter  flip card
+  //   Esc    close back
+  document.addEventListener('keydown', (e) => {
+    const flipped = card.classList.contains('flipped')
+    if (e.key === 'ArrowLeft')  { if (flipped) go(-1); else cycleVer(-1) }
+    if (e.key === 'ArrowRight') { if (flipped) go(1);  else cycleVer(1)  }
+    if (e.key === 'ArrowUp')    go(-1)
+    if (e.key === 'ArrowDown')  go(1)
+    if (e.key === 'Escape' && flipped) flipCard()
+    if (e.key === 'Enter'  && !flipped) flipCard()
   })
+
+  // Swipe on the MEDIA = cycle versions.
+  // Swipe outside the media (anywhere else on body) = navigate posts.
+  function attachSwipe(el, onSwipe){
+    let sx = null, sy = null
+    el.addEventListener('touchstart', e => {
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY
+    }, {passive:true})
+    el.addEventListener('touchend', e => {
+      if (sx === null) return
+      const dx = e.changedTouches[0].clientX - sx
+      const dy = e.changedTouches[0].clientY - sy
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) onSwipe(dx > 0 ? -1 : 1)
+      sx = null; sy = null
+    }, {passive:true})
+  }
+  attachSwipe(media, d => cycleVer(d))
+  // Body-level swipe for post nav, but ignore swipes that started inside media
+  let bodySx = null, bodyInMedia = false
+  document.addEventListener('touchstart', e => {
+    bodySx = e.touches[0].clientX
+    bodyInMedia = !!e.target.closest('#media, .ig-actions, .back-body, .back-actions, .nav')
+  }, {passive:true})
+  document.addEventListener('touchend', e => {
+    if (bodySx === null || bodyInMedia) { bodySx = null; return }
+    const dx = e.changedTouches[0].clientX - bodySx
+    if (Math.abs(dx) > 60) go(dx > 0 ? -1 : 1)
+    bodySx = null
+  }, {passive:true})
 
   paint()
 </script>
