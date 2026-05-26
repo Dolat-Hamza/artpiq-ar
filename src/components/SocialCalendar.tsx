@@ -203,6 +203,13 @@ export default function SocialCalendar() {
             <button onClick={() => setManageCampaigns(true)} className="btn-outline mr-2" title="Manage campaigns">
               Campaigns
             </button>
+            <a
+              href="/admin/social/review"
+              className="btn-outline mr-2"
+              title="Open the approval queue (IG-style post review)"
+            >
+              Review queue
+            </a>
             <div data-tour="social-new" className="relative group">
               <button className="btn-primary">
                 <Plus size={14} strokeWidth={2.5} /> New

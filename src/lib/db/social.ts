@@ -93,6 +93,7 @@ const contentRow = (r: Record<string, unknown>): ContentItem => ({
   bodyHtml: (r.body_html as string | null) ?? null,
   createdAt: r.created_at as string,
   updatedAt: r.updated_at as string,
+  activeVersionId: (r.active_version_id as string | null) ?? null,
 })
 
 // Hard cap so we never hand the UI an unbounded list. Anyone scaling past
@@ -102,11 +103,13 @@ const LIST_CONTENT_DEFAULT_LIMIT = 500
 
 export async function listContent(
   ownerId: string,
-  opts?: { type?: ContentItem['type']; status?: ContentItem['status']; limit?: number },
+  opts?: { type?: ContentItem['type']; status?: ContentItem['status'] | ContentItem['status'][]; limit?: number },
 ): Promise<ContentItem[]> {
   let q = supabase().from('content_items').select('*').eq('owner_id', ownerId)
   if (opts?.type) q = q.eq('type', opts.type)
-  if (opts?.status) q = q.eq('status', opts.status)
+  if (opts?.status) {
+    q = Array.isArray(opts.status) ? q.in('status', opts.status) : q.eq('status', opts.status)
+  }
   const { data, error } = await q
     .order('scheduled_at', { ascending: false, nullsFirst: false })
     .limit(opts?.limit ?? LIST_CONTENT_DEFAULT_LIMIT)

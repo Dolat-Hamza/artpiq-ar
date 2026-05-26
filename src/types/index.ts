@@ -377,6 +377,7 @@ export interface ContentItem {
   publishedUrl?: string | null        // external blog/newsletter URL (Squarespace, Substack, Mailchimp…) supplied by mgmt team
   createdAt?: string
   updatedAt?: string
+  activeVersionId?: string | null   // FK into content_versions
 }
 
 // Marketing campaign — a named bucket of related content items.
@@ -461,6 +462,21 @@ export interface ContentComment {
   authorId: string
   body: string
   resolved: boolean
+  createdAt?: string
+}
+
+// Per-version look-and-feel for a post. A content_item carries N versions —
+// each with own image + caption + hashtags — and an active_version_id points
+// at the one the user picked on approve. Version 0 is auto-backfilled from
+// the post's current cover/copy/hashtags so the reviewer always renders.
+export interface ContentVersion {
+  id: string
+  contentId: string
+  idx: number              // 0-based; surfaces as A, B, C... in the UI
+  imageUrl?: string | null
+  caption?: string | null
+  hashtags?: string[] | null
+  approved: boolean
   createdAt?: string
 }
 
