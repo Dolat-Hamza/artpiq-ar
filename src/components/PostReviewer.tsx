@@ -307,8 +307,8 @@ export default function PostReviewer({ postId }: Props) {
         >
           {/* ─── FRONT ─── */}
           <div
-            className="relative w-full bg-paper border border-line rounded-xl overflow-hidden shadow-sm"
-            style={{ backfaceVisibility: 'hidden' }}
+            className={`relative w-full bg-paper border border-line rounded-xl overflow-hidden shadow-sm transition-opacity duration-200 ${flipped ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
           >
             {/* Status pill */}
             <div
@@ -433,7 +433,7 @@ export default function PostReviewer({ postId }: Props) {
           {/* ─── BACK ─── */}
           <div
             className="absolute inset-0 w-full bg-paper border border-line rounded-xl overflow-hidden shadow-sm flex flex-col"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
             data-no-post-swipe="1"
           >
             <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-line">
