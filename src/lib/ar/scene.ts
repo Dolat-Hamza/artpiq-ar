@@ -157,7 +157,14 @@ export async function buildPaintingScene(
   }
 
   const scene = new THREE.Scene()
-  scene.add(buildFramedPainting(THREE, widthM, heightM, tex))
+  const painting = buildFramedPainting(THREE, widthM, heightM, tex)
+  // Quick Look's vertical wall-anchor places the model so its -Z faces the
+  // room. Three's PlaneGeometry default normal is +Z, so the canvas (built
+  // facing +Z) ended up facing the wall when anchored — Object mode showed
+  // the dark back-board to the viewer. Rotate the whole group 180° around
+  // Y so canvas faces -Z; back-board and frame depth follow.
+  painting.rotation.y = Math.PI
+  scene.add(painting)
   addStandardLighting(THREE, scene)
   return scene
 }
