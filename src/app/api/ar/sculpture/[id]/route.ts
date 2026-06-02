@@ -23,7 +23,7 @@ export async function GET(
         headers: {
           'Content-Type': 'model/vnd.usdz+zip',
           'Content-Disposition': `inline; filename="${aw.id}.usdz"`,
-          'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+          'Cache-Control': 'public, max-age=300, s-maxage=300',
         },
       })
     }
@@ -33,7 +33,7 @@ export async function GET(
       headers: {
         'Content-Type': 'model/gltf-binary',
         'Content-Disposition': `inline; filename="${aw.id}.glb"`,
-        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
       },
     })
   } catch (err) {

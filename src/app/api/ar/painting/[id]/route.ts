@@ -23,7 +23,9 @@ export async function GET(
         headers: {
           'Content-Type': 'model/vnd.usdz+zip',
           'Content-Disposition': `inline; filename="${aw.id}.usdz"`,
-          'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+          // Short TTL while AR pipeline is stabilising — long edge cache would
+// leave stale broken USDZ/GLB live for a day after every deploy.
+'Cache-Control': 'public, max-age=300, s-maxage=300',
         },
       })
     }
@@ -33,7 +35,9 @@ export async function GET(
       headers: {
         'Content-Type': 'model/gltf-binary',
         'Content-Disposition': `inline; filename="${aw.id}.glb"`,
-        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+        // Short TTL while AR pipeline is stabilising — long edge cache would
+// leave stale broken USDZ/GLB live for a day after every deploy.
+'Cache-Control': 'public, max-age=300, s-maxage=300',
       },
     })
   } catch (err) {

@@ -166,6 +166,12 @@ export async function buildPaintingScene(
   painting.rotation.y = Math.PI
   scene.add(painting)
   addStandardLighting(THREE, scene)
+  // CRITICAL: USDZExporter reads object.matrixWorld per mesh and bakes the
+  // transform into the USD xform block. Without a manual updateMatrixWorld
+  // call, every object's matrixWorld is identity (three only auto-computes
+  // it during renderer.render() in browser contexts). The rotation above
+  // would otherwise silently no-op on the server.
+  scene.updateMatrixWorld(true)
   return scene
 }
 
@@ -213,7 +219,11 @@ export async function buildGalleryScene(
     }
   }
 
+  // Same wall-facing rotation as buildPaintingScene (canvases must face the
+  // room when USDZ-anchored on a vertical surface).
+  scene.children.forEach(c => { if (c.type === 'Group' || (c as THREE_NS.Mesh).isMesh) c.rotation.y = Math.PI })
   addStandardLighting(THREE, scene)
+  scene.updateMatrixWorld(true)
   return scene
 }
 
@@ -260,5 +270,6 @@ export async function buildSculptureScene(
   scene.add(new THREE.AmbientLight(0xfff6ec, 0.45))
   const key = new THREE.DirectionalLight(0xfff4e0, 1.8); key.position.set(1.5, 3, 2); scene.add(key)
   const fill = new THREE.DirectionalLight(0xbfd0ff, 0.5); fill.position.set(-2, 1, -1); scene.add(fill)
+  scene.updateMatrixWorld(true)
   return scene
 }
