@@ -23,6 +23,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // /ar/<id> — QR-scan landing for a single artwork. Same iframe
+        // policy as /embed so partner gallery sites can drop the AR CTA in
+        // a frame next to product listings if they want.
+        source: '/ar/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'ALLOWALL' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors *;" },
+        ],
+      },
+      {
         // Public submit endpoints used by /embed/newsletter.js and embedded
         // lead-capture forms. Permissive CORS so the script POSTs from any
         // origin (Squarespace, partner sites). Rate-limited in the route.
