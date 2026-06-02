@@ -22,11 +22,6 @@ function detectPlatform(): Platform {
   return 'desktop'
 }
 
-function arUrl(aw: Artwork, format: 'glb' | 'usdz'): string {
-  const base = aw.type === 'sculpture' ? '/api/ar/sculpture' : '/api/ar/painting'
-  return `${base}/${aw.id}?format=${format}`
-}
-
 function sceneViewerHref(absoluteGlb: string, fallbackUrl: string, title: string): string {
   const file = encodeURIComponent(absoluteGlb)
   const fb = encodeURIComponent(fallbackUrl)
@@ -58,12 +53,15 @@ interface Props {
 }
 
 export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
-  const iosLinkRef = useRef<HTMLAnchorElement>(null)
   const platform = useMemo(detectPlatform, [])
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
-  const absGlb = `${origin}${arUrl(aw, 'glb')}`
-  const usdzRel = arUrl(aw, 'usdz')
+  // Pretty extensions via next.config.ts rewrites. iOS Quick Look only
+  // fires reliably when the URL ends in `.usdz`; Android Scene Viewer takes
+  // a `.glb` directly. Both rewrite to /api/ar/<type>/<id>?format=...
+  const sculpturePath = aw.type === 'sculpture' ? 'sculpture/' : ''
+  const absGlb  = `${origin}/ar/${sculpturePath}${aw.id}.glb`
+  const usdzHref = `${origin}/ar/${sculpturePath}${aw.id}.usdz`
   const androidHref = sceneViewerHref(absGlb, `${origin}/ar/${aw.id}`, aw.title)
   const dims = aw.type === 'sculpture'
     ? `${aw.heightCm} cm tall`
@@ -88,34 +86,15 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
     return () => { cancelled = true }
   }, [platform, origin, aw.id])
 
-  function launch() {
-    if (platform === 'ios') iosLinkRef.current?.click()
-    else if (platform === 'android') window.location.href = androidHref
-  }
-
   const [arDenied, setArDenied] = useState(false)
 
-  // iOS / Android single-tap CTA layout
+  // iOS / Android single-tap CTA layout. CRITICAL: the CTA itself must be
+  // an `<a>` element so iOS Quick Look fires on a trusted user gesture.
+  // Programmatic .click() on a hidden anchor was the previous bug — Safari
+  // silently no-ops it on many iOS versions.
   if (platform !== 'desktop') {
     return (
       <div className="min-h-dvh bg-paper text-ink flex flex-col">
-        {/* Hidden Quick Look anchor — clicked programmatically by launch() */}
-        <a
-          ref={iosLinkRef}
-          rel="ar"
-          href={usdzRel}
-          style={{ display: 'none' }}
-          onClick={() => {
-            // If Quick Look isn't supported (rare — older iOS Safari), the
-            // anchor falls through and downloads the file. Catch that with a
-            // tiny "didn't open" hint after a beat.
-            setTimeout(() => setArDenied(true), 4000)
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/transparent.png" alt="" />
-        </a>
-
         <div className="flex-1 flex flex-col justify-between p-6">
           <div>
             <p className="text-[10px] tracking-[0.18em] uppercase text-ink-muted">
@@ -144,19 +123,43 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
           </div>
 
           <div className="mt-8">
-            <button
-              onClick={launch}
-              className="w-full h-14 bg-ink text-paper text-[15px] font-medium tracking-wide hover:bg-black active:scale-[.98] transition"
-            >
-              Place on your wall
-            </button>
+            {platform === 'ios' ? (
+              // Apple AR Quick Look spec: anchor MUST have rel="ar" AND a
+              // single <img> child. The image is what user sees in the
+              // pre-AR banner; we use the artwork itself for a nice preview.
+              <a
+                rel="ar"
+                href={usdzHref}
+                className="relative w-full h-14 bg-ink text-paper text-[15px] font-medium tracking-wide hover:bg-black active:scale-[.98] transition flex items-center justify-center overflow-hidden"
+                onClick={() => setTimeout(() => setArDenied(true), 4500)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={aw.thumb || aw.image || '/transparent.png'}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover opacity-0"
+                />
+                <span className="relative z-[1]">Place on your wall</span>
+              </a>
+            ) : (
+              // Android Scene Viewer: a regular anchor to the intent:// URI.
+              // Same trusted-gesture rule applies; an `<a>` works, but Chrome
+              // also accepts window.location.href = intent: redirect.
+              <a
+                href={androidHref}
+                className="w-full h-14 bg-ink text-paper text-[15px] font-medium tracking-wide hover:bg-black active:scale-[.98] transition flex items-center justify-center"
+                onClick={() => setTimeout(() => setArDenied(true), 4500)}
+              >
+                Place on your wall
+              </a>
+            )}
             <p className="mt-3 text-[11px] text-ink-muted text-center leading-relaxed">
               Opens your camera in {platform === 'ios' ? 'AR Quick Look' : 'Google Scene Viewer'}.
               Point at a wall, tap to place at true size.
             </p>
             {arDenied && (
               <p className="mt-3 text-[12px] text-amber-600 text-center">
-                Couldn&apos;t open AR — make sure you&apos;re using Safari (iOS) or Chrome (Android), then try again.
+                Didn&apos;t open? Make sure you&apos;re using Safari (iOS) or Chrome (Android), then tap the button again.
               </p>
             )}
           </div>
@@ -172,7 +175,7 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
         <div className="md:col-span-7">
           <div className="aspect-[4/5] bg-slate-100 overflow-hidden border border-line">
             <model-viewer
-              src={arUrl(aw, 'glb')}
+              src={`/ar/${sculpturePath}${aw.id}.glb`}
               camera-controls
               shadow-intensity="0.6"
               exposure="1.0"
