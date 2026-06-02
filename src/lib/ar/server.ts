@@ -93,7 +93,17 @@ async function exportGLB(scene: THREE.Scene): Promise<ArrayBuffer> {
 
 type Alignment = 'vertical' | 'horizontal'
 async function exportUSDZ(scene: THREE.Scene, alignment: Alignment = 'vertical'): Promise<ArrayBuffer> {
-  const out = await new USDZExporter().parse(scene, {
+  // USDZExporter.parse(scene, onDone, onError, options) is the callback API.
+  // parseAsync(scene, options) is the promise API — what we want here. The
+  // earlier code called parse() and passed options where onDone should go,
+  // so `out` came back undefined and `out.buffer` threw
+  // `Cannot read properties of undefined (reading 'buffer')` for every USDZ
+  // request — which silently broke iOS Quick Look entirely.
+  // Types for parseAsync are missing in this three version — call dynamically.
+  const exporter = new USDZExporter() as unknown as {
+    parseAsync: (scene: THREE.Scene, options: Record<string, unknown>) => Promise<Uint8Array>
+  }
+  const out = await exporter.parseAsync(scene, {
     ar: {
       anchoring: { type: 'plane' },
       planeAnchoring: { alignment },
@@ -101,8 +111,9 @@ async function exportUSDZ(scene: THREE.Scene, alignment: Alignment = 'vertical')
     includeAnchoringProperties: true,
     quickLookCompatible: true,
     maxTextureSize: 1024,
-  } as unknown as Parameters<InstanceType<typeof USDZExporter>['parse']>[1])
-  return out.buffer as ArrayBuffer
+  })
+  // parseAsync returns a Uint8Array — get the underlying ArrayBuffer.
+  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
