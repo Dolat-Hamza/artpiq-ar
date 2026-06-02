@@ -11,6 +11,27 @@ const nextConfig: NextConfig = {
   // functions pick up the platform-specific build at runtime.
   serverExternalPackages: ['sharp'],
 
+  async rewrites() {
+    return [
+      // iOS Quick Look fires only when the anchor href ends in `.usdz` AND
+      // the response is `model/vnd.usdz+zip`. Android Scene Viewer is more
+      // forgiving but a clean `.glb` extension never hurts. The actual
+      // handlers live under /api/ar/<type>/<id> and negotiate via ?format=;
+      // these rewrites stick a real extension on the public URL.
+      //
+      // Path: /ar/<id>.usdz  →  /api/ar/painting/<id>?format=usdz
+      //       /ar/<id>.glb   →  /api/ar/painting/<id>?format=glb
+      //       /ar/sculpture/<id>.usdz → /api/ar/sculpture/<id>?format=usdz
+      //       /ar/sculpture/<id>.glb  → /api/ar/sculpture/<id>?format=glb
+      //
+      // Listed before /ar/<id> page so they intercept the request.
+      { source: '/ar/sculpture/:id.usdz', destination: '/api/ar/sculpture/:id?format=usdz' },
+      { source: '/ar/sculpture/:id.glb',  destination: '/api/ar/sculpture/:id?format=glb'  },
+      { source: '/ar/:id.usdz', destination: '/api/ar/painting/:id?format=usdz' },
+      { source: '/ar/:id.glb',  destination: '/api/ar/painting/:id?format=glb'  },
+    ]
+  },
+
   async headers() {
     return [
       {
