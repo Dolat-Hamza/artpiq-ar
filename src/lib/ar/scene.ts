@@ -31,12 +31,15 @@ export function buildFramedPainting(
   const BACK_D = 0.003  // back board thickness
   const CANVAS_Z = 0.001
 
-  // Canvas
+  // Canvas. FrontSide only — DoubleSide is unsupported by USDZ and would
+  // also mirror the artwork on the back face (visible from behind the wall
+  // anchor in some viewers). Painting hangs on a wall in AR; only the front
+  // is ever seen.
   const paintingMat = new THREE.MeshStandardMaterial({
     map: canvasTex,
     roughness: 0.7,
     metalness: 0.0,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
   })
   const canvas = new THREE.Mesh(new THREE.PlaneGeometry(widthM, heightM), paintingMat)
   canvas.position.set(cx, cy, CANVAS_Z)

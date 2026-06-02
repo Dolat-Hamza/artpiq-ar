@@ -97,8 +97,14 @@ function install() {
       },
     }
   }
-  if (typeof g.HTMLImageElement === 'undefined') g.HTMLImageElement = FakeHTMLImageElement
-  if (typeof g.HTMLCanvasElement === 'undefined') g.HTMLCanvasElement = FakeCanvas
+  // CRITICAL: always override, don't guard on `typeof === 'undefined'`. Node
+  // 20+ + some Next.js polyfills expose a native (incompatible) HTMLImageElement
+  // global, and three's USDZExporter relies on `image instanceof
+  // HTMLImageElement` to choose the canvas path. If the native class wins, the
+  // instanceof check fails and the exporter throws
+  // `THREE.USDZExporter: No valid image data found. Unable to process texture.`
+  g.HTMLImageElement = FakeHTMLImageElement
+  g.HTMLCanvasElement = FakeCanvas
   if (typeof g.ImageData === 'undefined') g.ImageData = FakeImageData
   if (typeof g.FileReader === 'undefined') {
     // Minimal FileReader covering the three.js GLTFExporter calls:
