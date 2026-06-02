@@ -3,17 +3,19 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Check, Copy, AlertTriangle } from 'lucide-react'
 import type { Artwork } from '@/types'
 
-// Per-artwork share/embed modal. Three tabs:
-//   1. Link — direct anchor URL for buttons / email / social
-//   2. Iframe — drop into Squarespace / Webflow Code block (camera/AR allow attrs included)
-//   3. QR — printable QR PNG + raw URL fallback
+// Per-artwork share/embed modal. Four tabs:
+//   1. Link    — direct anchor URL for buttons / email / social
+//   2. SQSP    — drop-in HTML snippet for a Squarespace product page (image
+//                + QR + 'Try in AR' button, branded, mobile-friendly)
+//   3. Iframe  — raw iframe wrap (advanced; embeds the full AR landing)
+//   4. QR      — printable QR PNG + raw URL fallback
 //
 // Privacy gate: artwork must be `privacy: 'public'` for the QR URL to load
 // (RLS scopes anon SELECT to public rows). Modal surfaces a warning + one-click
 // fix when the artwork is private; the actual privacy flip is done back in the
 // editor since we don't own state here.
 
-type Tab = 'link' | 'iframe' | 'qr'
+type Tab = 'link' | 'sqsp' | 'iframe' | 'qr'
 
 interface Props {
   artwork: Artwork
@@ -35,6 +37,29 @@ function buildIframe(url: string): string {
   allow="camera; xr-spatial-tracking; accelerometer; gyroscope"
   loading="lazy"
 ></iframe>`
+}
+
+// Squarespace product-page snippet — looks like a normal product feature
+// block. Mobile users get a tap-to-AR button, desktop users get the QR.
+// All-inline styles so it survives SQSP's CSS without a template change.
+function buildSqspBlock(url: string, title: string, subtitle: string, dims: string): string {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(url)}`
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return `<!-- artpiq AR · paste this block into a Squarespace Code block -->
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#141210;background:#faf7f2;border:1px solid #e6e6e6;border-radius:8px;padding:24px;max-width:520px;margin:24px auto;">
+  <p style="margin:0 0 4px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#737373">View in your room</p>
+  <h3 style="margin:0 0 4px;font-size:22px;font-weight:600;line-height:1.2">${esc(title)}</h3>
+  <p style="margin:0 0 16px;font-size:13px;color:#737373">${esc(subtitle)} · ${esc(dims)}</p>
+
+  <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+    <img src="${qrSrc}" width="160" height="160" alt="Scan to view in AR" style="flex-shrink:0;display:block;border:1px solid #e6e6e6;background:#fff;padding:6px;" />
+    <div style="flex:1;min-width:200px;">
+      <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#141210">Scan this code with your phone to place this work on your wall, at true size, using your camera.</p>
+      <a href="${url}" style="display:inline-block;padding:11px 18px;background:#141210;color:#faf7f2;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.02em;border-radius:4px;">Try in AR →</a>
+      <p style="margin:10px 0 0;font-size:11px;color:#737373">Works on iPhone (Safari) + Android (Chrome). Requires camera permission.</p>
+    </div>
+  </div>
+</div>`
 }
 
 function buildQrCardHtml(url: string, title: string): string {
@@ -61,11 +86,17 @@ export default function ArtworkShareModal({ artwork, origin: originProp, onClose
   const url = origin ? `${origin}/ar/${artwork.id}` : `/ar/${artwork.id}`
   const isPublic = (artwork.privacy ?? 'public') === 'public'
 
+  const dims = artwork.type === 'sculpture'
+    ? `${artwork.heightCm} cm tall`
+    : `${artwork.widthCm} × ${artwork.heightCm} cm`
+  const subtitle = [artwork.artist, artwork.year].filter(Boolean).join(' · ') || 'artpiq.ai'
+
   const payload = useMemo(() => ({
     link: url,
+    sqsp: buildSqspBlock(url, artwork.title, subtitle, dims),
     iframe: buildIframe(url),
     qr: buildQrCardHtml(url, artwork.title),
-  }), [url, artwork.title])
+  }), [url, artwork.title, subtitle, dims])
 
   // Render QR canvas on the QR tab (in addition to the printable HTML snippet).
   useEffect(() => {
@@ -140,14 +171,14 @@ export default function ArtworkShareModal({ artwork, origin: originProp, onClose
           )}
 
           {/* Tabs */}
-          <div className="mt-4 flex gap-1 border-b border-line">
-            {(['link', 'iframe', 'qr'] as Tab[]).map(t => (
+          <div className="mt-4 flex gap-1 border-b border-line overflow-x-auto">
+            {(['link', 'sqsp', 'iframe', 'qr'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-3 py-2 text-[12px] tracking-[0.1em] uppercase border-b-2 -mb-px ${tab === t ? 'border-ink text-ink font-semibold' : 'border-transparent text-ink-muted hover:text-ink'}`}
+                className={`px-3 py-2 text-[12px] tracking-[0.1em] uppercase border-b-2 -mb-px whitespace-nowrap ${tab === t ? 'border-ink text-ink font-semibold' : 'border-transparent text-ink-muted hover:text-ink'}`}
               >
-                {t === 'link' ? 'Link' : t === 'iframe' ? 'Iframe' : 'QR code'}
+                {t === 'link' ? 'Link' : t === 'sqsp' ? 'Squarespace' : t === 'iframe' ? 'Iframe' : 'QR code'}
               </button>
             ))}
           </div>
@@ -171,6 +202,37 @@ export default function ArtworkShareModal({ artwork, origin: originProp, onClose
                 <a href={payload.link} target="_blank" rel="noopener noreferrer" className="text-[12px] underline text-ink mt-2 inline-block">
                   Open preview →
                 </a>
+              </div>
+            )}
+
+            {tab === 'sqsp' && (
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-ink-muted font-semibold mb-1.5">
+                  Squarespace product-page snippet
+                </label>
+                <p className="text-[11px] text-ink-muted mb-2 leading-relaxed">
+                  In Squarespace: open the product page → <b>Edit</b> → drag a <b>Code</b> block under the gallery → paste the snippet → Save.
+                  Renders a branded AR card with the QR (desktop) + a <b>Try in AR</b> button (mobile).
+                </p>
+                <textarea
+                  className="input w-full font-mono text-[11px] min-h-[180px]"
+                  readOnly
+                  value={payload.sqsp}
+                />
+                <div className="flex justify-end mt-2">
+                  <button onClick={() => copy(payload.sqsp, 'sqsp')} className="btn-outline flex items-center gap-1.5">
+                    {copied === 'sqsp' ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy snippet</>}
+                  </button>
+                </div>
+                <details className="mt-3 text-[11px] text-ink-muted">
+                  <summary className="cursor-pointer">Preview rendering</summary>
+                  <iframe
+                    title="SQSP block preview"
+                    srcDoc={payload.sqsp}
+                    className="mt-2 w-full h-[260px] border border-line"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox"
+                  />
+                </details>
               </div>
             )}
 
