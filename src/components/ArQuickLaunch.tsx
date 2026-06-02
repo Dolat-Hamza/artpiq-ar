@@ -86,7 +86,26 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
     return () => { cancelled = true }
   }, [platform, origin, aw.id])
 
+  // arDenied flips only if 4.5s pass after click WITHOUT page visibility
+  // changing — i.e. Quick Look / Scene Viewer never opened. If the page
+  // hides (AR launched) we clear the timer so the warning never shows on
+  // a successful launch.
   const [arDenied, setArDenied] = useState(false)
+  const denyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function armDenyCheck() {
+    if (denyTimerRef.current) clearTimeout(denyTimerRef.current)
+    setArDenied(false)
+    denyTimerRef.current = setTimeout(() => setArDenied(true), 4500)
+    const onVis = () => {
+      if (document.hidden) {
+        if (denyTimerRef.current) clearTimeout(denyTimerRef.current)
+        setArDenied(false)
+        document.removeEventListener('visibilitychange', onVis)
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+  }
 
   // iOS / Android single-tap CTA layout. CRITICAL: the CTA itself must be
   // an `<a>` element so iOS Quick Look fires on a trusted user gesture.
@@ -106,7 +125,12 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
             <div className="mt-6 aspect-[4/5] bg-slate-100 overflow-hidden border border-line">
               {aw.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={aw.image} alt={aw.title} className="w-full h-full object-contain" />
+                <img
+                  src={aw.image}
+                  alt={aw.title}
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center font-display text-[60px] text-ink-muted">
                   {aw.title[0]}
@@ -131,7 +155,7 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
                 rel="ar"
                 href={usdzHref}
                 className="relative w-full h-14 bg-ink text-paper text-[15px] font-medium tracking-wide hover:bg-black active:scale-[.98] transition flex items-center justify-center overflow-hidden"
-                onClick={() => setTimeout(() => setArDenied(true), 4500)}
+                onClick={armDenyCheck}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -148,7 +172,7 @@ export default function ArQuickLaunch({ artwork: aw, origin }: Props) {
               <a
                 href={androidHref}
                 className="w-full h-14 bg-ink text-paper text-[15px] font-medium tracking-wide hover:bg-black active:scale-[.98] transition flex items-center justify-center"
-                onClick={() => setTimeout(() => setArDenied(true), 4500)}
+                onClick={armDenyCheck}
               >
                 Place on your wall
               </a>
