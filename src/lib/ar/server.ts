@@ -42,9 +42,18 @@ async function decodeToTexture(url: string): Promise<THREE.Texture> {
     width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true,
   })
 
-  // Keep PNG in its natural top-left origin. PNG/USDZ/GLTF all use top-left
-  // UV convention. We set tex.flipY = false below so no extra flipping
-  // happens anywhere in the pipeline.
+  // PNGs are top-down (origin top-left) but three.js PlaneGeometry's default
+  // UVs put (0,0) at the bottom-left of the plane. We must flip on upload so
+  // the image renders right-side-up:
+  //
+  //   flipY = false → renders upside-down (was the bug — Quick Look + Scene
+  //                   Viewer showed paintings mirrored vertically because
+  //                   neither honours flipY=false when reading from GLB/USDZ
+  //                   in the same way three.js's own WebGL renderer does)
+  //   flipY = true  → three flips during upload; GLTFExporter + USDZExporter
+  //                   then write UVs that match upright rendering across all
+  //                   downstream viewers (model-viewer, Quick Look,
+  //                   Scene Viewer, Blender)
   const { data: rgba, info } = await pipeline
     .clone()
     .ensureAlpha()
@@ -58,7 +67,7 @@ async function decodeToTexture(url: string): Promise<THREE.Texture> {
 
   const tex = new THREE.Texture(fakeImg as unknown as HTMLImageElement)
   tex.colorSpace = THREE.SRGBColorSpace
-  tex.flipY = false
+  tex.flipY = true
   tex.format = THREE.RGBAFormat
   tex.minFilter = THREE.LinearFilter
   tex.magFilter = THREE.LinearFilter

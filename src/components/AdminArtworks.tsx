@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import ArtworkShareModal from '@/components/ArtworkShareModal'
+import { Share2 } from 'lucide-react'
 import { ARTWORK_STATUSES, Artwork, ArtworkOwnershipStatus, ArtworkStatus, Collection } from '@/types'
 import {
   artworksToCsv,
@@ -653,6 +655,7 @@ function EditorDrawer({
 }) {
   const set = <K extends keyof Artwork>(k: K, v: Artwork[K]) => onChange({ ...aw, [k]: v })
   const [uploading, setUploading] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [gallery, setGallery] = useState<ArtworkImage[]>([])
   const galleryRef = useRef<HTMLInputElement>(null)
 
@@ -719,6 +722,14 @@ function EditorDrawer({
         <header className="sticky top-0 bg-paper border-b border-line px-6 h-14 flex items-center justify-between z-10">
           <h2 className="font-display text-[14px] tracking-[0.18em] uppercase">Edit artwork</h2>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShareOpen(true)}
+              className="btn-outline flex items-center gap-1.5"
+              title="Get the Squarespace embed / QR for this artwork"
+              disabled={!aw.id}
+            >
+              <Share2 size={13} /> Share / Embed
+            </button>
             <button onClick={onCancel} className="btn-outline">
               Cancel
             </button>
@@ -727,6 +738,18 @@ function EditorDrawer({
             </button>
           </div>
         </header>
+
+        {shareOpen && (
+          <ArtworkShareModal
+            artwork={aw}
+            onClose={() => setShareOpen(false)}
+            onRequestMakePublic={() => {
+              set('privacy', 'public')
+              setShareOpen(false)
+              // Hint: parent must save. User sees the warning vanish on reopen.
+            }}
+          />
+        )}
 
         <div className="px-6 py-6 grid gap-4 text-[13px]">
           <Field label="Type">
