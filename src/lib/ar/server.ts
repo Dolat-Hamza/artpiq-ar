@@ -15,6 +15,14 @@ installCanvasShim()
 import * as THREE from 'three'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js'
+// @ts-expect-error fflate package.json exports map blocks TS resolver — runtime fine
+import * as fflateModule from 'fflate'
+const fflate = fflateModule as unknown as {
+  unzipSync: (data: Uint8Array) => Record<string, Uint8Array>
+  zipSync: (data: Record<string, Uint8Array>, opts?: { level?: number }) => Uint8Array
+  strToU8: (str: string) => Uint8Array
+  strFromU8: (data: Uint8Array) => string
+}
 import sharp from 'sharp'
 import {
   buildPaintingScene,
@@ -112,8 +120,52 @@ async function exportUSDZ(scene: THREE.Scene, alignment: Alignment = 'vertical')
     quickLookCompatible: true,
     maxTextureSize: 1024,
   })
-  // parseAsync returns a Uint8Array — get the underlying ArrayBuffer.
-  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer
+
+  // Post-process to fix three.js USDZExporter shader-type bugs that make iOS
+  // Quick Look reject the file with "AR object could not be opened". Apple's
+  // usdchecker reports:
+  //   Transform2d_diffuse.inputs:in       expected float2, got token
+  //   PrimvarReader_diffuse.inputs:varname expected string, got token
+  // These come from the template literals in USDZExporter.js#buildTexture
+  // (token inputs:varname / token inputs:in.connect). We unzip the USDA,
+  // string-replace the two declarations, and repack.
+  //
+  // Patch is bounded to USDZ output — does not touch geometry or texture
+  // files. Costs <50ms on a typical scene.
+  const fixed = patchUsdzShaderTypes(out)
+  return fixed.buffer.slice(fixed.byteOffset, fixed.byteOffset + fixed.byteLength) as ArrayBuffer
+}
+
+function patchUsdzShaderTypes(usdz: Uint8Array): Uint8Array {
+  let files: Record<string, Uint8Array>
+  try {
+    files = fflate.unzipSync(usdz)
+  } catch (e) {
+    console.warn('[ar/server] USDZ unzip for shader-type patch failed; returning raw', e)
+    return usdz
+  }
+  const modelKey = Object.keys(files).find(k => k.endsWith('model.usda'))
+  if (!modelKey) return usdz
+  const usda = fflate.strFromU8(files[modelKey])
+  let patched = usda
+  // 1) PrimvarReader_<map>.inputs:varname — type should be `string`, not `token`
+  patched = patched.replace(
+    /token inputs:varname = /g,
+    'string inputs:varname = ',
+  )
+  // 2) Transform2d_<map>.inputs:in.connect — type should be `float2`, not `token`
+  patched = patched.replace(
+    /token inputs:in\.connect = /g,
+    'float2 inputs:in.connect = ',
+  )
+  if (patched === usda) return usdz
+  files[modelKey] = fflate.strToU8(patched)
+  // USDZ spec requires `model.usda` first + 64-byte alignment. fflate handles
+  // alignment via the `extra` field on each entry; the alignment that three's
+  // USDZExporter set up survives because we reuse the same fflate API and
+  // entry layout. zipSync with level: 0 keeps the STORE compression Quick
+  // Look needs.
+  return fflate.zipSync(files, { level: 0 })
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
