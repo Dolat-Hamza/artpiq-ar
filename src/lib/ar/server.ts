@@ -75,7 +75,18 @@ async function decodeToTexture(url: string): Promise<THREE.Texture> {
 
   const tex = new THREE.Texture(fakeImg as unknown as HTMLImageElement)
   tex.colorSpace = THREE.SRGBColorSpace
-  tex.flipY = true
+  // flipY: Apple Quick Look's USD renderer treats texture (0,0) as
+  // bottom-left (USD/OpenSubdiv convention), so passing the PNG as-is
+  // (top-down origin) with PlaneGeometry's bottom-left UVs would sample
+  // the wrong row and render upside-down. Three's USDZExporter compensates
+  // when flipY=true by vertically flipping the canvas before encoding the
+  // PNG — that double-flip cancels out into an upright render on Quick
+  // Look / Scene Viewer.
+  //
+  // (Earlier PR set flipY=true to fix a previous mirror issue. Empirically
+  // wrong against Quick Look for paintings — leaving it false matches what
+  // Apple's renderer expects.)
+  tex.flipY = false
   tex.format = THREE.RGBAFormat
   tex.minFilter = THREE.LinearFilter
   tex.magFilter = THREE.LinearFilter
