@@ -158,19 +158,20 @@ export async function buildPaintingScene(
 
   const scene = new THREE.Scene()
   const painting = buildFramedPainting(THREE, widthM, heightM, tex)
-  // Quick Look's vertical wall-anchor places the model so its -Z faces the
-  // room. Three's PlaneGeometry default normal is +Z, so the canvas (built
-  // facing +Z) ended up facing the wall when anchored — Object mode showed
-  // the dark back-board to the viewer. Rotate the whole group 180° around
-  // Y so canvas faces -Z; back-board and frame depth follow.
-  painting.rotation.y = Math.PI
+  // Apple AR Quick Look vertical plane anchor: object's +Z axis points
+  // outward from the wall into the room. Three's PlaneGeometry default
+  // normal is +Z, so the canvas (built facing +Z) already faces the room
+  // correctly when anchored. No rotation needed.
+  //
+  // (An earlier PR rotated by 180° around Y because Object-mode preview
+  // showed the back-board first — but Object mode camera direction is
+  // independent of AR anchor orientation. The rotation flipped the canvas
+  // to face the wall in real AR, leaving room-side viewers staring at the
+  // dark back-board. Reverted.)
   scene.add(painting)
   addStandardLighting(THREE, scene)
-  // CRITICAL: USDZExporter reads object.matrixWorld per mesh and bakes the
-  // transform into the USD xform block. Without a manual updateMatrixWorld
-  // call, every object's matrixWorld is identity (three only auto-computes
-  // it during renderer.render() in browser contexts). The rotation above
-  // would otherwise silently no-op on the server.
+  // USDZExporter reads object.matrixWorld per mesh. Keep updateMatrixWorld
+  // around in case future transforms need to be baked in.
   scene.updateMatrixWorld(true)
   return scene
 }
@@ -219,9 +220,8 @@ export async function buildGalleryScene(
     }
   }
 
-  // Same wall-facing rotation as buildPaintingScene (canvases must face the
-  // room when USDZ-anchored on a vertical surface).
-  scene.children.forEach(c => { if (c.type === 'Group' || (c as THREE_NS.Mesh).isMesh) c.rotation.y = Math.PI })
+  // No rotation — see comment in buildPaintingScene. Canvas +Z is what
+  // Apple's vertical plane anchor expects (outward into the room).
   addStandardLighting(THREE, scene)
   scene.updateMatrixWorld(true)
   return scene
