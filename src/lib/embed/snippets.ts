@@ -42,3 +42,21 @@ export function widgetSnippet(origin: string, o: WidgetSnippetOptions): string {
 export function newsletterSnippet(origin: string, owner: string): string {
   return `<script src="${esc(origin)}/embed/newsletter.js"${attrs([['data-owner', owner]])}></script>`
 }
+
+export interface ProductArSnippetOptions {
+  owner: string
+  tag?: string
+  text?: string
+  bgcolor?: string
+  fontcolor?: string
+}
+
+export function productArSnippet(origin: string, o: ProductArSnippetOptions): string {
+  const options = attrs([
+    ['data-ar-tag', o.tag],
+    ['data-text', o.text],
+    ['data-bgcolor', colour(o.bgcolor)],
+    ['data-fontcolor', colour(o.fontcolor)],
+  ])
+  return `<script src="${esc(origin)}/embed/widget.js"${attrs([['data-owner', o.owner]])} data-product-ar${options} defer></script>`
+}
