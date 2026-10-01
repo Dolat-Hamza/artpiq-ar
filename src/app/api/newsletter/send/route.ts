@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
-import { isUuid, requireAuth } from '../../_auth'
+import { requireAuth } from '../../_auth'
+import { isUuid } from '@/lib/validation/uuid'
 
 type SendBody = {
   contentId?: string

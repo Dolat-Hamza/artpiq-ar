@@ -43,10 +43,3 @@ export async function requireAuth(
   }
   return { user: { id: data.user.id, email: data.user.email ?? undefined } }
 }
-
-// Minimal UUID v4-ish check. Accepts any reasonable UUID string. Used by
-// API routes to reject malformed IDs before they hit the DB layer (avoids
-// leaking schema details via Postgres error messages).
-export function isUuid(v: unknown): v is string {
-  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
-}
