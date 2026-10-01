@@ -1,3 +1,5 @@
+import { isUuid } from '@/lib/validation/uuid'
+
 export const WIDGET_MODES = ['view', 'sample-room', 'my-wall'] as const
 export type WidgetMode = typeof WIDGET_MODES[number]
 
@@ -7,7 +9,6 @@ export interface WidgetParams {
   artwork: string | null
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_COLLECTIONS = 20
 const MAX_ARTWORK_ID = 128
 
@@ -22,10 +23,10 @@ export function parseWidgetParams(search: URLSearchParams): WidgetParams {
   const collections = (search.get('collection') ?? '')
     .split(',')
     .map(s => s.trim())
-    .filter(s => UUID.test(s))
+    .filter(isUuid)
   const artwork = (search.get('artwork') ?? '').trim()
   return {
-    owner: UUID.test(owner) ? owner : null,
+    owner: isUuid(owner) ? owner : null,
     collections: [...new Set(collections)].slice(0, MAX_COLLECTIONS),
     artwork: artwork && artwork.length <= MAX_ARTWORK_ID ? artwork : null,
   }

@@ -5,7 +5,7 @@ import { useStore } from '@/store'
 import { ARTWORKS } from '@/lib/artworks'
 
 export default function GalleryBar() {
-  const { selectedIds, isSelectMode, exitSelectMode, openMyWall, openGalleryAR, showToast } = useStore()
+  const { selectedIds, isSelectMode, exitSelectMode, openMyWall, openAR, showToast } = useStore()
 
   if (!isSelectMode || selectedIds.size === 0) return null
 
@@ -26,7 +26,8 @@ export default function GalleryBar() {
     if (paintings.length > 1) {
       showToast('AR shows one artwork — first selection used')
     }
-    openGalleryAR([paintings[0].id])
+    exitSelectMode()
+    openAR(paintings[0])
   }
 
   return (

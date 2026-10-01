@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { newsletterSnippet, widgetSnippet } from '@/lib/embed/snippets'
+import { newsletterSnippet, productArSnippet, widgetSnippet } from '@/lib/embed/snippets'
 
 const ORIGIN = 'https://app.artpiq.com'
 const OWNER = '33207c8e-8a39-4831-a5cf-f0ebdf379a1b'
@@ -59,5 +59,26 @@ test.describe('newsletterSnippet', () => {
 
   test('escapes the owner attribute', () => {
     expect(newsletterSnippet(ORIGIN, '"x')).toContain('data-owner="&quot;x"')
+  })
+})
+
+test.describe('productArSnippet', () => {
+  test('emits one footer script that enables product-page AR', () => {
+    expect(productArSnippet(ORIGIN, { owner: OWNER })).toBe(
+      `<script src="${ORIGIN}/embed/widget.js" data-owner="${OWNER}" data-product-ar defer></script>`,
+    )
+  })
+
+  test('includes tag, label and colours in a stable order', () => {
+    expect(productArSnippet(ORIGIN, { owner: OWNER, tag: 'AR', text: 'View on your Wall', bgcolor: '#ed1c78', fontcolor: '#ffffff' })).toBe(
+      `<script src="${ORIGIN}/embed/widget.js" data-owner="${OWNER}" data-product-ar`
+      + ' data-ar-tag="AR" data-text="View on your Wall" data-bgcolor="#ed1c78" data-fontcolor="#ffffff" defer></script>',
+    )
+  })
+
+  test('omits empty options, escapes values and drops non-hex colours', () => {
+    expect(productArSnippet(ORIGIN, { owner: OWNER, tag: '', text: '"x"', bgcolor: 'red', fontcolor: '' })).toBe(
+      `<script src="${ORIGIN}/embed/widget.js" data-owner="${OWNER}" data-product-ar data-text="&quot;x&quot;" defer></script>`,
+    )
   })
 })

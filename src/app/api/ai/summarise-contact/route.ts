@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
-import { isUuid, requireAuth } from '../../_auth'
+import { requireAuth } from '../../_auth'
+import { isUuid } from '@/lib/validation/uuid'
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY

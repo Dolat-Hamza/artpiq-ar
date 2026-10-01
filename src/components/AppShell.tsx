@@ -5,8 +5,7 @@ import { ARTWORKS, fetchWikiImages } from '@/lib/artworks'
 import Header from './Header'
 import Catalogue from './Catalogue'
 import DetailSheet from './DetailSheet'
-import ARLauncher from './ARLauncher'
-import GalleryAR from './GalleryAR'
+import ArSheet from './organisms/ArSheet'
 import MyWall from './MyWall'
 import QROverlay from './QROverlay'
 import GalleryBar from './GalleryBar'
@@ -32,8 +31,7 @@ export default function AppShell() {
       <Header />
       <Catalogue />
       <DetailSheet />
-      <ARLauncher />
-      <GalleryAR />
+      <ArSheet />
       <MyWall />
       <QROverlay />
       <GalleryBar />

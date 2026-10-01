@@ -1,22 +1,16 @@
 'use client'
-import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '@/store'
+import QrCanvas from '@/components/atoms/QrCanvas'
+
+// Only called while open, so window is defined.
+function shareUrl(artworkId?: string) {
+  const base = window.location.origin + window.location.pathname
+  return artworkId ? `${base}?artwork=${artworkId}` : base
+}
 
 export default function QROverlay() {
   const { qrOpen, closeQR, current } = useStore()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    if (!qrOpen || !canvasRef.current) return
-    const base = window.location.origin + window.location.pathname
-    const url = current ? `${base}?artwork=${current.id}` : base
-    import('qrcode').then(QRCode => {
-      QRCode.toCanvas(canvasRef.current!, url, {
-        width: 240, color: { dark: '#141210', light: '#faf7f2' },
-      })
-    })
-  }, [qrOpen, current])
 
   return (
     <AnimatePresence>
@@ -34,7 +28,7 @@ export default function QROverlay() {
             <h3 className="font-display text-[22px] leading-tight mb-5">
               Continue on your phone
             </h3>
-            <canvas ref={canvasRef} className="mx-auto" />
+            <QrCanvas value={shareUrl(current?.id)} size={240} className="mx-auto" />
             <button
               onClick={closeQR}
               className="mt-5 h-10 px-5 border border-ink text-ink text-[12px] hover:bg-ink hover:text-paper transition-colors"

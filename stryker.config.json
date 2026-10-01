@@ -7,7 +7,12 @@
   "mutate": [
     "src/lib/embed/widgetParams.ts",
     "src/lib/embed/snippets.ts",
-    "src/lib/image/loadImage.ts"
+    "src/lib/image/loadImage.ts",
+    "src/lib/ar/urls.ts",
+    "src/lib/ar/sourceKey.ts",
+    "src/lib/network/ssrf.ts",
+    "src/lib/network/safeFetch.ts",
+    "src/lib/validation/uuid.ts"
   ],
   "reporters": [
     "clear-text",
