@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/subscribers'
 import { listContent } from '@/lib/db/social'
 import { authedFetch } from '@/lib/db/authedFetch'
+import { newsletterSnippet } from '@/lib/embed/snippets'
 import { ContentItem, Subscriber } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
@@ -64,7 +65,7 @@ export default function InboxAdmin() {
   if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
   if (!user) return <div className="min-h-dvh flex items-center justify-center p-6"><LoginForm /></div>
 
-  const embedSnippet = `<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/newsletter.js" data-owner="${user.id}"></script>`
+  const embedSnippet = newsletterSnippet(typeof window !== 'undefined' ? window.location.origin : '', user.id)
   const active = list.filter(s => !s.optedOutAt).length
 
   async function openSendPicker() {

@@ -1,78 +1,18 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Camera, ImagePlus, Download, Trash2, Copy, ArrowUp, Plus } from 'lucide-react'
-import { useGesture } from '@use-gesture/react'
+import { X, Download, Plus } from 'lucide-react'
 import { useStore } from '@/store'
-import { ARTWORKS } from '@/lib/artworks'
+import { loadImage } from '@/lib/image/loadImage'
+import { decodeBitmap, normalizeToBlob } from '@/lib/image/decode'
+import { STORAGE_KEY, loadStored, saveStored } from './myWall/storage'
+import EmptyState from './myWall/EmptyState'
+import LayerNode from './myWall/LayerNode'
 import type { Artwork, WallLayer } from '@/types'
 
-const STORAGE_KEY = 'myWall:v2'
-
-interface StoredState {
-  layers: WallLayer[]
-  nextId: number
-}
-
-function loadStored(): StoredState | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as StoredState
-  } catch { return null }
-}
-
-function saveStored(s: StoredState) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch {}
-}
-
-function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-    p.then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
-  })
-}
-
-// Convert HEIC → JPEG Blob if needed. Returns the same File otherwise.
-async function normalizeToBlob(file: File): Promise<Blob> {
-  const name = file.name.toLowerCase()
-  const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
-    || name.endsWith('.heic') || name.endsWith('.heif')
-  if (!isHeic) return file
-  const mod = await import('heic2any')
-  const out = await withTimeout(
-    mod.default({ blob: file, toType: 'image/jpeg', quality: 0.95 }) as Promise<Blob | Blob[]>,
-    20000,
-    'HEIC conversion',
-  )
-  return Array.isArray(out) ? out[0] : out
-}
-
-// Decode Blob → ImageBitmap with EXIF orientation honored. Falls back to <img>.
-async function decodeBitmap(blob: Blob): Promise<{ width: number; height: number; bitmap?: ImageBitmap; url: string }> {
-  const url = URL.createObjectURL(blob)
-  if (typeof createImageBitmap === 'function') {
-    try {
-      // imageOrientation: 'from-image' applies EXIF rotation so portraits stay portrait.
-      const bitmap = await withTimeout(
-        createImageBitmap(blob, { imageOrientation: 'from-image' as ImageOrientation }),
-        15000,
-        'Image decode',
-      )
-      return { width: bitmap.width, height: bitmap.height, bitmap, url }
-    } catch {/* fall through */}
-  }
-  const dim = await withTimeout(new Promise<{ w: number; h: number }>((res, rej) => {
-    const img = new Image()
-    img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight })
-    img.onerror = () => rej(new Error('image decode failed'))
-    img.src = url
-  }), 15000, 'Image decode')
-  return { width: dim.w, height: dim.h, url }
-}
-
 export default function MyWall() {
-  const { myWallOpen, myWallArtworkIds, closeMyWall, showToast } = useStore()
+  const { artworks, myWallOpen, myWallArtworkIds, closeMyWall, showToast } = useStore()
+  const byId = useMemo(() => new Map(artworks.map(a => [a.id, a])), [artworks])
 
   const stageRef = useRef<HTMLDivElement>(null)
   const [bgBlob, setBgBlob] = useState<Blob | null>(null)
@@ -102,7 +42,7 @@ export default function MyWall() {
 
   const pxPerCm = stageW > 0 && wallWidthCm > 0 ? stageW / wallWidthCm : null
 
-  const paintings = useMemo(() => ARTWORKS.filter(a => a.type === 'painting'), [])
+  const paintings = useMemo(() => artworks.filter(a => a.type === 'painting'), [artworks])
 
   // Restore layers (only) from localStorage on open. Bg photo is per-session.
   useEffect(() => {
@@ -118,6 +58,13 @@ export default function MyWall() {
   useEffect(() => {
     return () => { if (bgUrl) URL.revokeObjectURL(bgUrl) }
   }, [bgUrl])
+
+  useEffect(() => {
+    if (!myWallOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMyWall() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [myWallOpen, closeMyWall])
 
   // Seed layers from openMyWall(ids)
   useEffect(() => {
@@ -244,7 +191,7 @@ export default function MyWall() {
       const decoded = await decodeBitmap(bgBlob)
       targetW = decoded.width
       targetH = decoded.height
-      bgSource = decoded.bitmap ?? await loadImg(decoded.url)
+      bgSource = decoded.bitmap ?? await loadImage(decoded.url)
     } catch (e) {
       console.error('[MyWall] export bg decode failed', e)
       showToast('Export failed. Re-pick photo.')
@@ -268,11 +215,11 @@ export default function MyWall() {
     const cy0 = rect.height / 2
 
     for (const l of layers) {
-      const aw = ARTWORKS.find(a => a.id === l.artworkId)
+      const aw = byId.get(l.artworkId)
       const src = aw?.image || aw?.thumb
       if (!src) continue
       let img: HTMLImageElement
-      try { img = await loadImg(src, true) } catch { continue }
+      try { img = await loadImage(src, { cors: true }) } catch { continue }
 
       // True-scale: artwork.widthCm * px-per-cm derived from user's wall width.
       const baseW = pxPerCm && aw!.widthCm > 0
@@ -309,7 +256,7 @@ export default function MyWall() {
     const slug = (s: string) =>
       (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
     const firstLayer = layers[0]
-    const firstAw = firstLayer ? ARTWORKS.find(a => a.id === firstLayer.artworkId) : null
+    const firstAw = firstLayer ? byId.get(firstLayer.artworkId) : null
     const def = firstAw
       ? `${slug(firstAw.title) || 'artwork'}_${slug(firstAw.artist) || 'artist'}_01`
       : 'my-wall'
@@ -408,7 +355,7 @@ export default function MyWall() {
               />
 
             {layers.map(l => {
-              const aw = ARTWORKS.find(a => a.id === l.artworkId)
+              const aw = byId.get(l.artworkId)
               if (!aw) return null
               return (
                 <LayerNode
@@ -439,7 +386,7 @@ export default function MyWall() {
                 <Plus size={14} /> Add artwork
               </button>
               {layers.map(l => {
-                const aw = ARTWORKS.find(a => a.id === l.artworkId)
+                const aw = byId.get(l.artworkId)
                 if (!aw) return null
                 return (
                   <button
@@ -512,156 +459,4 @@ export default function MyWall() {
       </motion.div>
     </AnimatePresence>
   )
-}
-
-function EmptyState({ onCamera, onGallery, loading }:
-  { onCamera: () => void; onGallery: () => void; loading: boolean }) {
-  return (
-    <div className="flex-1 flex items-center justify-center px-6">
-      <div className="max-w-[520px] text-center">
-        <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-4">Step one</p>
-        <h2 className="font-display text-[36px] md:text-[48px] leading-[1.05] tracking-tight text-ink">
-          Show us your <em className="italic text-accent">wall.</em>
-        </h2>
-        <p className="mt-4 text-[14px] text-ink-muted leading-relaxed">
-          Take a straight-on photo of the wall you want to decorate, or pick one from your library. Then drop paintings onto it and arrange freely.
-        </p>
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            disabled={loading}
-            onClick={onCamera}
-            className="h-12 bg-accent text-accent-ink text-[14px] flex items-center justify-center gap-2 hover:bg-ink transition-colors disabled:opacity-50"
-          >
-            <Camera size={16} /> Take a photo
-          </button>
-          <button
-            disabled={loading}
-            onClick={onGallery}
-            className="h-12 bg-transparent border border-ink text-ink text-[14px] flex items-center justify-center gap-2 hover:bg-ink hover:text-paper transition-colors disabled:opacity-50"
-          >
-            <ImagePlus size={16} /> Choose from library
-          </button>
-        </div>
-        {loading && (
-          <p className="mt-6 text-[12px] text-ink-muted flex items-center justify-center gap-2">
-            <span className="inline-block w-3 h-3 border border-ink border-t-transparent rounded-full" style={{ animation: 'sp .7s linear infinite' }} />
-            Preparing image…
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function LayerNode({
-  layer, artwork, active, onSelect, onChange, onRemove, onDuplicate, onBringToFront, pxPerCm,
-}: {
-  layer: WallLayer
-  artwork: Artwork
-  active: boolean
-  onSelect: () => void
-  onChange: (p: Partial<WallLayer>) => void
-  onRemove: () => void
-  onDuplicate: () => void
-  onBringToFront: () => void
-  pxPerCm: number | null
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const localRef = useRef({ x: layer.x, y: layer.y, scale: layer.scale, rotation: layer.rotation })
-  useEffect(() => { localRef.current = { x: layer.x, y: layer.y, scale: layer.scale, rotation: layer.rotation } },
-    [layer.x, layer.y, layer.scale, layer.rotation])
-
-  useGesture(
-    {
-      onDragStart: () => onSelect(),
-      onDrag: ({ offset: [ox, oy] }) => {
-        onChange({ x: ox, y: oy })
-      },
-      onPinch: ({ offset: [s, a], first }) => {
-        if (first) onSelect()
-        onChange({ scale: Math.max(0.2, Math.min(4, s)), rotation: a })
-      },
-    },
-    {
-      target: ref,
-      drag: { from: () => [localRef.current.x, localRef.current.y], filterTaps: true },
-      pinch: { from: () => [localRef.current.scale, localRef.current.rotation], scaleBounds: { min: 0.2, max: 4 } },
-    }
-  )
-
-  const aspect = (artwork.heightCm || 60) / (artwork.widthCm || 80)
-  // True scale: artwork.widthCm * px-per-cm. Falls back to fluid 35vw cap if unknown.
-  const baseW: string =
-    pxPerCm && artwork.widthCm > 0
-      ? `${Math.round(artwork.widthCm * pxPerCm)}px`
-      : 'min(35vw, 260px)'
-
-  return (
-    <div
-      ref={ref}
-      onPointerDown={onSelect}
-      style={{
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        width: baseW,
-        transform: `translate(-50%, -50%) translate(${layer.x}px, ${layer.y}px) scale(${layer.scale}) rotate(${layer.rotation}deg)`,
-        transformOrigin: 'center',
-        touchAction: 'none',
-        cursor: 'grab',
-      }}
-      className="select-none"
-    >
-      <div
-        className={`relative bg-paper border border-line p-[3%] shadow-[0_8px_24px_rgba(15,23,42,0.12)] ${
-          active ? 'ring-1 ring-accent ring-offset-0' : ''
-        }`}
-      >
-        <img
-          src={artwork.image || artwork.thumb || ''}
-          alt={artwork.title}
-          referrerPolicy="no-referrer-when-downgrade"
-          draggable={false}
-          className="block w-full pointer-events-none"
-          style={{ aspectRatio: `${1 / aspect}` }}
-        />
-      </div>
-
-      {active && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 -top-12 flex items-center gap-1 bg-paper border border-line px-1 py-1 shadow-sm"
-          style={{ transform: `translateX(-50%) scale(${1 / layer.scale}) rotate(${-layer.rotation}deg)`, transformOrigin: 'center bottom' }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <IconBtn onClick={onDuplicate} label="Duplicate"><Copy size={13} /></IconBtn>
-          <IconBtn onClick={onBringToFront} label="Bring forward"><ArrowUp size={13} /></IconBtn>
-          <IconBtn onClick={onRemove} label="Remove"><Trash2 size={13} /></IconBtn>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function IconBtn({ children, onClick, label }:
-  { children: React.ReactNode; onClick: () => void; label: string }) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick() }}
-      title={label}
-      className="h-7 w-7 flex items-center justify-center text-ink hover:bg-ink hover:text-paper transition-colors"
-    >
-      {children}
-    </button>
-  )
-}
-
-function loadImg(src: string, cors = false): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => {
-    const i = new Image()
-    if (cors) i.crossOrigin = 'anonymous'
-    i.referrerPolicy = 'no-referrer'
-    i.onload = () => res(i)
-    i.onerror = rej
-    i.src = src
-  })
 }

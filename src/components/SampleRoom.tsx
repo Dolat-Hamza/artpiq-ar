@@ -8,127 +8,34 @@ import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
 import { useAuth } from '@/lib/db/auth'
 import { addFavorite, listFavorites, removeFavorite } from '@/lib/db/favorites'
 import { createDesign, uploadDesignThumb } from '@/lib/db/savedDesigns'
-import { Artwork, FrameStyle, StockRoom } from '@/types'
+import { loadImageForCanvas } from '@/lib/image/loadImage'
+import { Artwork, StockRoom } from '@/types'
+import {
+  FrameState,
+  Placed,
+  BCS,
+  LightingState,
+  NEUTRAL_BCS,
+  NEUTRAL_LIGHTING,
+  bcsToFilter,
+  quadToClipPath,
+  DEFAULT_FRAME,
+  DEFAULT_MATTE,
+  MATTE_PALETTE,
+  LightingSubtab,
+  RoomCategory,
+  ROOM_CATEGORIES,
+  quadWidthPx,
+  uid,
+  composeShadow,
+} from './sampleRoom/model'
+import RoomsModal from './sampleRoom/RoomsModal'
+import BCSSliders from './sampleRoom/BCSSliders'
+import ThumbStrip from './sampleRoom/ThumbStrip'
+import { Slider } from './sampleRoom/controls'
 
-interface FrameState {
-  style: FrameStyle
-  widthMm: number
-  matteMm: number
-}
+export type { BCS, LightingState } from './sampleRoom/model'
 
-interface Placed {
-  id: string // unique instance id
-  artworkId: string
-  cx: number
-  cy: number
-  widthCm: number
-  frame: FrameState
-  rotation: number // degrees
-  matteColor: string // hex
-  shadowOpacity: number // 0..1
-  shadowSpread: number // 0..40 px (base)
-}
-
-// ArtPlacer-parity lighting model: per-channel B/C/S sliders, applied separately
-// to room background, placed artwork images, and shadow casting.
-export interface BCS {
-  brightness: number // 0..200 (100 = neutral)
-  contrast: number
-  saturation: number
-}
-const NEUTRAL_BCS: BCS = { brightness: 100, contrast: 100, saturation: 100 }
-
-export interface LightingState {
-  room: BCS
-  artwork: BCS
-  // Shadow channel only multiplies opacity/spread of the per-piece shadow (global).
-  shadowGlobalOpacity: number // 0..200
-  shadowGlobalSpread: number // 0..200
-}
-const NEUTRAL_LIGHTING: LightingState = {
-  room: { ...NEUTRAL_BCS },
-  artwork: { ...NEUTRAL_BCS },
-  shadowGlobalOpacity: 100,
-  shadowGlobalSpread: 100,
-}
-
-function bcsToFilter(bcs: BCS): string {
-  return `brightness(${bcs.brightness}%) contrast(${bcs.contrast}%) saturate(${bcs.saturation}%)`
-}
-
-// Build a CSS clip-path polygon string from a normalized wall quad.
-function quadToClipPath(quad: StockRoom['wallQuad']): string {
-  return `polygon(${quad.map(([x, y]) => `${(x * 100).toFixed(2)}% ${(y * 100).toFixed(2)}%`).join(', ')})`
-}
-
-const DEFAULT_FRAME: FrameState = { style: 'thin-black', widthMm: 30, matteMm: 0 }
-const DEFAULT_MATTE = '#ffffff'
-
-const MATTE_PALETTE: { value: string; label: string }[] = [
-  { value: '#ffffff', label: 'White' },
-  { value: '#fafaf7', label: 'Off-white' },
-  { value: '#e9e3d5', label: 'Cream' },
-  { value: '#cfc8b6', label: 'Oat' },
-  { value: '#9aa0a6', label: 'Grey' },
-  { value: '#1c1c1c', label: 'Black' },
-]
-
-// Lighting sub-tabs in dock
-type LightingSubtab = 'room' | 'artwork' | 'shadow'
-
-type RoomCategory = 'all' | 'living' | 'bedroom' | 'office' | 'kitchen' | 'gallery' | 'plain'
-const ROOM_CATEGORIES: RoomCategory[] = ['all', 'living', 'bedroom', 'office', 'kitchen', 'gallery', 'plain']
-
-async function loadImgViaFetch(url: string): Promise<HTMLImageElement> {
-  // Fetch -> blob -> object URL avoids CORS-tainted canvas exports.
-  const r = await fetch(url, { mode: 'cors' })
-  if (!r.ok) throw new Error(`fetch ${r.status}`)
-  const blob = await r.blob()
-  const obj = URL.createObjectURL(blob)
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`decode failed: ${url}`))
-    img.src = obj
-  })
-}
-
-function loadImg(url: string): Promise<HTMLImageElement> {
-  // Try fetch path first; on failure fall back to crossOrigin img tag.
-  return loadImgViaFetch(url).catch(
-    () =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image()
-        img.crossOrigin = 'anonymous'
-        img.onload = () => resolve(img)
-        img.onerror = () => reject(new Error(`load failed: ${url}`))
-        img.src = url
-      }),
-  )
-}
-
-function quadWidthPx(quad: StockRoom['wallQuad'], imgW: number) {
-  const top = (quad[1][0] - quad[0][0]) * imgW
-  const bottom = (quad[2][0] - quad[3][0]) * imgW
-  return (top + bottom) / 2
-}
-
-function uid() {
-  return Math.random().toString(36).slice(2, 10)
-}
-
-// Compose a box-shadow string from a placed piece's per-item shadow values
-// modulated by global lighting shadow channel.
-function composeShadow(
-  item: { frame: { style: string }; shadowOpacity: number; shadowSpread: number },
-  lighting: LightingState,
-): string {
-  if (item.frame.style === 'none' || item.shadowOpacity === 0) return 'none'
-  const opacity = item.shadowOpacity * (lighting.shadowGlobalOpacity / 100)
-  const spread = item.shadowSpread * (lighting.shadowGlobalSpread / 100)
-  const offsetY = spread * 0.5
-  return `0 ${offsetY.toFixed(1)}px ${spread.toFixed(1)}px rgba(0,0,0,${opacity.toFixed(3)})`
-}
 
 export default function SampleRoom() {
   const { artworks, showToast } = useStore()
@@ -462,7 +369,7 @@ export default function SampleRoom() {
 
   async function captureCurrentRoom(): Promise<Blob | null> {
     if (!placed.length) return null
-    const bg = await loadImg(room.image)
+    const bg = await loadImageForCanvas(room.image)
     const W = bg.naturalWidth
     const H = bg.naturalHeight
     const canvas = document.createElement('canvas')
@@ -541,7 +448,7 @@ export default function SampleRoom() {
         ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
       }
       try {
-        const img = await loadImg(aw.image)
+        const img = await loadImageForCanvas(aw.image)
         // Apply artwork BCS via canvas filter
         ctx.save()
         ctx.filter = bcsToFilter(lighting.artwork)
@@ -1379,297 +1286,5 @@ export default function SampleRoom() {
         </div>
       )}
     </div>
-  )
-}
-
-function RoomsModal({
-  rooms,
-  currentRoom,
-  favorites,
-  onPickRoom,
-  onClose,
-  onToggleFavorite,
-}: {
-  rooms: StockRoom[]
-  currentRoom: StockRoom
-  favorites: Set<string>
-  onPickRoom: (r: StockRoom) => void
-  onClose: () => void
-  onToggleFavorite?: (roomId: string) => void
-}) {
-  const [tab, setTab] = useState<'suggested' | 'favorites' | 'all'>('suggested')
-  const suggested = useMemo(() => {
-    return rooms.filter(
-      r =>
-        r.id !== currentRoom.id &&
-        (r.orientation === currentRoom.orientation ||
-          r.perspective === currentRoom.perspective ||
-          r.category === currentRoom.category),
-    )
-  }, [currentRoom, rooms])
-  const list =
-    tab === 'all' ? rooms : tab === 'favorites' ? rooms.filter(r => favorites.has(r.id)) : suggested
-
-  // Escape close
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="rooms-modal-title"
-      className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-paper rounded-md w-full max-w-[1100px] max-h-[88vh] overflow-y-auto shadow-pop"
-        onClick={e => e.stopPropagation()}
-      >
-        <header className="sticky top-0 z-10 bg-paper border-b border-line px-6 h-14 flex items-center gap-4">
-          <p id="rooms-modal-title" className="text-meta uppercase text-ink-muted">
-            Room mockups
-          </p>
-          <div className="flex gap-1 bg-surface rounded-full p-1">
-            {(['suggested', 'favorites', 'all'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`h-7 px-3 text-[11px] tracking-[0.14em] uppercase rounded-full transition-colors ease-snap ${
-                  tab === t ? 'bg-ink text-paper' : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                {t === 'suggested' && `Suggested · ${suggested.length}`}
-                {t === 'favorites' && `Favorites · ${favorites.size}`}
-                {t === 'all' && `All · ${rooms.length}`}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="ml-auto grid place-items-center w-9 h-9 text-ink-muted hover:text-ink rounded-full hover:bg-line/40"
-          >
-            <X size={16} />
-          </button>
-        </header>
-        <div className="p-6">
-          {!list.length && (
-            <div className="py-16 text-center">
-              <p className="text-[12px] text-ink-muted">
-                {tab === 'favorites'
-                  ? 'No favorites yet — tap the heart on any room to save it here.'
-                  : 'No rooms match.'}
-              </p>
-            </div>
-          )}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {list.map(r => (
-              <div key={r.id} className="relative group">
-                <button
-                  onClick={() => onPickRoom(r)}
-                  className={`block w-full bg-paper rounded-md overflow-hidden border transition-all ease-snap hover:shadow-card hover:-translate-y-0.5 ${
-                    r.id === currentRoom.id ? 'border-accent ring-2 ring-accent' : 'border-line'
-                  }`}
-                  title={r.name}
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-line/40">
-                    <img
-                      src={r.thumb}
-                      alt={r.name}
-                      className="w-full h-full object-cover transition-transform duration-300 ease-snap group-hover:scale-[1.04]"
-                    />
-                    {r.smart && (
-                      <span className="absolute top-2 left-2 text-[9px] tracking-[0.16em] uppercase bg-accent text-paper px-1.5 py-0.5 rounded-xs">
-                        Smart
-                      </span>
-                    )}
-                  </div>
-                  <p className="px-3 py-2 text-[12px] text-left truncate">{r.name}</p>
-                </button>
-                {onToggleFavorite && (
-                  <button
-                    onClick={e => {
-                      e.stopPropagation()
-                      onToggleFavorite(r.id)
-                    }}
-                    aria-label={favorites.has(r.id) ? 'Unfavorite' : 'Favorite'}
-                    className="absolute top-2 right-2 w-9 h-9 grid place-items-center bg-paper/90 backdrop-blur rounded-full hover:bg-paper transition-colors"
-                  >
-                    <Heart
-                      size={14}
-                      fill={favorites.has(r.id) ? '#e11d48' : 'transparent'}
-                      stroke={favorites.has(r.id) ? '#e11d48' : '#475569'}
-                    />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function BCSSliders({ bcs, onChange }: { bcs: BCS; onChange: (b: BCS) => void }) {
-  return (
-    <div className="flex flex-wrap gap-x-8 gap-y-3 items-end">
-      <div className="min-w-[220px]">
-        <Slider
-          label={`Brightness: ${bcs.brightness}`}
-          min={0}
-          max={200}
-          step={1}
-          value={bcs.brightness}
-          onChange={v => onChange({ ...bcs, brightness: v })}
-        />
-      </div>
-      <div className="min-w-[220px]">
-        <Slider
-          label={`Contrast: ${bcs.contrast}`}
-          min={0}
-          max={200}
-          step={1}
-          value={bcs.contrast}
-          onChange={v => onChange({ ...bcs, contrast: v })}
-        />
-      </div>
-      <div className="min-w-[220px]">
-        <Slider
-          label={`Saturation: ${bcs.saturation}`}
-          min={0}
-          max={200}
-          step={1}
-          value={bcs.saturation}
-          onChange={v => onChange({ ...bcs, saturation: v })}
-        />
-      </div>
-    </div>
-  )
-}
-
-function ThumbStrip({
-  artworks,
-  placedCount,
-  onAdd,
-}: {
-  artworks: Artwork[]
-  placedCount: number
-  onAdd: (a: Artwork) => void
-}) {
-  const [q, setQ] = useState('')
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    if (!needle) return artworks.slice(0, 200)
-    return artworks
-      .filter(a =>
-        [a.title, a.artist, a.medium, a.collection]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .includes(needle),
-      )
-      .slice(0, 2000)
-  }, [artworks, q])
-
-  return (
-    <div className="border-t border-line pt-3">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted">
-          Click to add — {filtered.length} of {artworks.length} · {placedCount} on wall
-        </p>
-        <input
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="Search title / artist…"
-          className="border border-line px-2 py-1 text-[12px] w-48"
-        />
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-        {filtered.map(a => (
-          <button
-            key={a.id}
-            onClick={() => onAdd(a)}
-            title={`${a.title}${a.artist ? ' — ' + a.artist : ''}`}
-            className="shrink-0 w-20 h-20 border border-line bg-paper hover:border-ink overflow-hidden relative"
-          >
-            {a.thumb || a.image ? (
-              <img
-                src={a.thumb || a.image || ''}
-                alt={a.title}
-                loading="lazy"
-                className="w-full h-full object-cover"
-                onError={e => {
-                  const t = e.currentTarget
-                  t.style.display = 'none'
-                  const parent = t.parentElement
-                  if (parent && !parent.querySelector('.fb')) {
-                    const span = document.createElement('span')
-                    span.className = 'fb absolute inset-0 grid place-items-center text-[9px] text-ink-muted px-1 text-center'
-                    span.textContent = a.title.slice(0, 20)
-                    parent.appendChild(span)
-                  }
-                }}
-              />
-            ) : (
-              <span className="text-[10px] text-ink-muted">{a.title}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function Block({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <p className="text-[11px] tracking-[0.20em] uppercase text-ink-muted mb-2">{label}</p>
-      {children}
-    </section>
-  )
-}
-
-function Slider({
-  label,
-  min,
-  max,
-  step,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string
-  min: number
-  max: number
-  step?: number
-  value: number
-  onChange: (n: number) => void
-  disabled?: boolean
-}) {
-  return (
-    <label className={`block mt-2 ${disabled ? 'opacity-40' : ''}`}>
-      <span className="block text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1">
-        {label}
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step ?? 1}
-        value={value}
-        disabled={disabled}
-        onChange={e => onChange(Number(e.target.value))}
-        className="w-full"
-      />
-    </label>
   )
 }
