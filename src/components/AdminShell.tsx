@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
+  Code2,
   FileText,
   Frame,
   Home,
@@ -52,6 +53,7 @@ const GROUPS: { label: string; workspace: Workspace; items: NavItem[] }[] = [
       { href: '/admin/sequence', label: 'Artwork Sequence', icon: Star },
       { href: '/admin/designs', label: 'My Designs', icon: LayoutGrid },
       { href: '/sample-room', label: 'Sample Room', icon: ImageIcon },
+      { href: '/admin/widget', label: 'Website Widget', icon: Code2 },
     ],
   },
   {

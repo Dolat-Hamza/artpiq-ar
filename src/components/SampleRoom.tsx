@@ -8,6 +8,7 @@ import { FRAME_PRESETS, FRAME_STYLES } from '@/lib/frames'
 import { useAuth } from '@/lib/db/auth'
 import { addFavorite, listFavorites, removeFavorite } from '@/lib/db/favorites'
 import { createDesign, uploadDesignThumb } from '@/lib/db/savedDesigns'
+import { loadImageForCanvas } from '@/lib/image/loadImage'
 import { Artwork, FrameStyle, StockRoom } from '@/types'
 
 interface FrameState {
@@ -78,34 +79,6 @@ type LightingSubtab = 'room' | 'artwork' | 'shadow'
 
 type RoomCategory = 'all' | 'living' | 'bedroom' | 'office' | 'kitchen' | 'gallery' | 'plain'
 const ROOM_CATEGORIES: RoomCategory[] = ['all', 'living', 'bedroom', 'office', 'kitchen', 'gallery', 'plain']
-
-async function loadImgViaFetch(url: string): Promise<HTMLImageElement> {
-  // Fetch -> blob -> object URL avoids CORS-tainted canvas exports.
-  const r = await fetch(url, { mode: 'cors' })
-  if (!r.ok) throw new Error(`fetch ${r.status}`)
-  const blob = await r.blob()
-  const obj = URL.createObjectURL(blob)
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`decode failed: ${url}`))
-    img.src = obj
-  })
-}
-
-function loadImg(url: string): Promise<HTMLImageElement> {
-  // Try fetch path first; on failure fall back to crossOrigin img tag.
-  return loadImgViaFetch(url).catch(
-    () =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image()
-        img.crossOrigin = 'anonymous'
-        img.onload = () => resolve(img)
-        img.onerror = () => reject(new Error(`load failed: ${url}`))
-        img.src = url
-      }),
-  )
-}
 
 function quadWidthPx(quad: StockRoom['wallQuad'], imgW: number) {
   const top = (quad[1][0] - quad[0][0]) * imgW
@@ -462,7 +435,7 @@ export default function SampleRoom() {
 
   async function captureCurrentRoom(): Promise<Blob | null> {
     if (!placed.length) return null
-    const bg = await loadImg(room.image)
+    const bg = await loadImageForCanvas(room.image)
     const W = bg.naturalWidth
     const H = bg.naturalHeight
     const canvas = document.createElement('canvas')
@@ -541,7 +514,7 @@ export default function SampleRoom() {
         ctx.fillRect(x + fw, y + fw, totalW - fw * 2, totalH - fw * 2)
       }
       try {
-        const img = await loadImg(aw.image)
+        const img = await loadImageForCanvas(aw.image)
         // Apply artwork BCS via canvas filter
         ctx.save()
         ctx.filter = bcsToFilter(lighting.artwork)

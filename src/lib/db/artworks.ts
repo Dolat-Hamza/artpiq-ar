@@ -125,6 +125,26 @@ export async function listMyArtworks(ownerId: string, opts?: { limit?: number })
   return (data ?? []).map(rowToArtwork)
 }
 
+// privacy filter is explicit: the discover RLS policy also exposes non-public rows.
+export async function listWidgetArtworks(
+  { owner, collections }: { owner: string; collections: string[] },
+): Promise<Artwork[]> {
+  let query = supabase()
+    .from('artworks')
+    .select('*, artwork_collections(collection_id)')
+    .eq('owner_id', owner)
+    .eq('privacy', 'public')
+  // PostgREST: a not-null filter on the embed behaves like !inner.
+  if (collections.length) {
+    query = query
+      .in('artwork_collections.collection_id', collections)
+      .not('artwork_collections', 'is', null)
+  }
+  const { data, error } = await query.order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(({ artwork_collections: _embed, ...row }) => rowToArtwork(row))
+}
+
 export async function upsertArtwork(a: Artwork, ownerId: string): Promise<Artwork> {
   const row = artworkToRow(a, ownerId)
   const { data, error } = await supabase()

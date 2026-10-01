@@ -1,45 +1,92 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { use, useEffect } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import { useStore } from '@/store'
 import { ARTWORKS, fetchWikiImages } from '@/lib/artworks'
+import { listWidgetArtworks } from '@/lib/db/artworks'
+import { parseWidgetMode, parseWidgetParams, type WidgetParams } from '@/lib/embed/widgetParams'
 
 const SampleRoom = dynamic(() => import('@/components/SampleRoom'), { ssr: false })
 const MyWall = dynamic(() => import('@/components/MyWall'), { ssr: false })
-const Catalogue = dynamic(() => import('@/components/Catalogue'), { ssr: false })
+const CatalogueGrid = dynamic(() => import('@/components/CatalogueGrid'), { ssr: false })
 const DetailSheet = dynamic(() => import('@/components/DetailSheet'), { ssr: false })
 const ARLauncher = dynamic(() => import('@/components/ARLauncher'), { ssr: false })
 const Toast = dynamic(() => import('@/components/Toast'), { ssr: false })
 
-type Mode = 'view' | 'sample-room' | 'my-wall'
+type Status = 'loading' | 'ready' | 'error'
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-dvh flex items-center justify-center bg-paper text-body text-ink-muted p-6">{children}</div>
+}
 
 export default function EmbedPage({ params }: { params: Promise<{ mode: string }> }) {
-  const { mode } = use(params)
-  const m = (['view', 'sample-room', 'my-wall'].includes(mode) ? mode : 'view') as Mode
-  const { setArtworks, artworks, openDetail, openMyWall } = useStore()
+  const m = parseWidgetMode(use(params).mode)
+  const { setArtworks, artworks, openDetail, openMyWall, myWallOpen } = useStore()
+  const [query, setQuery] = useState<WidgetParams | null>(null)
+  const [status, setStatus] = useState<Status>('loading')
+  const deepLinked = useRef(false)
+  const wallWasOpen = useRef(false)
+
+  // URL is only readable client-side.
+  useEffect(() => {
+    setQuery(parseWidgetParams(new URLSearchParams(window.location.search)))
+  }, [])
 
   useEffect(() => {
-    setArtworks([...ARTWORKS])
-    fetchWikiImages([...ARTWORKS]).then(() => setArtworks([...ARTWORKS])).catch(() => {})
-  }, [setArtworks])
+    if (!query) return
+    let cancelled = false
+    if (!query.owner) {
+      setArtworks([...ARTWORKS])
+      setStatus('ready')
+      fetchWikiImages([...ARTWORKS]).then(() => { if (!cancelled) setArtworks([...ARTWORKS]) }).catch(() => {})
+    } else {
+      setStatus('loading')
+      // A real owner never falls back to demo art.
+      listWidgetArtworks({ owner: query.owner, collections: query.collections })
+        .then(list => { if (!cancelled) { setArtworks(list); setStatus('ready') } })
+        .catch(() => { if (!cancelled) setStatus('error') })
+    }
+    return () => { cancelled = true }
+  }, [query, setArtworks])
 
-  // deep-link via ?artwork=id (SQSP product-page integration)
+  // Run once: later artwork refreshes must not reopen what the user closed.
   useEffect(() => {
-    if (!artworks.length) return
-    const id = new URLSearchParams(window.location.search).get('artwork')
-    if (!id) return
-    const aw = artworks.find(a => a.id === id)
-    if (!aw) return
-    if (m === 'view') openDetail(aw)
-    if (m === 'my-wall') openMyWall([aw.id])
-  }, [artworks, m, openDetail, openMyWall])
+    if (status !== 'ready' || !query || deepLinked.current) return
+    deepLinked.current = true
+    const { artwork } = query
+    if (m === 'my-wall') openMyWall(artwork ? [artwork] : [])
+    if (m === 'view' && artwork) {
+      const aw = artworks.find(a => a.id === artwork)
+      if (aw) openDetail(aw)
+    }
+  }, [status, query, artworks, m, openDetail, openMyWall])
 
+  // My Wall renders its own close, so the host can drop its overlapping one.
+  useEffect(() => {
+    if (myWallOpen && window.parent !== window) window.parent.postMessage({ type: 'artpiq:ready' }, '*')
+  }, [myWallOpen])
+
+  // Closing My Wall in the widget closes the host page's overlay.
+  useEffect(() => {
+    if (myWallOpen) { wallWasOpen.current = true; return }
+    if (!wallWasOpen.current || m !== 'my-wall') return
+    wallWasOpen.current = false
+    if (window.parent === window) return
+    window.parent.postMessage({ type: 'artpiq:close' }, '*')
+    // The host keeps this iframe, so be back in My Wall when it reopens.
+    openMyWall([])
+  }, [myWallOpen, m, openMyWall])
+
+  if (status === 'error') return <Notice>This collection is unavailable right now.</Notice>
+  if (status === 'loading') return <Notice>Loading…</Notice>
   if (m === 'sample-room') return <SampleRoom />
 
-  // view + my-wall both render catalogue+overlays. Iframe-friendly: no header.
+  // Iframe-friendly: grid and overlays only, no marketing hero or footer.
   return (
     <div className="min-h-dvh bg-paper text-ink">
-      <Catalogue />
+      {query?.owner && !artworks.length
+        ? <Notice>No artworks to show yet.</Notice>
+        : <CatalogueGrid />}
       <DetailSheet />
       <ARLauncher />
       <MyWall />

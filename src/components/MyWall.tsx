@@ -4,75 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { X, Camera, ImagePlus, Download, Trash2, Copy, ArrowUp, Plus } from 'lucide-react'
 import { useGesture } from '@use-gesture/react'
 import { useStore } from '@/store'
-import { ARTWORKS } from '@/lib/artworks'
+import { loadImage } from '@/lib/image/loadImage'
+import { decodeBitmap, normalizeToBlob } from '@/lib/image/decode'
+import { STORAGE_KEY, loadStored, saveStored } from './myWall/storage'
 import type { Artwork, WallLayer } from '@/types'
 
-const STORAGE_KEY = 'myWall:v2'
-
-interface StoredState {
-  layers: WallLayer[]
-  nextId: number
-}
-
-function loadStored(): StoredState | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as StoredState
-  } catch { return null }
-}
-
-function saveStored(s: StoredState) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch {}
-}
-
-function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-    p.then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
-  })
-}
-
-// Convert HEIC → JPEG Blob if needed. Returns the same File otherwise.
-async function normalizeToBlob(file: File): Promise<Blob> {
-  const name = file.name.toLowerCase()
-  const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
-    || name.endsWith('.heic') || name.endsWith('.heif')
-  if (!isHeic) return file
-  const mod = await import('heic2any')
-  const out = await withTimeout(
-    mod.default({ blob: file, toType: 'image/jpeg', quality: 0.95 }) as Promise<Blob | Blob[]>,
-    20000,
-    'HEIC conversion',
-  )
-  return Array.isArray(out) ? out[0] : out
-}
-
-// Decode Blob → ImageBitmap with EXIF orientation honored. Falls back to <img>.
-async function decodeBitmap(blob: Blob): Promise<{ width: number; height: number; bitmap?: ImageBitmap; url: string }> {
-  const url = URL.createObjectURL(blob)
-  if (typeof createImageBitmap === 'function') {
-    try {
-      // imageOrientation: 'from-image' applies EXIF rotation so portraits stay portrait.
-      const bitmap = await withTimeout(
-        createImageBitmap(blob, { imageOrientation: 'from-image' as ImageOrientation }),
-        15000,
-        'Image decode',
-      )
-      return { width: bitmap.width, height: bitmap.height, bitmap, url }
-    } catch {/* fall through */}
-  }
-  const dim = await withTimeout(new Promise<{ w: number; h: number }>((res, rej) => {
-    const img = new Image()
-    img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight })
-    img.onerror = () => rej(new Error('image decode failed'))
-    img.src = url
-  }), 15000, 'Image decode')
-  return { width: dim.w, height: dim.h, url }
-}
-
 export default function MyWall() {
-  const { myWallOpen, myWallArtworkIds, closeMyWall, showToast } = useStore()
+  const { artworks, myWallOpen, myWallArtworkIds, closeMyWall, showToast } = useStore()
+  const byId = useMemo(() => new Map(artworks.map(a => [a.id, a])), [artworks])
 
   const stageRef = useRef<HTMLDivElement>(null)
   const [bgBlob, setBgBlob] = useState<Blob | null>(null)
@@ -102,7 +41,7 @@ export default function MyWall() {
 
   const pxPerCm = stageW > 0 && wallWidthCm > 0 ? stageW / wallWidthCm : null
 
-  const paintings = useMemo(() => ARTWORKS.filter(a => a.type === 'painting'), [])
+  const paintings = useMemo(() => artworks.filter(a => a.type === 'painting'), [artworks])
 
   // Restore layers (only) from localStorage on open. Bg photo is per-session.
   useEffect(() => {
@@ -118,6 +57,13 @@ export default function MyWall() {
   useEffect(() => {
     return () => { if (bgUrl) URL.revokeObjectURL(bgUrl) }
   }, [bgUrl])
+
+  useEffect(() => {
+    if (!myWallOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMyWall() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [myWallOpen, closeMyWall])
 
   // Seed layers from openMyWall(ids)
   useEffect(() => {
@@ -244,7 +190,7 @@ export default function MyWall() {
       const decoded = await decodeBitmap(bgBlob)
       targetW = decoded.width
       targetH = decoded.height
-      bgSource = decoded.bitmap ?? await loadImg(decoded.url)
+      bgSource = decoded.bitmap ?? await loadImage(decoded.url)
     } catch (e) {
       console.error('[MyWall] export bg decode failed', e)
       showToast('Export failed. Re-pick photo.')
@@ -268,11 +214,11 @@ export default function MyWall() {
     const cy0 = rect.height / 2
 
     for (const l of layers) {
-      const aw = ARTWORKS.find(a => a.id === l.artworkId)
+      const aw = byId.get(l.artworkId)
       const src = aw?.image || aw?.thumb
       if (!src) continue
       let img: HTMLImageElement
-      try { img = await loadImg(src, true) } catch { continue }
+      try { img = await loadImage(src, { cors: true }) } catch { continue }
 
       // True-scale: artwork.widthCm * px-per-cm derived from user's wall width.
       const baseW = pxPerCm && aw!.widthCm > 0
@@ -309,7 +255,7 @@ export default function MyWall() {
     const slug = (s: string) =>
       (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
     const firstLayer = layers[0]
-    const firstAw = firstLayer ? ARTWORKS.find(a => a.id === firstLayer.artworkId) : null
+    const firstAw = firstLayer ? byId.get(firstLayer.artworkId) : null
     const def = firstAw
       ? `${slug(firstAw.title) || 'artwork'}_${slug(firstAw.artist) || 'artist'}_01`
       : 'my-wall'
@@ -408,7 +354,7 @@ export default function MyWall() {
               />
 
             {layers.map(l => {
-              const aw = ARTWORKS.find(a => a.id === l.artworkId)
+              const aw = byId.get(l.artworkId)
               if (!aw) return null
               return (
                 <LayerNode
@@ -439,7 +385,7 @@ export default function MyWall() {
                 <Plus size={14} /> Add artwork
               </button>
               {layers.map(l => {
-                const aw = ARTWORKS.find(a => a.id === l.artworkId)
+                const aw = byId.get(l.artworkId)
                 if (!aw) return null
                 return (
                   <button
@@ -653,15 +599,4 @@ function IconBtn({ children, onClick, label }:
       {children}
     </button>
   )
-}
-
-function loadImg(src: string, cors = false): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => {
-    const i = new Image()
-    if (cors) i.crossOrigin = 'anonymous'
-    i.referrerPolicy = 'no-referrer'
-    i.onload = () => res(i)
-    i.onerror = rej
-    i.src = src
-  })
 }

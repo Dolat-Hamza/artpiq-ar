@@ -41,3 +41,7 @@ next-env.d.ts
 # Graphify
 graphify-out/cache/
 graphify-out/.update.log
+
+# stryker
+.stryker-tmp/
+reports/
