@@ -1,12 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Check, Copy } from 'lucide-react'
 import { useAuth } from '@/lib/db/auth'
 import { listMyCollections } from '@/lib/db/collections'
-import { widgetSnippet, type WidgetType } from '@/lib/embed/snippets'
+import { productArSnippet, widgetSnippet, type WidgetType } from '@/lib/embed/snippets'
 import type { Collection } from '@/types'
 import LoginForm from './LoginForm'
 import AdminPageHeader from './ui/AdminPageHeader'
+import SnippetBox from './SnippetBox'
+
+const FIELD_LABEL = 'block text-[11px] uppercase tracking-wider text-ink-muted font-semibold mb-1.5'
 
 const TYPES: { value: WidgetType; label: string }[] = [
   { value: 'my-wall', label: 'My Wall — "Visualise in your home"' },
@@ -23,7 +25,10 @@ export default function WidgetAdmin() {
   const [text, setText] = useState('')
   const [bgcolor, setBgcolor] = useState('#141210')
   const [fontcolor, setFontcolor] = useState('#ffffff')
-  const [copied, setCopied] = useState(false)
+  const [arTag, setArTag] = useState('AR')
+  const [arText, setArText] = useState('View on your wall')
+  const [arBg, setArBg] = useState('#141210')
+  const [arFg, setArFg] = useState('#ffffff')
 
   useEffect(() => {
     if (!user) return
@@ -33,7 +38,8 @@ export default function WidgetAdmin() {
   if (loading) return <div className="p-8 text-body text-ink-muted">Loading…</div>
   if (!user) return <div className="min-h-dvh flex items-center justify-center p-6"><LoginForm /></div>
 
-  const snippet = widgetSnippet(typeof window !== 'undefined' ? window.location.origin : '', {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const snippet = widgetSnippet(origin, {
     owner: user.id,
     type,
     collections: picked,
@@ -47,15 +53,13 @@ export default function WidgetAdmin() {
     setPicked(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]))
   }
 
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(snippet)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1800)
-    } catch {
-      // Clipboard blocked (non-https): the textarea stays selectable.
-    }
-  }
+  const productSnippet = productArSnippet(origin, {
+    owner: user.id,
+    tag: arTag.trim() || undefined,
+    text: arText.trim() || undefined,
+    bgcolor: arBg,
+    fontcolor: arFg,
+  })
 
   return (
     <div className="min-h-dvh bg-bg text-ink">
@@ -63,7 +67,7 @@ export default function WidgetAdmin() {
       <main className="px-6 md:px-10 py-6 grid gap-8 lg:grid-cols-2 max-w-content">
         <section className="space-y-5">
           <label className="block">
-            <span className="block text-[11px] uppercase tracking-wider text-ink-muted font-semibold mb-1.5">Type</span>
+            <span className={FIELD_LABEL}>Type</span>
             <select className="input w-full" value={type} onChange={e => setType(e.target.value as WidgetType)}>
               {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
@@ -102,12 +106,12 @@ export default function WidgetAdmin() {
           </fieldset>
 
           <label className="block">
-            <span className="block text-[11px] uppercase tracking-wider text-ink-muted font-semibold mb-1.5">Artwork id (optional)</span>
+            <span className={FIELD_LABEL}>Artwork id (optional)</span>
             <input className="input w-full" value={artwork} onChange={e => setArtwork(e.target.value)} placeholder="Pre-select one artwork" />
           </label>
 
           <label className="block">
-            <span className="block text-[11px] uppercase tracking-wider text-ink-muted font-semibold mb-1.5">Button text</span>
+            <span className={FIELD_LABEL}>Button text</span>
             <input
               className="input w-full"
               value={text}
@@ -129,21 +133,37 @@ export default function WidgetAdmin() {
         </section>
 
         <section>
-          <span className="block text-[11px] uppercase tracking-wider text-ink-muted font-semibold mb-1.5">Snippet</span>
-          <p className="text-[11px] text-ink-muted mb-2 leading-relaxed">
+          <SnippetBox snippet={snippet}>
             Squarespace: add a Code Block (HTML) where the button should appear and paste this. Requires a Core plan or higher.
-          </p>
-          <textarea
-            className="input w-full font-mono text-[11px] min-h-[180px]"
-            readOnly
-            value={snippet}
-            onFocus={e => e.currentTarget.select()}
-          />
-          <div className="flex justify-end mt-2">
-            <button onClick={copy} className="btn-outline flex items-center gap-1.5">
-              {copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy snippet</>}
-            </button>
+          </SnippetBox>
+        </section>
+
+        <section aria-labelledby="product-ar" className="lg:col-span-2 grid gap-8 lg:grid-cols-2 border-t border-line pt-8">
+          <div className="space-y-5">
+            <h2 id="product-ar" className="text-[13px] font-semibold">Product pages (AR)</h2>
+            <label className="block">
+              <span className={FIELD_LABEL}>Product tag</span>
+              <input className="input w-full" value={arTag} onChange={e => setArTag(e.target.value)} placeholder="AR" />
+            </label>
+            <label className="block">
+              <span className={FIELD_LABEL}>Button text</span>
+              <input className="input w-full" value={arText} onChange={e => setArText(e.target.value)} placeholder="View on your wall" />
+            </label>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-[12px]">
+                <input type="color" value={arBg} onChange={e => setArBg(e.target.value)} className="w-10 h-9 border border-line rounded" />
+                Background
+              </label>
+              <label className="flex items-center gap-2 text-[12px]">
+                <input type="color" value={arFg} onChange={e => setArFg(e.target.value)} className="w-10 h-9 border border-line rounded" />
+                Text
+              </label>
+            </div>
           </div>
+          <SnippetBox snippet={productSnippet}>
+            Squarespace: Settings → Advanced → Code Injection → Footer (Core plan or higher). Tag products with the tag
+            above. Each product&apos;s SKU must match the artwork&apos;s Squarespace SKU in ArtPiq.
+          </SnippetBox>
         </section>
       </main>
     </div>
