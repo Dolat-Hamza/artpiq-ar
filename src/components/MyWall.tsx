@@ -1,12 +1,13 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Camera, ImagePlus, Download, Trash2, Copy, ArrowUp, Plus } from 'lucide-react'
-import { useGesture } from '@use-gesture/react'
+import { X, Download, Plus } from 'lucide-react'
 import { useStore } from '@/store'
 import { loadImage } from '@/lib/image/loadImage'
 import { decodeBitmap, normalizeToBlob } from '@/lib/image/decode'
 import { STORAGE_KEY, loadStored, saveStored } from './myWall/storage'
+import EmptyState from './myWall/EmptyState'
+import LayerNode from './myWall/LayerNode'
 import type { Artwork, WallLayer } from '@/types'
 
 export default function MyWall() {
@@ -457,146 +458,5 @@ export default function MyWall() {
           className="hidden" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
       </motion.div>
     </AnimatePresence>
-  )
-}
-
-function EmptyState({ onCamera, onGallery, loading }:
-  { onCamera: () => void; onGallery: () => void; loading: boolean }) {
-  return (
-    <div className="flex-1 flex items-center justify-center px-6">
-      <div className="max-w-[520px] text-center">
-        <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-4">Step one</p>
-        <h2 className="font-display text-[36px] md:text-[48px] leading-[1.05] tracking-tight text-ink">
-          Show us your <em className="italic text-accent">wall.</em>
-        </h2>
-        <p className="mt-4 text-[14px] text-ink-muted leading-relaxed">
-          Take a straight-on photo of the wall you want to decorate, or pick one from your library. Then drop paintings onto it and arrange freely.
-        </p>
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            disabled={loading}
-            onClick={onCamera}
-            className="h-12 bg-accent text-accent-ink text-[14px] flex items-center justify-center gap-2 hover:bg-ink transition-colors disabled:opacity-50"
-          >
-            <Camera size={16} /> Take a photo
-          </button>
-          <button
-            disabled={loading}
-            onClick={onGallery}
-            className="h-12 bg-transparent border border-ink text-ink text-[14px] flex items-center justify-center gap-2 hover:bg-ink hover:text-paper transition-colors disabled:opacity-50"
-          >
-            <ImagePlus size={16} /> Choose from library
-          </button>
-        </div>
-        {loading && (
-          <p className="mt-6 text-[12px] text-ink-muted flex items-center justify-center gap-2">
-            <span className="inline-block w-3 h-3 border border-ink border-t-transparent rounded-full" style={{ animation: 'sp .7s linear infinite' }} />
-            Preparing image…
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function LayerNode({
-  layer, artwork, active, onSelect, onChange, onRemove, onDuplicate, onBringToFront, pxPerCm,
-}: {
-  layer: WallLayer
-  artwork: Artwork
-  active: boolean
-  onSelect: () => void
-  onChange: (p: Partial<WallLayer>) => void
-  onRemove: () => void
-  onDuplicate: () => void
-  onBringToFront: () => void
-  pxPerCm: number | null
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const localRef = useRef({ x: layer.x, y: layer.y, scale: layer.scale, rotation: layer.rotation })
-  useEffect(() => { localRef.current = { x: layer.x, y: layer.y, scale: layer.scale, rotation: layer.rotation } },
-    [layer.x, layer.y, layer.scale, layer.rotation])
-
-  useGesture(
-    {
-      onDragStart: () => onSelect(),
-      onDrag: ({ offset: [ox, oy] }) => {
-        onChange({ x: ox, y: oy })
-      },
-      onPinch: ({ offset: [s, a], first }) => {
-        if (first) onSelect()
-        onChange({ scale: Math.max(0.2, Math.min(4, s)), rotation: a })
-      },
-    },
-    {
-      target: ref,
-      drag: { from: () => [localRef.current.x, localRef.current.y], filterTaps: true },
-      pinch: { from: () => [localRef.current.scale, localRef.current.rotation], scaleBounds: { min: 0.2, max: 4 } },
-    }
-  )
-
-  const aspect = (artwork.heightCm || 60) / (artwork.widthCm || 80)
-  // True scale: artwork.widthCm * px-per-cm. Falls back to fluid 35vw cap if unknown.
-  const baseW: string =
-    pxPerCm && artwork.widthCm > 0
-      ? `${Math.round(artwork.widthCm * pxPerCm)}px`
-      : 'min(35vw, 260px)'
-
-  return (
-    <div
-      ref={ref}
-      onPointerDown={onSelect}
-      style={{
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        width: baseW,
-        transform: `translate(-50%, -50%) translate(${layer.x}px, ${layer.y}px) scale(${layer.scale}) rotate(${layer.rotation}deg)`,
-        transformOrigin: 'center',
-        touchAction: 'none',
-        cursor: 'grab',
-      }}
-      className="select-none"
-    >
-      <div
-        className={`relative bg-paper border border-line p-[3%] shadow-[0_8px_24px_rgba(15,23,42,0.12)] ${
-          active ? 'ring-1 ring-accent ring-offset-0' : ''
-        }`}
-      >
-        <img
-          src={artwork.image || artwork.thumb || ''}
-          alt={artwork.title}
-          referrerPolicy="no-referrer-when-downgrade"
-          draggable={false}
-          className="block w-full pointer-events-none"
-          style={{ aspectRatio: `${1 / aspect}` }}
-        />
-      </div>
-
-      {active && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 -top-12 flex items-center gap-1 bg-paper border border-line px-1 py-1 shadow-sm"
-          style={{ transform: `translateX(-50%) scale(${1 / layer.scale}) rotate(${-layer.rotation}deg)`, transformOrigin: 'center bottom' }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <IconBtn onClick={onDuplicate} label="Duplicate"><Copy size={13} /></IconBtn>
-          <IconBtn onClick={onBringToFront} label="Bring forward"><ArrowUp size={13} /></IconBtn>
-          <IconBtn onClick={onRemove} label="Remove"><Trash2 size={13} /></IconBtn>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function IconBtn({ children, onClick, label }:
-  { children: React.ReactNode; onClick: () => void; label: string }) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick() }}
-      title={label}
-      className="h-7 w-7 flex items-center justify-center text-ink hover:bg-ink hover:text-paper transition-colors"
-    >
-      {children}
-    </button>
   )
 }
