@@ -1,51 +1,18 @@
-// QR-scan landing for a single artwork. The flow Thomas wants:
-//   Scan QR → mobile lands here → tap → system camera AR
-//     (iOS Quick Look from .usdz, Android Scene Viewer from .glb)
-//
-// Desktop visitors get a 3D model-viewer preview + a QR pointing back
-// at this same page so they can carry on with their phone.
-//
-// Anon users can hit this route. Artworks are loaded via the public
-// SELECT policy on `artworks` (privacy='public'), and the demo fallback
-// `ARTWORKS` array covers the canonical Wikimedia pieces shipped with
-// the app. Private artworks won't load — owners must flip privacy to
-// public before generating a QR.
-
+// Public AR landing for one artwork: phones get a one-tap launch into
+// Quick Look / Scene Viewer, desktops a 3D preview plus a QR hand-off.
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
-import { supabase } from '@/lib/db/client'
-import { rowToArtwork } from '@/lib/db/artworks'
-import { ARTWORKS } from '@/lib/artworks'
-import type { Artwork } from '@/types'
-import ArQuickLaunch from '@/components/ArQuickLaunch'
+import { loadPublicArtwork } from '@/lib/db/publicArtwork'
+import ArLanding from '@/components/organisms/ArLanding'
 
 interface SP {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-async function loadArtwork(id: string): Promise<Artwork | null> {
-  // Demo IDs first — instantly available, no DB round-trip
-  const demo = ARTWORKS.find(a => a.id === id)
-  if (demo) return demo
-
-  try {
-    const { data, error } = await supabase()
-      .from('artworks')
-      .select('*')
-      .eq('id', id)
-      .eq('privacy', 'public')
-      .maybeSingle()
-    if (error) return null
-    if (!data) return null
-    return rowToArtwork(data)
-  } catch {
-    return null
-  }
-}
-
-export async function generateMetadata({ params }: SP) {
+export async function generateMetadata({ params }: Pick<SP, 'params'>) {
   const { id } = await params
-  const aw = await loadArtwork(id)
+  const aw = await loadPublicArtwork(id)
   if (!aw) return { title: 'Artwork · ARTPIQ AR' }
   return {
     title: `${aw.title} — view in AR`,
@@ -58,16 +25,12 @@ export async function generateMetadata({ params }: SP) {
   }
 }
 
-export default async function Page({ params }: SP) {
-  const { id } = await params
-  const aw = await loadArtwork(id)
+export default async function Page({ params, searchParams }: SP) {
+  const [{ id }, sp] = await Promise.all([params, searchParams])
+  const aw = await loadPublicArtwork(id)
   if (!aw) notFound()
-  // Build absolute origin for QR + Scene Viewer fallback URLs (they require
-  // absolute https://). headers() gives us the public host the request came in
-  // on — keeps preview deploys + custom domains working without env vars.
   const h = await headers()
   const proto = h.get('x-forwarded-proto') ?? 'https'
-  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'artpiq.ai'
-  const origin = `${proto}://${host}`
-  return <ArQuickLaunch artwork={aw} origin={origin} />
+  const host = h.get('host') ?? 'artpiq.ai'
+  return <ArLanding artwork={aw} origin={`${proto}://${host}`} noAr={sp.noar === '1'} />
 }

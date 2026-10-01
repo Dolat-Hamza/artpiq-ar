@@ -26,7 +26,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={sans.variable}>
       <head>
         <meta name="referrer" content="no-referrer-when-downgrade" />
-        {/* model-viewer script moved to ARLauncher (lazy-load only when AR opened) */}
       </head>
       <body>
         <noscript>

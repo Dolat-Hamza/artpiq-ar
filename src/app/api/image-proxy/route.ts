@@ -1,93 +1,17 @@
 import { NextResponse } from 'next/server'
-import { promises as dns } from 'dns'
-import net from 'net'
 import sharp from 'sharp'
+import { fetchWithValidatedRedirects, readResponseBodyLimited } from '@/lib/network/safeFetch'
+import { isUpstreamSafe } from '@/lib/network/ssrf'
 
 // sharp requires Node.js runtime, not edge
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-/**
- * Server-side image proxy used by the PDF renderer (react-pdf can't talk to
- * upstreams with strict CORS / WebP / etc., so we fetch + re-encode here).
- *
- * Hardening notes:
- * - SSRF defence: rejects file:/data:/javascript: URLs at the regex layer,
- *   then resolves DNS and rejects any address in a private / link-local /
- *   loopback / metadata range.
- * - Only image responses pass — magic-byte sniffing rejects HTML/JSON that
- *   could otherwise leak through with `Content-Type: image/...`.
- * - Generic error messages — internal status codes are logged server-side
- *   only, not echoed to the client (avoids upstream-enumeration via timing
- *   + status leaks).
- */
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024
+const FETCH_TIMEOUT_MS = 20_000
 
-const PRIVATE_CIDR_BLOCKS = [
-  // IPv4 private + loopback + link-local + metadata
-  { start: '10.0.0.0', end: '10.255.255.255' },
-  { start: '172.16.0.0', end: '172.31.255.255' },
-  { start: '192.168.0.0', end: '192.168.255.255' },
-  { start: '127.0.0.0', end: '127.255.255.255' },
-  { start: '169.254.0.0', end: '169.254.255.255' },
-  { start: '0.0.0.0', end: '0.255.255.255' },
-  // Carrier-grade NAT / shared
-  { start: '100.64.0.0', end: '100.127.255.255' },
-]
-
-function ipToLong(ip: string): number {
-  return ip.split('.').reduce((acc, octet) => (acc << 8) + Number(octet), 0) >>> 0
-}
-
-function isPrivateIPv4(ip: string): boolean {
-  if (!net.isIPv4(ip)) return false
-  const value = ipToLong(ip)
-  return PRIVATE_CIDR_BLOCKS.some(b => value >= ipToLong(b.start) && value <= ipToLong(b.end))
-}
-
-function isPrivateIPv6(ip: string): boolean {
-  if (!net.isIPv6(ip)) return false
-  const lower = ip.toLowerCase()
-  // ::1 (loopback), fc00::/7 (unique local), fe80::/10 (link-local)
-  return (
-    lower === '::1' ||
-    lower.startsWith('fc') ||
-    lower.startsWith('fd') ||
-    lower.startsWith('fe8') ||
-    lower.startsWith('fe9') ||
-    lower.startsWith('fea') ||
-    lower.startsWith('feb')
-  )
-}
-
-async function isUpstreamSafe(parsedUrl: URL): Promise<{ ok: true } | { ok: false; reason: string }> {
-  // Block file:, data:, javascript: at the protocol layer (defence in depth —
-  // the regex below catches them too).
-  if (!/^https?:$/.test(parsedUrl.protocol)) {
-    return { ok: false, reason: 'protocol not allowed' }
-  }
-  // Resolve hostname. If it's already a literal IP, check it directly.
-  const host = parsedUrl.hostname
-  if (net.isIP(host)) {
-    if (isPrivateIPv4(host) || isPrivateIPv6(host)) {
-      return { ok: false, reason: 'private address' }
-    }
-    return { ok: true }
-  }
-  // DNS lookup — return EVERY address (A + AAAA), reject if any is private.
-  // Mitigates DNS-rebinding tricks that flip after the first lookup.
-  try {
-    const addrs = await dns.lookup(host, { all: true })
-    for (const addr of addrs) {
-      if (isPrivateIPv4(addr.address) || isPrivateIPv6(addr.address)) {
-        return { ok: false, reason: 'private address resolved' }
-      }
-    }
-    return { ok: true }
-  } catch {
-    return { ok: false, reason: 'dns lookup failed' }
-  }
-}
-
+// Fetch + re-encode for the PDF renderer. Errors stay generic so upstream
+// status codes are only logged, never echoed.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
@@ -108,53 +32,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'invalid url' }, { status: 400 })
   }
 
-  const safety = await isUpstreamSafe(parsed)
-  if (!safety.ok) {
-    console.warn('[image-proxy] blocked SSRF candidate:', parsed.hostname, safety.reason)
-    return NextResponse.json({ error: 'upstream not allowed' }, { status: 400 })
-  }
-
+  let blocked = false
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 20_000)
-
-    const res = await fetch(parsed.toString(), {
-      signal: controller.signal,
-      // Don't follow redirects to a private IP after the fact. We can't
-      // hook the resolver mid-redirect, so just refuse to follow.
-      redirect: 'manual',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; artpiq-pdf-renderer/1.0)',
-        Accept: 'image/jpeg,image/png,image/webp,image/*,*/*;q=0.8',
+    const res = await fetchWithValidatedRedirects(
+      parsed,
+      async candidate => {
+        const safety = await isUpstreamSafe(candidate)
+        if (!safety.ok) {
+          blocked = true
+          console.warn('[image-proxy] blocked SSRF candidate:', candidate.hostname, safety.reason)
+        }
+        return safety.ok
       },
-    })
-    clearTimeout(timer)
-
-    // Manual redirect handling — accept 3xx only to a verified-safe host.
-    if (res.status >= 300 && res.status < 400) {
-      const loc = res.headers.get('location')
-      if (!loc) {
-        return NextResponse.json({ error: 'upstream error' }, { status: 502 })
-      }
-      const next = new URL(loc, parsed)
-      const nextSafety = await isUpstreamSafe(next)
-      if (!nextSafety.ok) {
-        console.warn('[image-proxy] redirect blocked to', next.hostname, nextSafety.reason)
-        return NextResponse.json({ error: 'upstream not allowed' }, { status: 400 })
-      }
-      // One-shot follow.
-      const res2 = await fetch(next.toString(), {
+      candidate => fetch(candidate.toString(), {
+        signal: controller.signal,
+        redirect: 'manual',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; artpiq-pdf-renderer/1.0)',
           Accept: 'image/jpeg,image/png,image/webp,image/*,*/*;q=0.8',
         },
-      })
-      if (!res2.ok) {
-        console.error('[image-proxy] upstream redirect status:', res2.status)
-        return NextResponse.json({ error: 'upstream error' }, { status: 502 })
-      }
-      return await encode(res2)
-    }
+      }),
+      1,
+    )
+    clearTimeout(timer)
 
     if (!res.ok) {
       console.error('[image-proxy] upstream status:', res.status)
@@ -163,18 +65,25 @@ export async function GET(request: Request) {
 
     return await encode(res)
   } catch (e) {
+    if (blocked) return NextResponse.json({ error: 'upstream not allowed' }, { status: 400 })
     console.error('[image-proxy] fetch error:', e)
-    // Generic error to caller — don't leak the upstream's message.
     return NextResponse.json({ error: 'upstream error' }, { status: 502 })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
-// Validate magic bytes + re-encode WebP/GIF to JPEG. Shared between the
-// initial response and the post-redirect retry.
+// Validate magic bytes + re-encode WebP/GIF to JPEG.
 async function encode(res: Response): Promise<NextResponse> {
   const contentType = res.headers.get('content-type') ?? 'image/jpeg'
   const mimeType = contentType.split(';')[0].trim().toLowerCase()
-  const buffer = await res.arrayBuffer()
+  let buffer: ArrayBuffer
+  try {
+    buffer = await readResponseBodyLimited(res, MAX_IMAGE_BYTES)
+  } catch (error) {
+    console.warn('[image-proxy] rejected oversized image', error)
+    return NextResponse.json({ error: 'upstream image too large' }, { status: 413 })
+  }
 
   const bytes = new Uint8Array(buffer.slice(0, 12))
   const isJpeg = bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF
@@ -211,9 +120,7 @@ async function encode(res: Response): Promise<NextResponse> {
     headers: {
       'Content-Type': outputMime,
       'Cache-Control': 'public, max-age=86400',
-      // Note: removed wildcard `Access-Control-Allow-Origin: *` — the PDF
-      // renderer runs server-side, no need to expose this to arbitrary
-      // origins (mitigates browser-side SSRF via address bar).
+      // No wildcard CORS: the PDF renderer runs server-side.
     },
   })
 }

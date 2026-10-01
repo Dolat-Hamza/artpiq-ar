@@ -10,7 +10,7 @@ const SampleRoom = dynamic(() => import('@/components/SampleRoom'), { ssr: false
 const MyWall = dynamic(() => import('@/components/MyWall'), { ssr: false })
 const CatalogueGrid = dynamic(() => import('@/components/CatalogueGrid'), { ssr: false })
 const DetailSheet = dynamic(() => import('@/components/DetailSheet'), { ssr: false })
-const ARLauncher = dynamic(() => import('@/components/ARLauncher'), { ssr: false })
+const ArSheet = dynamic(() => import('@/components/organisms/ArSheet'), { ssr: false })
 const Toast = dynamic(() => import('@/components/Toast'), { ssr: false })
 
 type Status = 'loading' | 'ready' | 'error'
@@ -88,7 +88,7 @@ export default function EmbedPage({ params }: { params: Promise<{ mode: string }
         ? <Notice>No artworks to show yet.</Notice>
         : <CatalogueGrid />}
       <DetailSheet />
-      <ARLauncher />
+      <ArSheet />
       <MyWall />
       <Toast />
     </div>
