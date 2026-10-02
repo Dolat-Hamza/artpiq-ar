@@ -1,12 +1,18 @@
 'use client'
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { Artwork } from '@/types'
+import { useStore } from '@/store'
+import { tellHostOwnClose } from '@/lib/embed/hostMessages'
 import { arLandingPath, arModelPath, canPlaceInAr } from '@/lib/ar/urls'
 import { detectPlatform, type Platform } from '@/lib/ar/platform'
 import ModelViewer from '@/components/atoms/ModelViewer'
 import ArtworkMeta from '@/components/molecules/ArtworkMeta'
 import ArLaunchButton from '@/components/molecules/ArLaunchButton'
 import QrHandoff from '@/components/molecules/QrHandoff'
+import Button from '@/components/ui/Button'
+
+const MyWall = dynamic(() => import('@/components/MyWall'), { ssr: false })
 
 interface Props {
   artwork: Artwork
@@ -15,6 +21,7 @@ interface Props {
 }
 
 const UNAVAILABLE = 'AR preview is available for paintings with an image and dimensions.'
+const PHOTO = 'Use a photo of your wall'
 
 function ArtworkImage({ artwork: aw }: { artwork: Artwork }) {
   const src = aw.image ?? aw.thumb
@@ -46,6 +53,12 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
   const landingUrl = origin + arLandingPath(aw)
   const isMobile = platform === 'ios' || platform === 'android'
 
+  // My Wall with only this artwork; inside the Squarespace dialog the host hides its close meanwhile.
+  const { myWallOpen, setArtworks, openMyWall } = useStore()
+  const openPhoto = () => { setArtworks([aw]); openMyWall([aw.id]) }
+  useEffect(() => { tellHostOwnClose(myWallOpen) }, [myWallOpen])
+  const photoButton = <Button variant="outline" size="lg" fullWidth onClick={openPhoto}>{PHOTO}</Button>
+
   useEffect(() => {
     if (!placeable || !isMobile) return
     const url = origin + arModelPath(aw, platform === 'ios' ? 'usdz' : 'glb')
@@ -68,12 +81,16 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
           <div className="md:col-span-5 flex flex-col gap-10">
             <ArtworkMeta artwork={aw} headingLevel={1} eyebrow="ARTPIQ AR" />
             {placeable ? (
-              <QrHandoff url={landingUrl} title={aw.title} />
+              <div className="flex flex-col gap-4">
+                <QrHandoff url={landingUrl} title={aw.title} />
+                {photoButton}
+              </div>
             ) : (
               <p className="text-[13px] text-ink-muted leading-relaxed">{UNAVAILABLE}</p>
             )}
           </div>
         </div>
+        <MyWall />
       </div>
     )
   }
@@ -97,6 +114,7 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
               <a href={arLandingPath(aw)} className="mt-3 inline-block underline text-ink">
                 Try again
               </a>
+              <div className="mt-4">{photoButton}</div>
             </div>
           ) : platform ? (
             <>
@@ -107,11 +125,13 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
                 fallbackUrl={`${landingUrl}?noar=1`}
                 title={aw.title}
                 thumb={aw.thumb}
+                label="Use your camera"
               />
               <p className="mt-3 text-[11px] text-ink-muted text-center leading-relaxed">
                 Opens your camera in {platform === 'ios' ? 'AR Quick Look' : 'Google Scene Viewer'}.
                 Point at a wall, tap to place at true size.
               </p>
+              <div className="mt-4">{photoButton}</div>
             </>
           ) : null}
           {placeable && (
@@ -121,6 +141,7 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
           )}
         </div>
       </div>
+      <MyWall />
     </div>
   )
 }

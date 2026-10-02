@@ -12,7 +12,8 @@
     "src/lib/ar/sourceKey.ts",
     "src/lib/network/ssrf.ts",
     "src/lib/network/safeFetch.ts",
-    "src/lib/validation/uuid.ts"
+    "src/lib/validation/uuid.ts",
+    "src/lib/embed/hostMessages.ts"
   ],
   "reporters": [
     "clear-text",

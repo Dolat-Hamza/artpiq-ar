@@ -5,6 +5,7 @@ import { useStore } from '@/store'
 import { ARTWORKS, fetchWikiImages } from '@/lib/artworks'
 import { listWidgetArtworks } from '@/lib/db/artworks'
 import { parseWidgetMode, parseWidgetParams, type WidgetParams } from '@/lib/embed/widgetParams'
+import { tellHostClose, tellHostOwnClose } from '@/lib/embed/hostMessages'
 
 const SampleRoom = dynamic(() => import('@/components/SampleRoom'), { ssr: false })
 const MyWall = dynamic(() => import('@/components/MyWall'), { ssr: false })
@@ -61,10 +62,7 @@ export default function EmbedPage({ params }: { params: Promise<{ mode: string }
     }
   }, [status, query, artworks, m, openDetail, openMyWall])
 
-  // My Wall renders its own close, so the host can drop its overlapping one.
-  useEffect(() => {
-    if (myWallOpen && window.parent !== window) window.parent.postMessage({ type: 'artpiq:ready' }, '*')
-  }, [myWallOpen])
+  useEffect(() => { tellHostOwnClose(myWallOpen) }, [myWallOpen])
 
   // Closing My Wall in the widget closes the host page's overlay.
   useEffect(() => {
@@ -72,7 +70,7 @@ export default function EmbedPage({ params }: { params: Promise<{ mode: string }
     if (!wallWasOpen.current || m !== 'my-wall') return
     wallWasOpen.current = false
     if (window.parent === window) return
-    window.parent.postMessage({ type: 'artpiq:close' }, '*')
+    tellHostClose()
     // The host keeps this iframe, so be back in My Wall when it reopens.
     openMyWall([])
   }, [myWallOpen, m, openMyWall])

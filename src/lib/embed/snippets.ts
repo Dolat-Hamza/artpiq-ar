@@ -1,4 +1,4 @@
-export type WidgetType = 'my-wall' | 'sample-room'
+export type WidgetType = 'my-wall' | 'sample-room' | 'ar'
 
 export interface WidgetSnippetOptions {
   owner: string
