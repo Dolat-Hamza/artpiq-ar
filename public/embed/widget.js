@@ -46,14 +46,15 @@
     return origin + '/ar/' + encodeURIComponent(el.getAttribute('artwork'));
   }
 
-  // Only our own iframe may drive its dialog; 'ready' means the embed renders its own close.
+  // Only our own iframe may drive its dialog; 'own-close' says whether it currently shows its own close.
   window.addEventListener('message', function (event) {
     var type = event.data && event.data.type;
-    if (event.origin !== origin || (type !== 'artpiq:close' && type !== 'artpiq:ready')) return;
+    if (event.origin !== origin || (type !== 'artpiq:close' && type !== 'artpiq:own-close')) return;
     frames.forEach(function (f) {
-      if (!f.dialog.open || f.iframe.contentWindow !== event.source) return;
-      if (type === 'artpiq:close') f.dialog.close();
-      else f.close.hidden = true;
+      if (f.iframe.contentWindow !== event.source) return;
+      // Own-close state can change while the dialog is shut (e.g. the embed reopens itself).
+      if (type === 'artpiq:own-close') f.close.hidden = event.data.value === true;
+      else if (f.dialog.open) f.dialog.close();
     });
   });
 

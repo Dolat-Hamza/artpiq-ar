@@ -20,7 +20,8 @@ test.use({
 
 const STUB_EMBED = `<!doctype html><title>stub</title>
 <button onclick="parent.postMessage({ type: 'artpiq:close' }, '*')">Close from embed</button>
-<button onclick="parent.postMessage({ type: 'artpiq:ready' }, '*')">Announce own close</button>`
+<button onclick="parent.postMessage({ type: 'artpiq:own-close', value: true }, '*')">Announce own close</button>
+<button onclick="parent.postMessage({ type: 'artpiq:own-close', value: false }, '*')">Withdraw own close</button>`
 
 async function openHostPage(page: Page, app: string, body: string, opts: { htmlStyle?: string } = {}) {
   const script = `<script src="${app}/embed/widget.js" defer></script>`
@@ -246,7 +247,7 @@ test.describe('Squarespace widget loader (embed/widget.js)', () => {
     await expect.poll(() => warnings).toContain('[artpiq-widget] missing owner')
   })
 
-  test('hides its own close button once the embed says it provides one', async ({ page, baseURL }) => {
+  test('shows its own close button only while the embed has none', async ({ page, baseURL }) => {
     await openHostPage(page, appOrigin(baseURL), `%SCRIPT%<artpiq-widget owner="${OWNER}"></artpiq-widget>`)
     const widget = page.locator('artpiq-widget')
     await openDialog(widget, 'Visualise in your home')
@@ -254,10 +255,13 @@ test.describe('Squarespace widget loader (embed/widget.js)', () => {
     await expect(hostClose).toBeVisible()
 
     // Same origin but sent by the top page, not the iframe: must be ignored.
-    await page.evaluate(() => window.postMessage({ type: 'artpiq:ready' }, '*'))
+    await page.evaluate(() => window.postMessage({ type: 'artpiq:own-close', value: true }, '*'))
     await expect(hostClose).toBeVisible()
 
-    await page.frameLocator('artpiq-widget iframe').getByRole('button', { name: 'Announce own close' }).click()
+    const embed = page.frameLocator('artpiq-widget iframe')
+    await embed.getByRole('button', { name: 'Announce own close' }).click()
     await expect(hostClose).toBeHidden()
+    await embed.getByRole('button', { name: 'Withdraw own close' }).click()
+    await expect(hostClose).toBeVisible()
   })
 })
