@@ -55,7 +55,9 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
 
   // My Wall with only this artwork; inside the Squarespace dialog the host hides its close meanwhile.
   const { myWallOpen, setArtworks, openMyWall } = useStore()
-  const openPhoto = () => { setArtworks([aw]); openMyWall([aw.id]) }
+  // Most visitors pick the camera, so My Wall's code only loads on first use.
+  const [wallLoaded, setWallLoaded] = useState(false)
+  const openPhoto = () => { setWallLoaded(true); setArtworks([aw]); openMyWall([aw.id]) }
   useEffect(() => { tellHostOwnClose(myWallOpen) }, [myWallOpen])
   const photoButton = <Button variant="outline" size="lg" fullWidth onClick={openPhoto}>{PHOTO}</Button>
 
@@ -90,7 +92,7 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
             )}
           </div>
         </div>
-        <MyWall />
+        {wallLoaded && <MyWall />}
       </div>
     )
   }
@@ -141,7 +143,7 @@ export default function ArLanding({ artwork: aw, origin, noAr = false }: Props) 
           )}
         </div>
       </div>
-      <MyWall />
+      {wallLoaded && <MyWall />}
     </div>
   )
 }

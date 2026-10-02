@@ -32,9 +32,6 @@ function buildIframe(url: string): string {
 ></iframe>`
 }
 
-// Squarespace product-page snippet — looks like a normal product feature
-// block. Mobile users get a tap-to-AR button, desktop users get the QR.
-// All-inline styles so it survives SQSP's CSS without a template change.
 function buildQrCardHtml(url: string, title: string): string {
   // Uses a free public QR generator that returns a PNG. No script, no auth.
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(url)}`
@@ -59,7 +56,6 @@ export default function ArtworkShareModal({ artwork, origin: originProp, onClose
 
   const url = origin ? `${origin}/ar/${artwork.id}` : `/ar/${artwork.id}`
   const isPublic = (artwork.privacy ?? 'public') === 'public'
-
 
   const payload = useMemo(() => ({
     link: url,
@@ -175,7 +171,10 @@ export default function ArtworkShareModal({ artwork, origin: originProp, onClose
               </div>
             )}
 
-            {tab === 'sqsp' && (
+            {tab === 'sqsp' && !user && (
+              <p className="text-[12px] text-ink-muted">Loading your account…</p>
+            )}
+            {tab === 'sqsp' && user && (
               <SnippetBox snippet={payload.sqsp}>
                 In Squarespace, add a <b>Code</b> block (HTML) where the button should go and paste this.
                 Visitors choose their camera or a photo of their wall; desktops get a QR code for their phone.
