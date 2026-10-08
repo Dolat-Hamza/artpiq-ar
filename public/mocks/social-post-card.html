@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Social post review · mockup</title>
+<style>
+  :root{
+    --ink:#111; --paper:#fff; --line:#e6e6e6; --muted:#737373;
+    --pri:#0095f6; --pri-hover:#1877f2;
+    --bg:#fafafa;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+
+  /* Top bar */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    background:var(--paper); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 16px;
+  }
+  .topbar h1{font-size:15px; font-weight:600; margin:0}
+  .topbar .meta{font-size:12px; color:var(--muted)}
+  .topbar .meta b{color:var(--ink); font-weight:600}
+
+  /* Stage */
+  .stage{
+    max-width:520px; margin:24px auto; padding:0 12px 100px;
+    perspective:1600px;
+  }
+
+  /* Card flip wrapper */
+  .card{
+    position:relative;
+    width:100%;
+    transform-style:preserve-3d;
+    transition:transform .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .card.flipped{ transform:rotateY(180deg) }
+  .face{
+    position:relative;
+    width:100%;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .face.back{
+    position:absolute; inset:0;
+    transform:rotateY(180deg);
+  }
+
+  /* FRONT — IG-like card */
+  .ig-head{ display:flex; align-items:center; gap:10px; padding:10px 14px }
+  .ig-avatar{
+    width:32px; height:32px; border-radius:50%;
+    background:linear-gradient(135deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5);
+    padding:2px;
+  }
+  .ig-avatar > div{
+    width:100%; height:100%; border-radius:50%;
+    background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:700; color:#111;
+  }
+  .ig-handle{ font-size:14px; font-weight:600 }
+  .ig-sub{ font-size:11px; color:var(--muted) }
+  .ig-more{ margin-left:auto; font-size:18px; color:var(--ink); cursor:pointer; padding:4px 8px }
+
+  .ig-media{ position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; touch-action:pan-y; user-select:none }
+  .ig-media .track{
+    display:flex; width:100%; height:100%;
+    transition:transform .35s cubic-bezier(.2,.7,.2,1);
+    will-change:transform;
+  }
+  .ig-media .slide{ flex:0 0 100%; height:100%; position:relative }
+  .ig-media .slide img{ width:100%; height:100%; object-fit:cover; display:block }
+  .ig-media .video-badge{
+    position:absolute; top:10px; right:12px;
+    background:rgba(0,0,0,.55); color:#fff;
+    font-size:11px; padding:3px 8px; border-radius:4px;
+    backdrop-filter:blur(8px); z-index:3;
+  }
+  .ig-media .ver-counter{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,.6); color:#fff;
+    font-size:11px; padding:3px 9px; border-radius:999px;
+    backdrop-filter:blur(6px); z-index:3;
+    font-weight:600;
+  }
+  .ig-media .ver-arrow{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(255,255,255,.85); border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; z-index:3; opacity:.85;
+  }
+  .ig-media .ver-arrow:hover{ opacity:1; background:#fff }
+  .ig-media .ver-arrow.left{ left:8px }
+  .ig-media .ver-arrow.right{ right:8px }
+  .ig-media .ver-arrow:disabled{ opacity:.3; cursor:default }
+  .ig-dots{
+    display:flex; gap:5px; justify-content:center; align-items:center;
+    padding:6px 0 2px;
+  }
+  .ig-dots span{
+    width:6px; height:6px; border-radius:50%;
+    background:#c7c7c7; transition:all .2s;
+  }
+  .ig-dots span.active{ background:var(--pri); width:7px; height:7px }
+
+  .ig-actions{
+    display:flex; align-items:center; gap:14px;
+    padding:10px 14px 4px;
+    font-size:22px;
+  }
+  .ig-actions .spacer{ flex:1 }
+  .ig-actions svg{ display:block; cursor:pointer }
+  .ig-likes{ padding:0 14px; font-size:13px; font-weight:600 }
+  .ig-caption{
+    padding:6px 14px 4px; font-size:14px; line-height:1.4;
+  }
+  .ig-caption b{ font-weight:600; margin-right:6px }
+  .ig-hashtags{ color:#385898; }
+  .ig-comments{
+    padding:4px 14px; font-size:13px; color:var(--muted);
+  }
+  .ig-time{
+    padding:4px 14px 12px; font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em;
+  }
+
+  /* Edit button (overlay on front) */
+  .edit-fab{
+    position:absolute; right:12px; top:12px;
+    background:rgba(0,0,0,.65); color:#fff; font-size:12px;
+    padding:7px 12px; border-radius:999px;
+    backdrop-filter:blur(6px); border:none; cursor:pointer;
+    font-weight:500; letter-spacing:.02em;
+  }
+  .edit-fab:hover{ background:rgba(0,0,0,.8) }
+
+  /* BACK — edit panel */
+  .back-head{
+    display:flex; align-items:center; gap:10px;
+    padding:14px 16px; border-bottom:1px solid var(--line);
+  }
+  .back-head h3{ font-size:14px; font-weight:600; margin:0 }
+  .back-close{ margin-left:auto; font-size:14px; cursor:pointer; color:var(--muted); padding:4px 8px; border:none; background:transparent }
+  .back-body{ padding:14px 16px 18px; max-height:520px; overflow:auto }
+  .field{ margin-bottom:14px }
+  .field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px; font-weight:600 }
+  .field input, .field textarea, .field select{
+    width:100%; padding:8px 10px;
+    border:1px solid var(--line); border-radius:6px;
+    font:inherit; font-size:13px;
+    background:#fafafa;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none; border-color:var(--ink); background:#fff;
+  }
+  .field textarea{ min-height:60px; resize:vertical }
+  .row{ display:flex; gap:10px }
+  .row > *{ flex:1 }
+
+  /* Versions strip */
+  .versions{
+    display:flex; gap:8px; overflow-x:auto; padding:4px 0 6px;
+    margin-bottom:14px;
+    scrollbar-width:thin;
+  }
+  .ver{
+    flex:0 0 64px; height:64px; border-radius:6px; overflow:hidden;
+    border:2px solid transparent; cursor:pointer; position:relative;
+    background:#eee;
+  }
+  .ver img{ width:100%; height:100%; object-fit:cover; display:block }
+  .ver.active{ border-color:var(--ink) }
+  .ver-label{
+    position:absolute; bottom:2px; right:2px;
+    background:rgba(0,0,0,.7); color:#fff;
+    font-size:9px; padding:1px 4px; border-radius:3px;
+  }
+
+  /* Comments */
+  .comments{
+    border-top:1px solid var(--line); padding-top:12px; margin-top:6px;
+  }
+  .comments h4{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px; font-weight:600 }
+  .cmt{ display:flex; gap:8px; margin-bottom:8px; font-size:13px }
+  .cmt b{ font-weight:600; margin-right:4px }
+  .cmt-time{ display:block; font-size:10px; color:var(--muted); margin-top:2px }
+
+  /* Bottom actions (back) */
+  .back-actions{
+    position:sticky; bottom:0;
+    background:var(--paper); padding:10px 16px; border-top:1px solid var(--line);
+    display:flex; gap:8px;
+  }
+  .btn{
+    padding:9px 14px; border-radius:6px; border:1px solid var(--line);
+    background:#fff; cursor:pointer; font:inherit; font-size:13px; font-weight:500;
+  }
+  .btn:hover{ background:#fafafa }
+  .btn.pri{ background:var(--ink); color:#fff; border-color:var(--ink) }
+  .btn.pri:hover{ background:#000 }
+  .btn.gh{ background:transparent }
+
+  /* Nav arrows */
+  .nav{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; gap:8px; align-items:center;
+    background:var(--paper); padding:6px 8px;
+    border:1px solid var(--line); border-radius:999px;
+    box-shadow:0 4px 20px rgba(0,0,0,.08);
+    z-index:30;
+  }
+  .nav button{
+    width:38px; height:38px; border-radius:50%;
+    border:none; background:transparent; cursor:pointer; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nav button:hover{ background:#f1f1f1 }
+  .nav .count{
+    padding:0 10px; font-size:13px; font-weight:600; color:var(--ink);
+  }
+  .nav .count span{ color:var(--muted); font-weight:400 }
+
+  /* Approve chip on front */
+  .approve-pill{
+    position:absolute; left:12px; top:12px; z-index:5;
+    display:flex; gap:6px; align-items:center;
+    background:rgba(0,0,0,.65); color:#fff; backdrop-filter:blur(6px);
+    padding:6px 10px; border-radius:999px;
+    font-size:11px; font-weight:600; letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+  .approve-pill.approved{ background:#22c55e }
+  .approve-pill.changes{ background:#f59e0b }
+  .approve-pill .dot{ width:6px; height:6px; border-radius:50%; background:#fff }
+
+  /* Channel chip */
+  .ch{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#f1f1f1; color:var(--ink);
+    padding:4px 10px; border-radius:999px;
+    font-size:11px; font-weight:600;
+    text-transform:capitalize;
+  }
+  .ch::before{ content:''; width:6px; height:6px; border-radius:50%; background:var(--pri) }
+  .ch.tw::before{ background:#1da1f2 }
+  .ch.ln::before{ background:#0a66c2 }
+  .ch.tt::before{ background:#000 }
+
+  @media (max-width:380px){
+    .ig-handle{ font-size:13px }
+    .stage{ padding:0 6px 100px }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Approval queue</h1>
+  <div class="meta"><b>3</b> pending · 1 approved · 0 changes</div>
+</div>
+
+<div class="stage">
+  <div class="card" id="card">
+
+    <!-- ─────────── FRONT ─────────── -->
+    <div class="face front">
+      <div class="approve-pill" id="status-pill"><span class="dot"></span><span id="status-text">Pending</span></div>
+      <button class="edit-fab" onclick="flipCard()">View more &amp; edit</button>
+
+      <div class="ig-head">
+        <div class="ig-avatar"><div id="avatar-initial">A</div></div>
+        <div>
+          <div class="ig-handle" id="handle">@artpiq.gallery</div>
+          <div class="ig-sub"><span class="ch" id="ch-chip">Instagram</span> · Scheduled <span id="when">Tue, May 26 · 10:00</span></div>
+        </div>
+        <span class="ig-more">…</span>
+      </div>
+
+      <div class="ig-media" id="media">
+        <div class="ver-counter" id="ver-counter">A · 1 / 3</div>
+        <div class="video-badge" id="vid-badge" style="display:none">▶ Reel</div>
+        <button class="ver-arrow left" id="ver-prev" aria-label="Previous version">‹</button>
+        <button class="ver-arrow right" id="ver-next" aria-label="Next version">›</button>
+        <div class="track" id="track"></div>
+      </div>
+      <div class="ig-dots" id="dots"></div>
+
+      <div class="ig-actions">
+        <!-- heart -->
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <!-- comment -->
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <!-- share -->
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <div class="spacer"></div>
+        <!-- bookmark -->
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+      </div>
+
+      <div class="ig-likes" id="likes">1,248 likes</div>
+      <div class="ig-caption">
+        <b id="caption-handle">@artpiq.gallery</b>
+        <span id="caption-body">New piece up this week — “Quiet Threshold” by Lena Park. Limited edition of 12.</span>
+        <span class="ig-hashtags" id="hashtags">#contemporaryart #lenapark #gallery #newworks</span>
+      </div>
+      <div class="ig-comments" id="comments-line">View all 42 comments</div>
+      <div class="ig-time" id="time-line">2 hours ago</div>
+    </div>
+
+    <!-- ─────────── BACK ─────────── -->
+    <div class="face back">
+      <div class="back-head">
+        <h3>Edit post · <span id="back-channel">Instagram</span></h3>
+        <button class="back-close" onclick="flipCard()">✕ close</button>
+      </div>
+
+      <div class="back-body">
+
+        <div class="field">
+          <label>Versions (look &amp; feel)</label>
+          <div class="versions" id="versions"></div>
+        </div>
+
+        <div class="field">
+          <label>Purpose</label>
+          <select id="purpose">
+            <option>Awareness · new work announcement</option>
+            <option>Sale · drive enquiries on a piece</option>
+            <option>Audience · build community + reach</option>
+            <option>Event · invite to opening / preview</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Scheduled for</label>
+            <input id="sched" type="datetime-local" value="2026-05-26T10:00" />
+          </div>
+          <div class="field">
+            <label>Channel</label>
+            <select id="back-ch-input">
+              <option>Instagram</option>
+              <option>Twitter / X</option>
+              <option>LinkedIn</option>
+              <option>TikTok</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Caption</label>
+          <textarea id="caption-edit">New piece up this week — "Quiet Threshold" by Lena Park. Limited edition of 12.</textarea>
+        </div>
+
+        <div class="field">
+          <label>Hashtags</label>
+          <input id="tags-edit" value="#contemporaryart #lenapark #gallery #newworks" />
+        </div>
+
+        <div class="comments">
+          <h4>Comments &amp; change requests</h4>
+          <div class="cmt"><b>Thomas:</b> Can we make the caption shorter? The first line gets cut off in IG preview. <span class="cmt-time">12 min ago</span></div>
+          <div class="cmt"><b>Dolat:</b> Use Version B — wall colour matches her palette better. <span class="cmt-time">5 min ago</span></div>
+          <div class="field" style="margin-top:8px;margin-bottom:0">
+            <textarea placeholder="Add a comment or change request…"></textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="back-actions">
+        <button class="btn gh" onclick="setStatus('changes')">Request changes</button>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="flipCard()">Cancel</button>
+        <button class="btn pri" onclick="setStatus('approved'); flipCard()">Approve</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="nav" role="navigation" aria-label="Post navigation">
+  <button id="prev" aria-label="Previous post">‹</button>
+  <div class="count"><span id="idx">1</span><span> / </span><span id="total">4</span></div>
+  <button id="next" aria-label="Next post">›</button>
+</div>
+
+<script>
+  // Sample data — versions now carry image+caption+hashtags so each
+  // 'version' is a full alternative look-and-feel.
+  const POSTS = [
+    {
+      handle:'@artpiq.gallery', avatar:'A',
+      channel:'Instagram', ch_class:'',
+      when:'Tue, May 26 · 10:00', sched:'2026-05-26T10:00',
+      likes:'1,248 likes',
+      comments:'View all 42 comments',
+      time:'Scheduled · in 18 hours',
+      isVideo:false,
+      versions:[
+        {
+          img:'https://images.unsplash.com/photo-1577720580479-7d839d829c73?w=1080&q=82',
+          caption:'New piece up this week — "Quiet Threshold" by Lena Park. Limited edition of 12.',
+          hashtags:'#contemporaryart #lenapark #gallery #newworks',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1080&q=82',
+          caption:'Quiet Threshold — Lena Park\'s newest. Edition of 12, framed by the artist.',
+          hashtags:'#newwork #lenapark #limitededition #artcollector',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1604014237800-1c9102c219da?w=1080&q=82',
+          caption:'Twelve only. Quiet Threshold by Lena Park, in the gallery now.',
+          hashtags:'#availablework #lenapark #contemporaryart',
+        },
+      ],
+      activeVer:0,
+      status:'pending',
+    },
+    {
+      handle:'@artpiq.gallery', avatar:'A',
+      channel:'Instagram Reel', ch_class:'',
+      when:'Wed, May 27 · 18:30', sched:'2026-05-27T18:30',
+      likes:'3,402 views',
+      comments:'View all 18 comments',
+      time:'Scheduled · in 2 days',
+      isVideo:true,
+      versions:[
+        {
+          img:'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1080&q=82',
+          caption:'Behind the scenes — installing "Northern Threshold". The crate is the easy part.',
+          hashtags:'#bts #installation #contemporaryart',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1080&q=82',
+          caption:'Install day. The walls were the easy part — wait for the wide shot.',
+          hashtags:'#bts #installday #artgallery',
+        },
+      ],
+      activeVer:0,
+      status:'pending',
+    },
+    {
+      handle:'@artpiq.gallery', avatar:'A',
+      channel:'Twitter / X', ch_class:'tw',
+      when:'Thu, May 28 · 09:00', sched:'2026-05-28T09:00',
+      likes:'412 likes · 38 retweets',
+      comments:'12 replies',
+      time:'Scheduled · in 3 days',
+      isVideo:false,
+      versions:[
+        {
+          img:'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1080&q=82',
+          caption:'Now booking private viewings of the spring collection. DM for slots.',
+          hashtags:'#privatecollection #artmarket',
+        },
+      ],
+      activeVer:0,
+      status:'changes',
+    },
+    {
+      handle:'@artpiq.gallery', avatar:'A',
+      channel:'LinkedIn', ch_class:'ln',
+      when:'Fri, May 29 · 11:00', sched:'2026-05-29T11:00',
+      likes:'287 reactions',
+      comments:'View all 24 comments',
+      time:'Scheduled · in 4 days',
+      isVideo:false,
+      versions:[
+        {
+          img:'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=1080&q=82',
+          caption:'We sat down with Lena Park to talk about her practice. Full feature on the blog.',
+          hashtags:'#artistinterview #contemporaryart',
+        },
+        {
+          img:'https://images.unsplash.com/photo-1535385793343-27dff1413c5a?w=1080&q=82',
+          caption:'Read: a long-form sit-down with Lena Park on her process, materials, and what\'s next.',
+          hashtags:'#artistspotlight #studiovisit',
+        },
+      ],
+      activeVer:0,
+      status:'approved',
+    },
+  ]
+
+  let i = 0
+  const card = document.getElementById('card')
+  const track = document.getElementById('track')
+  const media = document.getElementById('media')
+  const dotsEl = document.getElementById('dots')
+
+  function flipCard(){ card.classList.toggle('flipped') }
+
+  function setStatus(s){
+    POSTS[i].status = s
+    paint()
+  }
+
+  // Pick active version's caption + hashtags + image to render IG-style
+  function currentVer(p){ return p.versions[p.activeVer] || p.versions[0] }
+
+  // Approve current version + auto-advance to next *pending* post (Thomas's
+  // requested flow). Falls back to next post if no pending left.
+  function approveAndNext(){
+    POSTS[i].status = 'approved'
+    flipCard()  // close back if open
+    // small delay so user sees the status pill flip
+    setTimeout(() => {
+      const start = i
+      let next = i
+      for (let step = 1; step <= POSTS.length; step++){
+        const cand = (start + step) % POSTS.length
+        if (POSTS[cand].status === 'pending'){ next = cand; break }
+        // if no pending found by end, just advance one
+        if (step === POSTS.length) next = (start + 1) % POSTS.length
+      }
+      i = next
+      paint()
+    }, 220)
+  }
+
+  // Build the carousel track (slides for each version)
+  function buildTrack(p){
+    track.innerHTML = ''
+    p.versions.forEach(v => {
+      const s = document.createElement('div')
+      s.className = 'slide'
+      const img = new Image()
+      img.src = v.img
+      img.alt = 'post version'
+      s.appendChild(img)
+      track.appendChild(s)
+    })
+    track.style.transform = `translateX(-${p.activeVer * 100}%)`
+  }
+  function buildDots(p){
+    dotsEl.innerHTML = ''
+    if (p.versions.length <= 1) return
+    p.versions.forEach((_, idx) => {
+      const d = document.createElement('span')
+      if (idx === p.activeVer) d.className = 'active'
+      dotsEl.appendChild(d)
+    })
+  }
+
+  function paint(){
+    const p = POSTS[i]
+    const v = currentVer(p)
+
+    // Header
+    document.getElementById('handle').textContent = p.handle
+    document.getElementById('caption-handle').textContent = p.handle
+    document.getElementById('avatar-initial').textContent = p.avatar
+    document.getElementById('ch-chip').textContent = p.channel
+    document.getElementById('ch-chip').className = 'ch ' + p.ch_class
+    document.getElementById('when').textContent = p.when
+
+    // Media carousel
+    buildTrack(p)
+    buildDots(p)
+    document.getElementById('vid-badge').style.display = p.isVideo ? 'block' : 'none'
+    const verLetter = String.fromCharCode(65 + p.activeVer)
+    document.getElementById('ver-counter').textContent =
+      p.versions.length > 1
+        ? `Version ${verLetter} · ${p.activeVer+1} / ${p.versions.length}`
+        : 'Only version'
+    document.getElementById('ver-prev').disabled = p.activeVer === 0
+    document.getElementById('ver-next').disabled = p.activeVer === p.versions.length - 1
+    // Hide arrows entirely if single version
+    const showArrows = p.versions.length > 1
+    document.getElementById('ver-prev').style.display = showArrows ? 'flex' : 'none'
+    document.getElementById('ver-next').style.display = showArrows ? 'flex' : 'none'
+
+    // Caption etc — pulled from active version
+    document.getElementById('likes').textContent = p.likes
+    document.getElementById('caption-body').textContent = v.caption + ' '
+    document.getElementById('hashtags').textContent = v.hashtags
+    document.getElementById('comments-line').textContent = p.comments
+    document.getElementById('time-line').textContent = p.time
+
+    // Back panel
+    document.getElementById('back-channel').textContent = p.channel
+    document.getElementById('sched').value = p.sched
+    document.getElementById('caption-edit').value = v.caption
+    document.getElementById('tags-edit').value = v.hashtags
+
+    // Back-side version strip
+    const vs = document.getElementById('versions')
+    vs.innerHTML = ''
+    p.versions.forEach((ver, idx) => {
+      const d = document.createElement('div')
+      d.className = 'ver' + (idx === p.activeVer ? ' active' : '')
+      d.innerHTML = '<img src="'+ver.img+'"><div class="ver-label">'+String.fromCharCode(65+idx)+'</div>'
+      d.onclick = () => { p.activeVer = idx; paint() }
+      vs.appendChild(d)
+    })
+
+    // Status pill
+    const pill = document.getElementById('status-pill')
+    const txt = document.getElementById('status-text')
+    pill.className = 'approve-pill ' + (p.status === 'approved' ? 'approved' : p.status === 'changes' ? 'changes' : '')
+    txt.textContent = p.status === 'approved' ? `Approved · ver ${verLetter}` : p.status === 'changes' ? 'Changes requested' : 'Pending'
+
+    // Bottom nav count
+    document.getElementById('idx').textContent = (i+1)
+    document.getElementById('total').textContent = POSTS.length
+
+    // Top bar metrics
+    const counts = POSTS.reduce((a,p)=>{ a[p.status]=(a[p.status]||0)+1; return a },{})
+    document.querySelector('.topbar .meta').innerHTML =
+      '<b>'+(counts.pending||0)+'</b> pending · '+
+      (counts.approved||0)+' approved · '+
+      (counts.changes||0)+' changes'
+  }
+
+  // Post navigation
+  function go(d){
+    if (card.classList.contains('flipped')) card.classList.remove('flipped')
+    i = (i + d + POSTS.length) % POSTS.length
+    paint()
+  }
+  // Version cycling within current post
+  function cycleVer(d){
+    const p = POSTS[i]
+    const next = p.activeVer + d
+    if (next < 0 || next >= p.versions.length) return
+    p.activeVer = next
+    paint()
+  }
+
+  document.getElementById('prev').onclick = () => go(-1)
+  document.getElementById('next').onclick = () => go(1)
+  document.getElementById('ver-prev').onclick = () => cycleVer(-1)
+  document.getElementById('ver-next').onclick = () => cycleVer(1)
+
+  // Wire Approve / Request changes / Cancel
+  document.querySelectorAll('.back-actions .btn').forEach(b => {
+    const t = b.textContent.trim().toLowerCase()
+    if (t === 'approve') b.onclick = approveAndNext
+    if (t === 'request changes') b.onclick = () => { setStatus('changes'); flipCard() }
+  })
+
+  // Keyboard:
+  //   ← / →  inside an open carousel = cycle versions, else = navigate posts
+  //   ↑ / ↓  always navigate posts
+  //   Enter  flip card
+  //   Esc    close back
+  document.addEventListener('keydown', (e) => {
+    const flipped = card.classList.contains('flipped')
+    if (e.key === 'ArrowLeft')  { if (flipped) go(-1); else cycleVer(-1) }
+    if (e.key === 'ArrowRight') { if (flipped) go(1);  else cycleVer(1)  }
+    if (e.key === 'ArrowUp')    go(-1)
+    if (e.key === 'ArrowDown')  go(1)
+    if (e.key === 'Escape' && flipped) flipCard()
+    if (e.key === 'Enter'  && !flipped) flipCard()
+  })
+
+  // Swipe on the MEDIA = cycle versions.
+  // Swipe outside the media (anywhere else on body) = navigate posts.
+  function attachSwipe(el, onSwipe){
+    let sx = null, sy = null
+    el.addEventListener('touchstart', e => {
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY
+    }, {passive:true})
+    el.addEventListener('touchend', e => {
+      if (sx === null) return
+      const dx = e.changedTouches[0].clientX - sx
+      const dy = e.changedTouches[0].clientY - sy
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) onSwipe(dx > 0 ? -1 : 1)
+      sx = null; sy = null
+    }, {passive:true})
+  }
+  attachSwipe(media, d => cycleVer(d))
+  // Body-level swipe for post nav, but ignore swipes that started inside media
+  let bodySx = null, bodyInMedia = false
+  document.addEventListener('touchstart', e => {
+    bodySx = e.touches[0].clientX
+    bodyInMedia = !!e.target.closest('#media, .ig-actions, .back-body, .back-actions, .nav')
+  }, {passive:true})
+  document.addEventListener('touchend', e => {
+    if (bodySx === null || bodyInMedia) { bodySx = null; return }
+    const dx = e.changedTouches[0].clientX - bodySx
+    if (Math.abs(dx) > 60) go(dx > 0 ? -1 : 1)
+    bodySx = null
+  }, {passive:true})
+
+  paint()
+</script>
+
+</body>
+</html>
