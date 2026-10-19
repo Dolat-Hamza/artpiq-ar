@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/db/types'
 import { NextResponse } from 'next/server'
 
 /**
@@ -19,7 +20,7 @@ import { NextResponse } from 'next/server'
 export async function requireAuth(
   request: Request,
   options?: { requireOwner?: string },
-): Promise<{ user: { id: string; email?: string } } | NextResponse> {
+): Promise<{ user: { id: string; email?: string }; client: SupabaseClient<Database> } | NextResponse> {
   const auth = request.headers.get('authorization') ?? request.headers.get('Authorization') ?? ''
   const token = auth.replace(/^Bearer\s+/i, '').trim()
   if (!token) {
@@ -30,7 +31,7 @@ export async function requireAuth(
   if (!url || !key) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
   }
-  const client = createClient(url, key, {
+  const client = createClient<Database>(url, key, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
@@ -41,5 +42,6 @@ export async function requireAuth(
   if (options?.requireOwner && data.user.id !== options.requireOwner) {
     return NextResponse.json({ error: 'Not allowed for this owner' }, { status: 403 })
   }
-  return { user: { id: data.user.id, email: data.user.email ?? undefined } }
+  // The client acts as this user, so RLS scopes every query to their rows.
+  return { user: { id: data.user.id, email: data.user.email ?? undefined }, client }
 }

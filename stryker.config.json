@@ -13,7 +13,9 @@
     "src/lib/network/ssrf.ts",
     "src/lib/network/safeFetch.ts",
     "src/lib/validation/uuid.ts",
-    "src/lib/embed/hostMessages.ts"
+    "src/lib/embed/hostMessages.ts",
+    "src/lib/sqsp/products.ts",
+    "src/lib/sqsp/syncPlan.ts"
   ],
   "reporters": [
     "clear-text",

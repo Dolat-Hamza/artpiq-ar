@@ -1,5 +1,6 @@
 import { Artwork, ArtworkStatus, ArtworkType, Orientation, Privacy } from '@/types'
 import { Database } from './types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from './client'
 
 type Row = Database['public']['Tables']['artworks']['Row']
@@ -123,6 +124,24 @@ export async function listMyArtworks(ownerId: string, opts?: { limit?: number })
     .limit(opts?.limit ?? LIST_ARTWORK_DEFAULT_LIMIT)
   if (error) throw error
   return (data ?? []).map(rowToArtwork)
+}
+
+// Supabase caps a response at 1000 rows, so page until a short page.
+export async function listAllOwnerArtworks(client: SupabaseClient<Database>, ownerId: string): Promise<Artwork[]> {
+  const PAGE = 1000
+  const rows: Row[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client
+      .from('artworks')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...(data ?? []))
+    if (!data || data.length < PAGE) break
+  }
+  return rows.map(rowToArtwork)
 }
 
 // privacy filter is explicit: the discover RLS policy also exposes non-public rows.
