@@ -126,20 +126,22 @@ export async function listMyArtworks(ownerId: string, opts?: { limit?: number })
   return (data ?? []).map(rowToArtwork)
 }
 
-// Supabase caps a response at 1000 rows, so page until a short page.
+// Pages until empty because the server may cap rows below PAGE; id breaks created_at ties
+// (bulk imports share one timestamp), otherwise pages overlap and skip rows.
 export async function listAllOwnerArtworks(client: SupabaseClient<Database>, ownerId: string): Promise<Artwork[]> {
   const PAGE = 1000
   const rows: Row[] = []
-  for (let from = 0; ; from += PAGE) {
+  for (;;) {
     const { data, error } = await client
       .from('artworks')
       .select('*')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: true })
-      .range(from, from + PAGE - 1)
+      .order('id', { ascending: true })
+      .range(rows.length, rows.length + PAGE - 1)
     if (error) throw error
-    rows.push(...(data ?? []))
-    if (!data || data.length < PAGE) break
+    if (!data?.length) break
+    rows.push(...data)
   }
   return rows.map(rowToArtwork)
 }
