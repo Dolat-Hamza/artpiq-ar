@@ -15,10 +15,12 @@ export async function POST(req: Request) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
 
-  const owner = process.env.SQUARESPACE_SYNC_OWNER_ID
+  // Comma-separated ArtPiq accounts allowed to sync this store into their own catalogue.
+  const owners = (process.env.SQUARESPACE_SYNC_OWNER_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean)
   const apiKey = process.env.SQUARESPACE_API_KEY
-  if (!owner || !apiKey) return NextResponse.json({ error: 'Squarespace sync is not configured' }, { status: 503 })
-  if (auth.user.id !== owner) return NextResponse.json({ error: 'Not allowed for this owner' }, { status: 403 })
+  if (!owners.length || !apiKey) return NextResponse.json({ error: 'Squarespace sync is not configured' }, { status: 503 })
+  if (!owners.includes(auth.user.id)) return NextResponse.json({ error: 'Not allowed for this owner' }, { status: 403 })
+  const owner = auth.user.id
 
   const apply = (await req.json().catch(() => ({}))).apply === true
 
